@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:ganteng@localhost:5432/project-paramata?schema=public"
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  name         String
+  email        String         @unique
+  password     String
+  roleId       Int            @map("role_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  role         Role           @relation(fields: [roleId], references: [id])
+  requests     Request[]
+  approvals    Request[]      @relation("ApprovedBy")
+  activities   ActivityLog[]
+  notifications Notification[]
+  documents    Document[]     @relation("UploadedBy")
+  itemHistory  ItemHistory[]  @relation("PerformedBy")
+
+  @@map("users")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  items       Item[]
+
+  @@map("categories")
+}
+
+model Status {
+  id          Int         @id @default(autoincrement())
+  type        String      // request, rental, calibration, item
+  name        String      // pending, approved, etc
+  items       Item[]
+  requests    Request[]
+  rentals     Rental[]
+  calibrations Calibration[]
+
+  @@map("statuses")
+}
+
+model Item {
+  id            Int           @id @default(autoincrement())
+  name          String
+  categoryId    Int           @map("category_id")
+  specification String?
+  serialNumber  String?       @map("serial_number")
+  statusId      Int           @map("status_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  category      Category      @relation(fields: [categoryId], references: [id])
+  status        Status        @relation(fields: [statusId], references: [id])
+  requests      Request[]
+  itemHistory   ItemHistory[]
+
+  @@map("items")
+}
+
+model Request {
+  id            Int           @id @default(autoincrement())
+  userId        Int           @map("user_id")
+  itemId        Int           @map("item_id")
+  requestType   String        @map("request_type") // rental / calibration
+  reason        String?
+  approvedBy    Int?          @map("approved_by")
+  requestDate   DateTime      @map("request_date")
+  statusId      Int           @map("status_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  user          User          @relation(fields: [userId], references: [id])
+  item          Item          @relation(fields: [itemId], references: [id])
+  approver      User?         @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  status        Status        @relation(fields: [statusId], references: [id])
+  rental        Rental?
+  calibration   Calibration?
+  documents     Document[]
+  itemHistory   ItemHistory[] @relation("RelatedRequest")
+
+  @@map("requests")
+}
+
+model Rental {
+  id               Int       @id @default(autoincrement())
+  requestId        Int       @unique @map("request_id")
+  startDate        DateTime  @map("start_date") 
+  endDate          DateTime  @map("end_date")
+  actualReturnDate DateTime? @map("actual_return_date")
+  fineAmount       Decimal?  @map("fine_amount") @db.Decimal(10, 2)
+  statusId         Int       @map("status_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  request          Request   @relation(fields: [requestId], references: [id])
+  status           Status    @relation(fields: [statusId], references: [id])
+
+  @@map("rentals")
+}
+
+model Calibration {
+  id              Int       @id @default(autoincrement())
+  requestId       Int       @unique @map("request_id")
+  calibrationDate DateTime  @map("calibration_date")
+  result          String?
+  certificateUrl  String?   @map("certificate_url")
+  statusId        Int       @map("status_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  request         Request   @relation(fields: [requestId], references: [id])
+  status          Status    @relation(fields: [statusId], references: [id])
+
+  @@map("calibrations")
+}
+
+model ItemHistory {
+  id               Int      @id @default(autoincrement())
+  itemId           Int      @map("item_id")
+  activityType     String   @map("activity_type") // rental, calibration, maintenance
+  relatedRequestId Int?     @map("related_request_id")
+  description      String?
+  performedBy      Int      @map("performed_by")
+  date             DateTime
+  item             Item     @relation(fields: [itemId], references: [id])
+  relatedRequest   Request? @relation("RelatedRequest", fields: [relatedRequestId], references: [id])
+  performer        User     @relation("PerformedBy", fields: [performedBy], references: [id])
+
+  @@map("item_history")
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  activity  String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model DocumentType {
+  id       Int        @id @default(autoincrement())
+  name     String
+  documents Document[]
+
+  @@map("document_types")
+}
+
+model Document {
+  id          Int          @id @default(autoincrement())
+  requestId   Int          @map("request_id")
+  fileName    String       @map("file_name")
+  fileUrl     String       @map("file_url")
+  uploadedBy  Int          @map("uploaded_by")
+  typeId      Int          @map("type_id")
+  uploadedAt  DateTime     @default(now()) @map("uploaded_at")
+  request     Request      @relation(fields: [requestId], references: [id])
+  uploader    User         @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  documentType DocumentType @relation(fields: [typeId], references: [id])
+
+  @@map("documents")
+}
