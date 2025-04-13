@@ -126,7 +126,7 @@ export default function CategoriesPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 className="text-2xl font-semibold text-gray-900">Categories</h1>
         {!showForm && (
           <button
