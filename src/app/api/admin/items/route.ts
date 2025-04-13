@@ -60,7 +60,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, categoryId, specification, serialNumber, statusId } = body;
+    const { name, categoryId, specification, serialNumber, statusId, lastVerifiedDate } = body;
     
     // Validation
     if (!name) {
@@ -118,7 +118,8 @@ export async function POST(request: Request) {
         categoryId: parseInt(categoryId),
         specification,
         serialNumber,
-        statusId: parseInt(statusId)
+        statusId: parseInt(statusId),
+        lastVerifiedDate: lastVerifiedDate || null
       },
       include: {
         category: true,

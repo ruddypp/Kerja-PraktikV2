@@ -20,6 +20,7 @@ interface Item {
   name: string;
   specification: string | null;
   serialNumber: string | null;
+  lastVerifiedDate: string | null;
   category: Category;
   status: Status;
 }
@@ -37,7 +38,8 @@ export default function InventoryPage() {
     categoryId: '',
     specification: '',
     serialNumber: '',
-    statusId: ''
+    statusId: '',
+    lastVerifiedDate: ''
   });
   const [isEditing, setIsEditing] = useState(false);
   
@@ -144,6 +146,8 @@ export default function InventoryPage() {
       
       const method = isEditing ? 'PATCH' : 'POST';
       
+      const lastVerified = formData.lastVerifiedDate ? new Date(formData.lastVerifiedDate).toISOString() : null;
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -154,7 +158,8 @@ export default function InventoryPage() {
           categoryId: formData.categoryId,
           specification: formData.specification || null,
           serialNumber: formData.serialNumber || null,
-          statusId: formData.statusId
+          statusId: formData.statusId,
+          lastVerifiedDate: lastVerified
         })
       });
       
@@ -170,7 +175,8 @@ export default function InventoryPage() {
         categoryId: '', 
         specification: '', 
         serialNumber: '', 
-        statusId: '' 
+        statusId: '',
+        lastVerifiedDate: ''
       });
       setIsEditing(false);
       setShowForm(false);
@@ -181,13 +187,19 @@ export default function InventoryPage() {
   };
 
   const handleEdit = (item: Item) => {
+    // Format date for input if it exists
+    const lastVerifiedDate = item.lastVerifiedDate 
+      ? new Date(item.lastVerifiedDate).toISOString().split('T')[0]
+      : '';
+
     setFormData({
       id: item.id,
       name: item.name,
       categoryId: String(item.category.id),
       specification: item.specification || '',
       serialNumber: item.serialNumber || '',
-      statusId: String(item.status.id)
+      statusId: String(item.status.id),
+      lastVerifiedDate: lastVerifiedDate
     });
     setIsEditing(true);
     setShowForm(true);
@@ -221,10 +233,18 @@ export default function InventoryPage() {
       categoryId: '', 
       specification: '', 
       serialNumber: '', 
-      statusId: '' 
+      statusId: '',
+      lastVerifiedDate: ''
     });
     setIsEditing(false);
     setShowForm(false);
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Not verified';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
   return (
@@ -232,6 +252,12 @@ export default function InventoryPage() {
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-900">Inventory Management</h1>
         <div className="flex space-x-4">
+          <Link
+            href="/admin/inventory/schedules"
+            className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+          >
+            Inventory Schedules
+          </Link>
           <Link
             href="/admin/inventory/categories"
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -328,6 +354,19 @@ export default function InventoryPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label htmlFor="lastVerifiedDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Verified Date
+                </label>
+                <input
+                  type="date"
+                  id="lastVerifiedDate"
+                  name="lastVerifiedDate"
+                  value={formData.lastVerifiedDate}
+                  onChange={handleFormChange}
+                  className="form-input"
+                />
               </div>
               <div className="md:col-span-2">
                 <label htmlFor="specification" className="block text-sm font-medium text-gray-700 mb-1">
@@ -452,6 +491,9 @@ export default function InventoryPage() {
                   Serial Number
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                  Last Verified
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-800 uppercase tracking-wider">
@@ -482,10 +524,18 @@ export default function InventoryPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-800">
+                      {formatDate(item.lastVerifiedDate)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                       ${item.status.name === 'Available' && 'bg-green-100 text-green-800'}
                       ${item.status.name === 'In Use' && 'bg-yellow-100 text-yellow-800'}
+                      ${item.status.name === 'In Calibration' && 'bg-blue-100 text-blue-800'}
                       ${item.status.name === 'Maintenance' && 'bg-red-100 text-red-800'}
+                      ${item.status.name === 'Rented' && 'bg-purple-100 text-purple-800'}
+                      ${item.status.name === 'Damaged' && 'bg-orange-100 text-orange-800'}
                       ${item.status.name === 'Retired' && 'bg-gray-100 text-gray-800'}
                     `}>
                       {item.status.name}

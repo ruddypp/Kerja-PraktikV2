@@ -156,6 +156,7 @@ exports.Prisma.ItemScalarFieldEnum = {
   specification: 'specification',
   serialNumber: 'serialNumber',
   statusId: 'statusId',
+  lastVerifiedDate: 'lastVerifiedDate',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -188,10 +189,24 @@ exports.Prisma.RentalScalarFieldEnum = {
 exports.Prisma.CalibrationScalarFieldEnum = {
   id: 'id',
   requestId: 'requestId',
+  vendorId: 'vendorId',
   calibrationDate: 'calibrationDate',
   result: 'result',
   certificateUrl: 'certificateUrl',
   statusId: 'statusId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.VendorScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  address: 'address',
+  contactPerson: 'contactPerson',
+  contactEmail: 'contactEmail',
+  contactPhone: 'contactPhone',
+  services: 'services',
+  rating: 'rating',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -229,11 +244,52 @@ exports.Prisma.DocumentTypeScalarFieldEnum = {
 exports.Prisma.DocumentScalarFieldEnum = {
   id: 'id',
   requestId: 'requestId',
+  projectId: 'projectId',
   fileName: 'fileName',
   fileUrl: 'fileUrl',
   uploadedBy: 'uploadedBy',
   typeId: 'typeId',
+  version: 'version',
+  status: 'status',
+  isCheckedOut: 'isCheckedOut',
+  checkedOutBy: 'checkedOutBy',
   uploadedAt: 'uploadedAt'
+};
+
+exports.Prisma.DocumentVersionScalarFieldEnum = {
+  id: 'id',
+  documentId: 'documentId',
+  version: 'version',
+  fileUrl: 'fileUrl',
+  uploadedBy: 'uploadedBy',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ProjectScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProjectMemberScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  userId: 'userId',
+  role: 'role'
+};
+
+exports.Prisma.InventoryScheduleScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  frequency: 'frequency',
+  nextDate: 'nextDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -261,11 +317,16 @@ exports.Prisma.ModelName = {
   Request: 'Request',
   Rental: 'Rental',
   Calibration: 'Calibration',
+  Vendor: 'Vendor',
   ItemHistory: 'ItemHistory',
   ActivityLog: 'ActivityLog',
   Notification: 'Notification',
   DocumentType: 'DocumentType',
-  Document: 'Document'
+  Document: 'Document',
+  DocumentVersion: 'DocumentVersion',
+  Project: 'Project',
+  ProjectMember: 'ProjectMember',
+  InventorySchedule: 'InventorySchedule'
 };
 
 /**

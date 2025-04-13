@@ -26,20 +26,21 @@ model Role {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  password      String
-  roleId        Int            @map("role_id")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  role          Role           @relation(fields: [roleId], references: [id])
-  requests      Request[]
-  approvals     Request[]      @relation("ApprovedBy")
-  activities    ActivityLog[]
-  notifications Notification[]
-  documents     Document[]     @relation("UploadedBy")
-  itemHistory   ItemHistory[]  @relation("PerformedBy")
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  password       String
+  roleId         Int             @map("role_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  role           Role            @relation(fields: [roleId], references: [id])
+  requests       Request[]
+  approvals      Request[]       @relation("ApprovedBy")
+  activities     ActivityLog[]
+  notifications  Notification[]
+  documents      Document[]      @relation("UploadedBy")
+  itemHistory    ItemHistory[]   @relation("PerformedBy")
+  projectMembers ProjectMember[]
 
   @@map("users")
 }
@@ -68,18 +69,19 @@ model Status {
 }
 
 model Item {
-  id            Int           @id @default(autoincrement())
-  name          String
-  categoryId    Int           @map("category_id")
-  specification String?
-  serialNumber  String?       @map("serial_number")
-  statusId      Int           @map("status_id")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  category      Category      @relation(fields: [categoryId], references: [id])
-  status        Status        @relation(fields: [statusId], references: [id])
-  requests      Request[]
-  itemHistory   ItemHistory[]
+  id               Int           @id @default(autoincrement())
+  name             String
+  categoryId       Int           @map("category_id")
+  specification    String?
+  serialNumber     String?       @map("serial_number")
+  statusId         Int           @map("status_id")
+  lastVerifiedDate DateTime?     @map("last_verified_date")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  category         Category      @relation(fields: [categoryId], references: [id])
+  status           Status        @relation(fields: [statusId], references: [id])
+  requests         Request[]
+  itemHistory      ItemHistory[]
 
   @@map("items")
 }
@@ -88,7 +90,7 @@ model Request {
   id          Int           @id @default(autoincrement())
   userId      Int           @map("user_id")
   itemId      Int           @map("item_id")
-  requestType String        @map("request_type") // rental / calibration
+  requestType String        @map("request_type") // usage, return, rental, calibration
   reason      String?
   approvedBy  Int?          @map("approved_by")
   requestDate DateTime      @map("request_date")
@@ -126,6 +128,7 @@ model Rental {
 model Calibration {
   id              Int      @id @default(autoincrement())
   requestId       Int      @unique @map("request_id")
+  vendorId        Int?     @map("vendor_id")
   calibrationDate DateTime @map("calibration_date")
   result          String?
   certificateUrl  String?  @map("certificate_url")
@@ -134,14 +137,31 @@ model Calibration {
   updatedAt       DateTime @updatedAt @map("updated_at")
   request         Request  @relation(fields: [requestId], references: [id])
   status          Status   @relation(fields: [statusId], references: [id])
+  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
 
   @@map("calibrations")
+}
+
+model Vendor {
+  id            Int           @id @default(autoincrement())
+  name          String
+  address       String?
+  contactPerson String?       @map("contact_person")
+  contactEmail  String?       @map("contact_email")
+  contactPhone  String?       @map("contact_phone")
+  services      String?
+  rating        Decimal?      @db.Decimal(3, 2)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  calibrations  Calibration[]
+
+  @@map("vendors")
 }
 
 model ItemHistory {
   id               Int      @id @default(autoincrement())
   itemId           Int      @map("item_id")
-  activityType     String   @map("activity_type") // rental, calibration, maintenance
+  activityType     String   @map("activity_type") // rental, calibration, maintenance, inventory_check
   relatedRequestId Int?     @map("related_request_id")
   description      String?
   performedBy      Int      @map("performed_by")
@@ -183,16 +203,73 @@ model DocumentType {
 }
 
 model Document {
-  id           Int          @id @default(autoincrement())
-  requestId    Int          @map("request_id")
-  fileName     String       @map("file_name")
-  fileUrl      String       @map("file_url")
-  uploadedBy   Int          @map("uploaded_by")
-  typeId       Int          @map("type_id")
-  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
-  request      Request      @relation(fields: [requestId], references: [id])
-  uploader     User         @relation("UploadedBy", fields: [uploadedBy], references: [id])
-  documentType DocumentType @relation(fields: [typeId], references: [id])
+  id               Int               @id @default(autoincrement())
+  requestId        Int?              @map("request_id")
+  projectId        Int?              @map("project_id")
+  fileName         String            @map("file_name")
+  fileUrl          String            @map("file_url")
+  uploadedBy       Int               @map("uploaded_by")
+  typeId           Int               @map("type_id")
+  version          Int               @default(1)
+  status           String            @default("draft") // draft, final, archived
+  isCheckedOut     Boolean           @default(false) @map("is_checked_out")
+  checkedOutBy     Int?              @map("checked_out_by")
+  uploadedAt       DateTime          @default(now()) @map("uploaded_at")
+  request          Request?          @relation(fields: [requestId], references: [id])
+  project          Project?          @relation(fields: [projectId], references: [id])
+  uploader         User              @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  documentType     DocumentType      @relation(fields: [typeId], references: [id])
+  documentVersions DocumentVersion[]
 
   @@map("documents")
+}
+
+model DocumentVersion {
+  id         Int      @id @default(autoincrement())
+  documentId Int      @map("document_id")
+  version    Int
+  fileUrl    String   @map("file_url")
+  uploadedBy Int      @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  document   Document @relation(fields: [documentId], references: [id])
+
+  @@map("document_versions")
+}
+
+model Project {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime?       @map("start_date")
+  endDate     DateTime?       @map("end_date")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  documents   Document[]
+  members     ProjectMember[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        Int     @id @default(autoincrement())
+  projectId Int     @map("project_id")
+  userId    Int     @map("user_id")
+  role      String // owner, editor, viewer
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model InventorySchedule {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  frequency   String // monthly, quarterly, yearly
+  nextDate    DateTime @map("next_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("inventory_schedules")
 }

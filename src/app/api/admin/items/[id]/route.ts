@@ -61,7 +61,7 @@ export async function PATCH(
     }
     
     const body = await request.json();
-    const { name, categoryId, specification, serialNumber, statusId } = body;
+    const { name, categoryId, specification, serialNumber, statusId, lastVerifiedDate } = body;
     
     // Validation
     if (!name) {
@@ -122,7 +122,8 @@ export async function PATCH(
         categoryId: categoryId ? parseInt(categoryId) : undefined,
         specification,
         serialNumber,
-        statusId: statusId ? parseInt(statusId) : undefined
+        statusId: statusId ? parseInt(statusId) : undefined,
+        lastVerifiedDate: lastVerifiedDate !== undefined ? lastVerifiedDate : existingItem.lastVerifiedDate
       },
       include: {
         category: true,
