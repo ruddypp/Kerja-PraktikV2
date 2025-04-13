@@ -2,16 +2,20 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 
-interface Params {
-  id: string;
-}
-
-export async function POST(
-  request: Request,
-  { params }: { params: Params }
-) {
+export async function POST(request: Request) {
   try {
-    const id = parseInt(params.id);
+    // Get schedule ID from request body
+    const body = await request.json();
+    const { scheduleId } = body;
+    
+    if (!scheduleId) {
+      return NextResponse.json(
+        { error: 'Schedule ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    const id = parseInt(scheduleId);
     
     // Validate ID
     if (isNaN(id)) {

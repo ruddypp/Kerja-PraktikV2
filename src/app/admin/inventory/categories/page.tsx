@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { useRouter } from 'next/navigation';
 
 interface Category {
   id: number;
@@ -21,7 +20,6 @@ export default function CategoriesPage() {
     description: ''
   });
   const [isEditing, setIsEditing] = useState(false);
-  const router = useRouter();
 
   const fetchCategories = async () => {
     try {
@@ -82,8 +80,9 @@ export default function CategoriesPage() {
       setIsEditing(false);
       setShowForm(false);
       fetchCategories();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save category. Please try again.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save category. Please try again.';
+      setError(errorMessage);
     }
   };
 
@@ -113,8 +112,9 @@ export default function CategoriesPage() {
       }
       
       fetchCategories();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete category. Please try again.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete category. Please try again.';
+      setError(errorMessage);
     }
   };
 
@@ -203,7 +203,7 @@ export default function CategoriesPage() {
           <p className="text-yellow-700">No categories found. Create a new category to get started.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -216,7 +216,7 @@ export default function CategoriesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -235,24 +235,73 @@ export default function CategoriesPage() {
                       {category.description || '-'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(category)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => handleEdit(category)}
+                        className="bg-blue-100 p-1.5 rounded-md flex items-center justify-center hover:bg-blue-200"
+                        title="Edit Category"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(category.id)}
+                        className="bg-red-100 p-1.5 rounded-md flex items-center justify-center hover:bg-red-200"
+                        title="Delete Category"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Responsive Card View untuk mobile */}
+      {!loading && categories.length > 0 && (
+        <div className="md:hidden">
+          {categories.map((category) => (
+            <div key={category.id} className="bg-white rounded-lg shadow-md p-4 mb-4">
+              <div className="mb-2">
+                <h3 className="font-medium text-gray-900">{category.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{category.description || '-'}</p>
+              </div>
+              
+              <div className="text-sm mb-3">
+                <div>
+                  <p className="text-gray-500">ID: {category.id}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => handleEdit(category)}
+                  className="bg-blue-100 p-2 rounded-md flex items-center justify-center"
+                  title="Edit Category"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => handleDelete(category.id)}
+                  className="bg-red-100 p-2 rounded-md flex items-center justify-center"
+                  title="Delete Category"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </DashboardLayout>

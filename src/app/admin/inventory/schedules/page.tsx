@@ -27,6 +27,8 @@ export default function InventorySchedulesPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [performingInventory, setPerformingInventory] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<InventorySchedule | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const fetchSchedules = async () => {
     try {
@@ -165,23 +167,36 @@ export default function InventorySchedulesPage() {
     if (!selectedSchedule) return;
     
     try {
-      // Call API to record inventory check
-      const res = await fetch(`/api/admin/inventory-schedules/${selectedSchedule.id}/perform-check`, {
-        method: 'POST'
+      setIsSubmitting(true);
+      
+      const res = await fetch(`/api/admin/inventory-schedules/perform-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scheduleId: selectedSchedule.id
+        })
       });
       
+      const data = await res.json();
+      
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to perform inventory check');
+        throw new Error(data.error || 'Failed to complete inventory check');
       }
       
-      alert('Inventory check completed successfully!');
-      setPerformingInventory(false);
-      setSelectedSchedule(null);
+      cancelInventoryCheck();
       fetchSchedules();
-    } catch (err: Error | unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to perform inventory check. Please try again.';
+      setSuccessMessage('Inventory check completed successfully');
+      
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error completing inventory check';
       setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -216,6 +231,12 @@ export default function InventorySchedulesPage() {
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
           <p>{error}</p>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+          <p>{successMessage}</p>
         </div>
       )}
 
@@ -320,13 +341,19 @@ export default function InventorySchedulesPage() {
           <div className="flex space-x-4">
             <button
               onClick={completeInventoryCheck}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              disabled={isSubmitting}
+              className={`bg-green-600 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'
+              }`}
             >
-              Complete Check
+              {isSubmitting ? 'Processing...' : 'Complete Check'}
             </button>
             <button
               onClick={cancelInventoryCheck}
-              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              disabled={isSubmitting}
+              className={`bg-gray-200 text-gray-800 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'
+              }`}
             >
               Cancel
             </button>
