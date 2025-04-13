@@ -273,7 +273,7 @@ export default function InventoryPage() {
                   value={formData.name}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="form-input"
                 />
               </div>
               <div>
@@ -286,7 +286,7 @@ export default function InventoryPage() {
                   value={formData.categoryId}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="form-input"
                 >
                   <option value="">Select Category</option>
                   {categories.map(category => (
@@ -306,7 +306,7 @@ export default function InventoryPage() {
                   name="serialNumber"
                   value={formData.serialNumber}
                   onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="form-input"
                 />
               </div>
               <div>
@@ -319,7 +319,7 @@ export default function InventoryPage() {
                   value={formData.statusId}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="form-input"
                 >
                   <option value="">Select Status</option>
                   {statuses.map(status => (
@@ -339,7 +339,7 @@ export default function InventoryPage() {
                   value={formData.specification}
                   onChange={handleFormChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="form-input"
                 />
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function InventoryPage() {
               value={filters.search}
               onChange={handleFilterChange}
               placeholder="Search items..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="form-input"
             />
           </div>
           <div>
@@ -388,7 +388,7 @@ export default function InventoryPage() {
               name="categoryId"
               value={filters.categoryId}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="form-input"
             >
               <option value="">All Categories</option>
               {categories.map(category => (
@@ -407,7 +407,7 @@ export default function InventoryPage() {
               name="statusId"
               value={filters.statusId}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="form-input"
             >
               <option value="">All Statuses</option>
               {statuses.map(status => (
@@ -439,22 +439,22 @@ export default function InventoryPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Serial Number
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -462,13 +462,13 @@ export default function InventoryPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                     {item.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.name}</div>
                     {item.specification && (
-                      <div className="text-xs text-gray-500 mt-1 truncate max-w-xs" title={item.specification}>
+                      <div className="text-xs text-gray-800 mt-1 truncate max-w-xs" title={item.specification}>
                         {item.specification}
                       </div>
                     )}
@@ -477,7 +477,7 @@ export default function InventoryPage() {
                     <div className="text-sm text-gray-900">{item.category.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-800">
                       {item.serialNumber || '-'}
                     </div>
                   </td>

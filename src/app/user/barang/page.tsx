@@ -120,7 +120,7 @@ export default function UserBarang() {
           console.error('Error fetching user requests:', err);
         }
       } catch (error) {
-        setError('Terjadi kesalahan saat memuat data.');
+        setError('An error occurred while loading data.');
         console.error('Error loading data:', error);
       } finally {
         setLoading(false);
@@ -300,7 +300,7 @@ export default function UserBarang() {
   return (
     <DashboardLayout>
       <div>
-        <h1 className="text-title text-xl md:text-2xl mb-6">Daftar Barang</h1>
+        <h1 className="text-title text-xl md:text-2xl mb-6">Item List</h1>
         
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
@@ -309,7 +309,7 @@ export default function UserBarang() {
               onClick={handleRetry}
               className="mt-2 text-red-700 underline hover:text-red-800"
             >
-              Coba Lagi
+              Try Again
             </button>
           </div>
         )}
@@ -322,7 +322,7 @@ export default function UserBarang() {
         
         {/* Filters */}
         <div className="card mb-6 border border-gray-200">
-          <h2 className="text-subtitle mb-4">Filter Barang</h2>
+          <h2 className="text-subtitle mb-4">Filter Items</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label htmlFor="search" className="form-label">
@@ -334,13 +334,13 @@ export default function UserBarang() {
                 name="search"
                 value={filters.search}
                 onChange={handleFilterChange}
-                placeholder="Cari berdasarkan nama barang..."
+                placeholder="Search by item name..."
                 className="form-input"
               />
             </div>
             <div>
               <label htmlFor="categoryId" className="form-label">
-                Kategori
+                Category
               </label>
               <select
                 id="categoryId"
@@ -349,7 +349,7 @@ export default function UserBarang() {
                 onChange={handleFilterChange}
                 className="form-input"
               >
-                <option value="">Semua Kategori</option>
+                <option value="">All Categories</option>
                 {categories.map(category => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -368,7 +368,7 @@ export default function UserBarang() {
                 onChange={handleFilterChange}
                 className="form-input"
               >
-                <option value="">Semua Status</option>
+                <option value="">All Statuses</option>
                 {statuses.map(status => (
                   <option key={status.id} value={status.id}>
                     {status.name}
@@ -381,7 +381,7 @@ export default function UserBarang() {
                 onClick={resetFilters}
                 className="btn btn-secondary w-full"
               >
-                Reset Filter
+                Reset Filters
               </button>
             </div>
           </div>
@@ -390,11 +390,11 @@ export default function UserBarang() {
         {loading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-            <p className="mt-4 text-subtitle">Loading barang...</p>
+            <p className="mt-4 text-subtitle">Loading items...</p>
           </div>
         ) : items.length === 0 ? (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-            <p className="text-yellow-700 font-medium">Tidak ada barang ditemukan. Silakan ubah filter Anda.</p>
+            <p className="text-yellow-700 font-medium">No items found. Please adjust your filters.</p>
             <button 
               onClick={handleRetry}
               className="mt-2 text-yellow-700 underline hover:text-yellow-800"
@@ -408,12 +408,12 @@ export default function UserBarang() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="table-header">Nama Barang</th>
-                    <th className="table-header hidden md:table-cell">Spesifikasi</th>
-                    <th className="table-header hidden sm:table-cell">Kategori</th>
+                    <th className="table-header">Item Name</th>
+                    <th className="table-header hidden md:table-cell">Specification</th>
+                    <th className="table-header hidden sm:table-cell">Category</th>
                     <th className="table-header hidden lg:table-cell">Serial Number</th>
                     <th className="table-header">Status</th>
-                    <th className="table-header text-right">Aksi</th>
+                    <th className="table-header text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -487,7 +487,7 @@ export default function UserBarang() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-30">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Request Barang</h3>
+                <h3 className="text-title text-lg">Request Item</h3>
                 <button onClick={closeRequestModal} className="text-gray-400 hover:text-gray-500" aria-label="Close request modal" title="Close">
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -503,7 +503,7 @@ export default function UserBarang() {
               <form onSubmit={submitRequest}>
                 <div className="mb-4">
                   <label htmlFor="requestType" className="form-label">
-                    Tipe Request
+                    Request Type
                   </label>
                   <select
                     id="requestType"
@@ -512,14 +512,14 @@ export default function UserBarang() {
                     onChange={handleRequestFormChange}
                     className="form-input"
                   >
-                    <option value="rental">Peminjaman</option>
-                    <option value="calibration">Kalibrasi</option>
+                    <option value="rental">Rental</option>
+                    <option value="calibration">Calibration</option>
                   </select>
                 </div>
                 
                 <div className="mb-4">
                   <label htmlFor="reason" className="form-label">
-                    Alasan
+                    Reason
                   </label>
                   <textarea
                     id="reason"
@@ -528,7 +528,7 @@ export default function UserBarang() {
                     onChange={handleRequestFormChange}
                     rows={3}
                     className="form-input"
-                    placeholder="Jelaskan alasan Anda memerlukan barang ini..."
+                    placeholder="Explain why you need this item..."
                   />
                 </div>
                 
@@ -538,7 +538,7 @@ export default function UserBarang() {
                     onClick={closeRequestModal}
                     className="btn btn-secondary order-2 sm:order-1"
                   >
-                    Batal
+                    Cancel
                   </button>
                   <button 
                     type="submit" 
@@ -557,7 +557,7 @@ export default function UserBarang() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-30">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Return Barang</h3>
+                <h3 className="text-title text-lg">Return Item</h3>
                 <button onClick={closeReturnModal} className="text-gray-400 hover:text-gray-500" aria-label="Close return modal" title="Close">
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -577,11 +577,11 @@ export default function UserBarang() {
               
               <div className="mb-6">
                 <p className="text-subtitle mb-1">Request Date:</p>
-                <p className="text-body">{new Date(selectedRequest.requestDate).toLocaleDateString('id-ID')}</p>
+                <p className="text-body">{new Date(selectedRequest.requestDate).toLocaleDateString('en-US')}</p>
               </div>
               
               <p className="text-subtitle text-gray-500 mb-4">
-                Apakah Anda yakin ingin mengembalikan barang ini? Admin akan menerima notifikasi dan memverifikasi pengembalian.
+                Are you sure you want to return this item? The admin will receive a notification and verify the return.
               </p>
               
               <div className="flex flex-col sm:flex-row justify-end gap-2">
@@ -590,14 +590,14 @@ export default function UserBarang() {
                   onClick={closeReturnModal}
                   className="btn btn-secondary order-2 sm:order-1"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button 
                   type="button" 
                   onClick={submitReturn}
                   className="btn btn-primary order-1 sm:order-2"
                 >
-                  Kembalikan
+                  Return
                 </button>
               </div>
             </div>

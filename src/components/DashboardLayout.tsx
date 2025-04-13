@@ -30,6 +30,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
     };
     
     handleResize();
@@ -72,7 +75,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
       {/* Mobile menu toggle button */}
       {isMobile && (
         <button 
@@ -87,23 +90,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </button>
       )}
       
-      {/* Sidebar - hidden on mobile by default unless toggled */}
-      <div className={`${isMobile ? (isMobileMenuOpen ? 'block' : 'hidden') : 'block'} z-40`}>
+      {/* Sidebar - different position based on mobile/desktop */}
+      <div className={`
+        ${isMobile 
+          ? 'fixed top-0 left-0 h-full w-64 transform transition-transform duration-300 ease-in-out z-40 '
+            + (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')
+          : 'fixed top-0 left-0 h-full w-64'
+        }
+      `}>
         <Sidebar onCloseMobileMenu={() => setIsMobileMenuOpen(false)} />
       </div>
       
-      {/* Content area - full width on mobile, with margin on desktop */}
-      <div className={`flex-1 overflow-auto ${isMobile ? 'w-full' : 'ml-64'} p-4 md:p-6`}>
-        {/* Semi-transparent overlay for mobile menu when open */}
-        {isMobile && isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-30"
-            onClick={() => setIsMobileMenuOpen(false)}
-          ></div>
-        )}
-        
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 min-h-[calc(100vh-2rem)]">
-          {children}
+      {/* Content area */}
+      <div className={`transition-all duration-300 ${isMobile ? 'ml-0' : 'ml-64'}`}>
+        <div className="p-4 md:p-6">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 min-h-[calc(100vh-3rem)]">
+            {children}
+          </div>
         </div>
       </div>
     </div>

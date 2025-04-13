@@ -161,7 +161,7 @@ export default function CategoriesPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                className="form-input"
               />
             </div>
             <div className="mb-4">
@@ -174,7 +174,7 @@ export default function CategoriesPage() {
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                className="form-input"
               />
             </div>
             <div className="flex space-x-4">

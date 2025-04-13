@@ -32,7 +32,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) {
-        setIsOpen(false);
+        setIsOpen(true);
       } else {
         setIsOpen(true);
       }
@@ -121,7 +121,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
   return (
     <div className={`h-screen ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 fixed top-0 left-0 z-40 shadow-sm overflow-y-auto`}>
       <div className="p-4 flex justify-between items-center border-b border-gray-200 bg-green-50">
-        <h2 className={`font-bold text-green-700 text-xl ${isOpen ? 'block' : 'hidden'}`}>Paramata</h2>
+        <h2 className={`font-bold text-green-700 text-xl ${isOpen || isMobile ? 'block' : 'hidden'}`}>Paramata</h2>
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-md hover:bg-green-100 text-green-600 md:block hidden"
@@ -155,7 +155,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-semibold">
             {user?.name.charAt(0).toUpperCase()}
           </div>
-          {isOpen && (
+          {(isOpen || isMobile) && (
             <div>
               <p className="font-medium text-gray-800">{user?.name}</p>
               <p className="text-xs text-gray-600">{user?.role.name}</p>
@@ -178,7 +178,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-                  {isOpen && 'Dashboard'}
+                  {(isOpen || isMobile) && 'Dashboard'}
                 </Link>
               </li>
               
@@ -196,9 +196,9 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    {isOpen && 'Inventory'}
+                    {(isOpen || isMobile) && 'Inventory'}
                   </div>
-                  {isOpen && (
+                  {(isOpen || isMobile) && (
                     <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${inventoryOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -206,7 +206,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                 </button>
                 
                 {/* Dropdown Items */}
-                {isOpen && inventoryOpen && (
+                {(isOpen || isMobile) && inventoryOpen && (
                   <ul className="ml-10 mt-1 space-y-1 bg-gray-50 rounded-md py-1">
                     <li>
                       <Link 
@@ -239,7 +239,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  {isOpen && 'Requests'}
+                  {(isOpen || isMobile) && 'Requests'}
                 </Link>
               </li>
               
@@ -252,7 +252,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {isOpen && 'Activity Logs'}
+                  {(isOpen || isMobile) && 'Activity Logs'}
                 </Link>
               </li>
             </>
@@ -268,7 +268,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  {isOpen && 'Daftar Barang'}
+                  {(isOpen || isMobile) && 'Items'}
                 </Link>
               </li>
               <li>
@@ -281,7 +281,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  {isOpen && 'Kalibrasi'}
+                  {(isOpen || isMobile) && 'Calibration'}
                 </Link>
               </li>
               <li>
@@ -293,7 +293,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  {isOpen && 'Rental'}
+                  {(isOpen || isMobile) && 'Rental'}
                 </Link>
               </li>
               <li>
@@ -305,7 +305,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {isOpen && 'History'}
+                  {(isOpen || isMobile) && 'History'}
                 </Link>
               </li>
             </>
@@ -320,7 +320,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              {isOpen && 'Logout'}
+              {(isOpen || isMobile) && 'Logout'}
             </button>
           </li>
         </ul>

@@ -49,7 +49,7 @@ export default function UserHistoryPage() {
       setActivityLogs(data);
     } catch (err) {
       console.error('Error fetching activity logs:', err);
-      setError('Gagal memuat riwayat aktivitas. Silakan coba lagi.');
+      setError('Failed to load activity history. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,32 +95,32 @@ export default function UserHistoryPage() {
       
       // Add title
       doc.setFontSize(16);
-      doc.text('Laporan Aktivitas', 14, 15);
+      doc.text('Activity Report', 14, 15);
       
       // Add filters information
       doc.setFontSize(10);
       let yPos = 25;
       
-      doc.text(`Dibuat pada: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
+      doc.text(`Created on: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
       yPos += 5;
       
       if (filters.startDate) {
-        doc.text(`Dari: ${format(new Date(filters.startDate), 'dd MMM yyyy')}`, 14, yPos);
+        doc.text(`From: ${format(new Date(filters.startDate), 'dd MMM yyyy')}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.endDate) {
-        doc.text(`Sampai: ${format(new Date(filters.endDate), 'dd MMM yyyy')}`, 14, yPos);
+        doc.text(`To: ${format(new Date(filters.endDate), 'dd MMM yyyy')}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.activityType) {
-        doc.text(`Jenis Aktivitas: ${filters.activityType}`, 14, yPos);
+        doc.text(`Activity Type: ${filters.activityType}`, 14, yPos);
         yPos += 5;
       }
       
       // Table data
-      const tableColumn = ['#', 'Tanggal & Waktu', 'Aktivitas'];
+      const tableColumn = ['#', 'Date & Time', 'Activity'];
       const tableRows = activityLogs.map((log, index) => [
         (index + 1).toString(),
         formatDate(log.createdAt),
@@ -143,13 +143,13 @@ export default function UserHistoryPage() {
       });
       
       // Save file
-      doc.save('riwayat-aktivitas.pdf');
+      doc.save('activity-history.pdf');
       
-      setSuccess('Laporan PDF berhasil dibuat');
+      setSuccess('PDF report successfully created');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      setError('Gagal membuat PDF. Silakan coba lagi.');
+      setError('Failed to create PDF. Please try again.');
     }
   };
 
@@ -157,7 +157,7 @@ export default function UserHistoryPage() {
     <DashboardLayout>
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Riwayat Aktivitas</h1>
+          <h1 className="text-title text-xl md:text-2xl">Activity History</h1>
           <button
             onClick={generatePDF}
             className="btn btn-primary"
@@ -181,11 +181,11 @@ export default function UserHistoryPage() {
 
         {/* Filters */}
         <div className="card mb-6 border border-gray-200">
-          <h2 className="text-subtitle mb-4">Filter Riwayat</h2>
+          <h2 className="text-subtitle mb-4">Filter History</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label htmlFor="startDate" className="form-label">
-                Tanggal Mulai
+                Start Date
               </label>
               <input
                 type="date"
@@ -198,7 +198,7 @@ export default function UserHistoryPage() {
             </div>
             <div>
               <label htmlFor="endDate" className="form-label">
-                Tanggal Akhir
+                End Date
               </label>
               <input
                 type="date"
@@ -211,7 +211,7 @@ export default function UserHistoryPage() {
             </div>
             <div>
               <label htmlFor="activityType" className="form-label">
-                Jenis Aktivitas
+                Activity Type
               </label>
               <select
                 id="activityType"
@@ -220,11 +220,11 @@ export default function UserHistoryPage() {
                 onChange={handleFilterChange}
                 className="form-input"
               >
-                <option value="">Semua Aktivitas</option>
-                <option value="request">Pengajuan</option>
-                <option value="rental">Peminjaman</option>
-                <option value="calibration">Kalibrasi</option>
-                <option value="return">Pengembalian</option>
+                <option value="">All Activities</option>
+                <option value="request">Request</option>
+                <option value="rental">Rental</option>
+                <option value="calibration">Calibration</option>
+                <option value="return">Return</option>
               </select>
             </div>
             <div className="flex items-end md:col-span-3">
@@ -241,11 +241,11 @@ export default function UserHistoryPage() {
         {loading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-            <p className="mt-4 text-subtitle">Memuat riwayat aktivitas...</p>
+            <p className="mt-4 text-subtitle">Loading activity history...</p>
           </div>
         ) : activityLogs.length === 0 ? (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-            <p className="text-yellow-700 font-medium">Tidak ada riwayat aktivitas yang ditemukan. Coba ubah filter Anda.</p>
+            <p className="text-yellow-700 font-medium">No activity history found. Please change your filter.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -254,8 +254,8 @@ export default function UserHistoryPage() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="table-header">#</th>
-                    <th className="table-header">Tanggal & Waktu</th>
-                    <th className="table-header">Aktivitas</th>
+                    <th className="table-header">Date & Time</th>
+                    <th className="table-header">Activity</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
