@@ -53,6 +53,7 @@ export default function InventoryPage() {
     lastVerifiedDate: ''
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [success, setSuccess] = useState('');
   
   // Filters
   const [filters, setFilters] = useState({
@@ -60,6 +61,11 @@ export default function InventoryPage() {
     statusId: '',
     search: ''
   });
+
+  // Add this to the state declarations
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+  const [forceDelete, setForceDelete] = useState(false);
 
   const fetchItems = async () => {
     try {
@@ -128,6 +134,17 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchItems();
   }, [filters]);
+
+  // Add use effect to clear success message after a timeout
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -212,28 +229,65 @@ export default function InventoryPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
+  // Add confirmDelete function to show the dialog
+  const confirmDelete = (id: number) => {
+    setItemToDelete(id);
+    setForceDelete(false);
+    setShowDeleteConfirm(true);
+  };
+
+  // Update handleDelete function to use the force delete option
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
     
     try {
       setError('');
-      const response = await fetch(`/api/admin/items/${id}`, {
+      setLoading(true);
+      
+      const response = await fetch(`/api/admin/items/${itemToDelete}${forceDelete ? '?force=true' : ''}`, {
         method: 'DELETE',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        const errorData = data as { error: string };
-        throw new Error(errorData.error || 'Failed to delete item');
+      let data;
+      try {
+        // Try to parse the response as JSON
+        const textData = await response.text();
+        data = textData ? JSON.parse(textData) : {};
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        // If JSON parsing fails, continue with empty data object
+        data = {};
       }
       
+      if (!response.ok) {
+        // Check if we have an error message from the server
+        if (data && data.error) {
+          throw new Error(data.error);
+        } else {
+          throw new Error(`Server responded with status: ${response.status}`);
+        }
+      }
+      
+      // Show different success messages based on whether item was deleted or retired
+      if (data.message && data.message.includes('retired')) {
+        setSuccess(data.message || 'Item has been marked as retired because it has associated requests.');
+      } else {
+        setSuccess(data.message || 'Item deleted successfully.');
+      }
+      
+      // Refresh the item list
       fetchItems();
-    } catch (err: Error | unknown) {
+    } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete item. Please try again.';
       setError(errorMessage);
+      console.error('Delete error:', err);
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
     }
   };
 
@@ -289,6 +343,12 @@ export default function InventoryPage() {
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
           <p>{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+          <p>{success}</p>
         </div>
       )}
 
@@ -507,7 +567,7 @@ export default function InventoryPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider w-24">
                   Actions
                 </th>
               </tr>
@@ -545,7 +605,7 @@ export default function InventoryPage() {
                     </div>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center justify-end space-x-1">
                       <button
                         onClick={() => handleEdit(item)}
                         className="bg-blue-100 p-1.5 rounded-md flex items-center justify-center hover:bg-blue-200"
@@ -556,7 +616,7 @@ export default function InventoryPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => confirmDelete(item.id)}
                         className="bg-red-100 p-1.5 rounded-md flex items-center justify-center hover:bg-red-200"
                         title="Delete Item"
                       >
@@ -622,7 +682,7 @@ export default function InventoryPage() {
                   </svg>
                 </button>
                 <button
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() => confirmDelete(item.id)}
                   className="bg-red-100 p-2 rounded-md flex items-center justify-center"
                   title="Delete Item"
                 >
@@ -633,6 +693,48 @@ export default function InventoryPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium mb-4">Confirm Deletion</h3>
+            <p className="mb-4 text-gray-700">Are you sure you want to delete this item?</p>
+            
+            <div className="mb-6 bg-yellow-50 p-3 rounded-md border border-yellow-100">
+              <label className="flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={forceDelete} 
+                  onChange={() => setForceDelete(!forceDelete)} 
+                  className="mr-2 h-4 w-4 text-red-600"
+                />
+                <span className="text-sm text-red-700 font-medium">Force delete</span>
+              </label>
+              <p className="text-xs text-gray-600 mt-1">
+                {forceDelete 
+                  ? "Warning: Force delete will permanently remove this item and may cause data inconsistencies if it has associated requests." 
+                  : "Items with associated requests will be marked as retired instead of being deleted."}
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <button 
+                className="px-4 py-2 bg-gray-200 rounded-md text-gray-800 hover:bg-gray-300"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="px-4 py-2 bg-red-600 rounded-md text-white hover:bg-red-700"
+                onClick={handleDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>

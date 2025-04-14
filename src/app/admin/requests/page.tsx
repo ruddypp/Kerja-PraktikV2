@@ -369,10 +369,10 @@ export default function RequestsPage() {
 
   const getRequestTypeLabel = (type: string) => {
     switch (type) {
-      case 'rental':
-        return 'Peminjaman';
-      case 'calibration':
-        return 'Kalibrasi';
+      case 'use':
+        return 'Use Item';
+      case 'return':
+        return 'Return';
       default:
         return type;
     }
@@ -454,8 +454,8 @@ export default function RequestsPage() {
                 className="form-input"
               >
                 <option value="">Semua Tipe</option>
-                <option value="rental">Peminjaman</option>
-                <option value="calibration">Kalibrasi</option>
+                <option value="use">Use Item</option>
+                <option value="return">Return</option>
               </select>
             </div>
             <div>
@@ -521,7 +521,7 @@ export default function RequestsPage() {
                     <th className="table-header">
                       Status
                     </th>
-                    <th className="table-header text-right">
+                    <th className="table-header text-right w-40">
                       Aksi
                     </th>
                   </tr>
@@ -560,38 +560,40 @@ export default function RequestsPage() {
                         </span>
                       </td>
                       <td className="table-cell text-right">
-                        <button
-                          onClick={() => handleViewDetails(request)}
-                          className="text-blue-600 hover:text-blue-800 font-medium block sm:inline-block w-full sm:w-auto text-center sm:text-left mb-2 sm:mb-0 sm:mr-3"
-                        >
-                          Detail
-                        </button>
-                        
-                        {request.status.name === 'PENDING' && (
-                          <div className="space-x-0 space-y-2 sm:space-y-0 sm:space-x-2 mt-2 sm:mt-0 sm:inline-block">
-                            <button
-                              onClick={() => handleApprove(request.id)}
-                              className="text-green-600 hover:text-green-800 font-medium block sm:inline-block w-full sm:w-auto text-center sm:text-left"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleReject(request.id)}
-                              className="text-red-600 hover:text-red-800 font-medium block sm:inline-block w-full sm:w-auto text-center sm:text-left"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                        
-                        {request.status.name === 'APPROVED' && (
+                        <div className="flex flex-col justify-end gap-2 items-end">
                           <button
-                            onClick={() => handleComplete(request.id)}
-                            className="text-blue-600 hover:text-blue-800 font-medium block sm:inline-block w-full sm:w-auto text-center sm:text-left"
+                            onClick={() => handleViewDetails(request)}
+                            className="text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap min-w-[60px] text-right"
                           >
-                            Complete
+                            Detail
                           </button>
-                        )}
+                          
+                          {request.status.name === 'PENDING' && (
+                            <div className="flex flex-col justify-end gap-2 items-end">
+                              <button
+                                onClick={() => handleApprove(request.id)}
+                                className="text-green-600 hover:text-green-800 font-medium whitespace-nowrap min-w-[60px] text-right"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(request.id)}
+                                className="text-red-600 hover:text-red-800 font-medium whitespace-nowrap min-w-[60px] text-right"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          
+                          {request.status.name === 'APPROVED' && (
+                            <button
+                              onClick={() => handleComplete(request.id)}
+                              className="text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap min-w-[80px] text-right"
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -676,16 +678,16 @@ export default function RequestsPage() {
                   </div>
                   
                   {selectedRequest.status.name === 'PENDING' && (
-                    <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2">
+                    <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
                       <button
                         onClick={() => handleReject(selectedRequest.id)}
-                        className="btn btn-danger order-2 sm:order-1"
+                        className="btn btn-danger w-full sm:w-auto"
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleApprove(selectedRequest.id)}
-                        className="btn btn-primary order-1 sm:order-2"
+                        className="btn btn-primary w-full sm:w-auto"
                       >
                         Approve
                       </button>
@@ -696,7 +698,7 @@ export default function RequestsPage() {
                     <div className="mt-6 flex justify-end">
                       <button
                         onClick={() => handleComplete(selectedRequest.id)}
-                        className="btn btn-primary"
+                        className="btn btn-primary w-full sm:w-auto"
                       >
                         Mark as Completed
                       </button>

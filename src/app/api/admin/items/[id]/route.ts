@@ -11,7 +11,9 @@ export async function GET(
   { params }: { params: Params }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Properly await params before using
+    const paramId = params.id;
+    const id = parseInt(paramId);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -51,7 +53,9 @@ export async function PATCH(
   { params }: { params: Params }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Properly await params before using
+    const paramId = params.id;
+    const id = parseInt(paramId);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -147,12 +151,21 @@ export async function DELETE(
   { params }: { params: Params }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Properly await params before using
+    const paramId = params.id;
+    const id = parseInt(paramId);
+    
+    // Get force delete parameter from query string
+    const url = new URL(request.url);
+    const forceDelete = url.searchParams.get('force') === 'true';
     
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid item ID' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
     
@@ -167,29 +180,111 @@ export async function DELETE(
     if (!item) {
       return NextResponse.json(
         { error: 'Item not found' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
     
-    // Check if item has associated requests
-    if (item.requests.length > 0) {
+    // If item has associated requests and force delete is not enabled
+    if (item.requests && item.requests.length > 0 && !forceDelete) {
+      // Find the "Retired" or similar status for items
+      const retiredStatus = await prisma.status.findFirst({
+        where: {
+          name: { in: ['Retired', 'RETIRED', 'retired', 'Inactive', 'INACTIVE', 'inactive'] },
+          type: 'item'
+        }
+      });
+      
+      // If retired status doesn't exist, create it
+      let statusId;
+      if (!retiredStatus) {
+        const newStatus = await prisma.status.create({
+          data: {
+            name: 'RETIRED',
+            type: 'item'
+          }
+        });
+        statusId = newStatus.id;
+      } else {
+        statusId = retiredStatus.id;
+      }
+      
+      // Update the item to retired status instead of deleting
+      const updatedItem = await prisma.item.update({
+        where: { id },
+        data: {
+          statusId: statusId
+        },
+        include: {
+          category: true,
+          status: true
+        }
+      });
+      
       return NextResponse.json(
-        { error: 'Cannot delete item with associated requests' },
-        { status: 400 }
+        { 
+          success: true, 
+          message: 'Item marked as retired because it has associated requests',
+          item: updatedItem
+        },
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
     
-    // Delete the item
-    await prisma.item.delete({
-      where: { id }
-    });
-    
-    return NextResponse.json({ success: true });
+    // If no associated requests or force delete is enabled
+    if (forceDelete && item.requests && item.requests.length > 0) {
+      // If force delete is enabled and there are associated requests, we need to delete them first
+      await prisma.$transaction([
+        // Delete all associated requests first
+        prisma.request.deleteMany({
+          where: { itemId: id }
+        }),
+        // Then delete the item
+        prisma.item.delete({
+          where: { id }
+        })
+      ]);
+      
+      return NextResponse.json(
+        { 
+          success: true,
+          message: 'Item and its associated requests have been permanently deleted'
+        },
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    } else {
+      // If no associated requests, just delete the item
+      await prisma.item.delete({
+        where: { id }
+      });
+      
+      return NextResponse.json(
+        { 
+          success: true,
+          message: 'Item deleted successfully'
+        },
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
   } catch (error) {
     console.error('Error deleting item:', error);
     return NextResponse.json(
       { error: 'Failed to delete item' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 } 

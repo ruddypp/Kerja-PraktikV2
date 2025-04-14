@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 
+interface Category {
+  id: number;
+  name: string;
+}
+
 interface Status {
   id: number;
   name: string;
@@ -13,6 +18,8 @@ interface Item {
   id: number;
   name: string;
   serialNumber: string | null;
+  specification: string | null;
+  category?: Category;
   status: Status;
 }
 
@@ -31,9 +38,22 @@ interface Request {
 
 export default function UserRequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Modal states
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  
+  // Form state
+  const [requestForm, setRequestForm] = useState({
+    requestType: 'use',
+    reason: ''
+  });
   
   // Filters
   const [filters, setFilters] = useState({
@@ -43,6 +63,7 @@ export default function UserRequestsPage() {
 
   useEffect(() => {
     fetchRequests();
+    fetchItems();
   }, []);
 
   useEffect(() => {
@@ -76,6 +97,19 @@ export default function UserRequestsPage() {
     }
   };
 
+  const fetchItems = async () => {
+    try {
+      const res = await fetch('/api/admin/items?statusId=1'); // Assuming status ID 1 is AVAILABLE
+      if (!res.ok) {
+        throw new Error('Failed to fetch available items');
+      }
+      const data = await res.json();
+      setItems(data);
+    } catch (err) {
+      console.error('Error fetching items:', err);
+    }
+  };
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -86,6 +120,135 @@ export default function UserRequestsPage() {
       requestType: '',
       statusId: '',
     });
+  };
+
+  const handleRequestFormChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setRequestForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const openRequestModal = (item?: Item) => {
+    if (item) {
+      setSelectedItem(item);
+    }
+    setRequestForm({
+      requestType: 'use',
+      reason: ''
+    });
+    setShowRequestModal(true);
+  };
+  
+  const closeRequestModal = () => {
+    setShowRequestModal(false);
+    setSelectedItem(null);
+  };
+  
+  const findUserApprovedRequest = (itemId: number) => {
+    return requests.find(request => 
+      request.itemId === itemId && 
+      (request.status.name === 'APPROVED' || request.status.name === 'Approved') &&
+      request.requestType === 'use' &&
+      !requests.some(r => 
+        r.requestType === 'return' && 
+        r.itemId === itemId && 
+        (r.status.name === 'PENDING' || r.status.name === 'APPROVED')
+      )
+    );
+  };
+  
+  const openReturnModal = (request: Request) => {
+    setSelectedItem(request.item);
+    setSelectedRequest(request);
+    setShowReturnModal(true);
+  };
+  
+  const closeReturnModal = () => {
+    setShowReturnModal(false);
+    setSelectedItem(null);
+    setSelectedRequest(null);
+  };
+  
+  const submitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedItem) return;
+    
+    try {
+      const res = await fetch('/api/user/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          itemId: selectedItem.id,
+          requestType: requestForm.requestType,
+          reason: requestForm.reason
+        })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to submit request');
+      }
+      
+      // Update UI
+      setSuccess(`Request for ${selectedItem.name} submitted successfully!`);
+      
+      // Refresh data
+      fetchRequests();
+      fetchItems();
+      
+      closeRequestModal();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Failed to submit request. Please try again.');
+    }
+  };
+  
+  const submitReturn = async () => {
+    if (!selectedRequest) return;
+    
+    try {
+      // Show the user is submitting a return request for clarity
+      setSuccess('Submitting return request...');
+      
+      const res = await fetch('/api/user/requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: selectedRequest.id,
+          action: 'return'
+        })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to submit return request');
+      }
+      
+      // Update UI
+      setSuccess(`Return request for ${selectedItem?.name} submitted successfully! Admin will verify your return.`);
+      
+      // Refresh data
+      fetchRequests();
+      
+      closeReturnModal();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Failed to submit return request. Please try again.');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -115,12 +278,10 @@ export default function UserRequestsPage() {
 
   const getRequestTypeLabel = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'rental':
-        return 'Rental';
+      case 'use':
+        return 'Use';
       case 'return':
         return 'Return';
-      case 'calibration':
-        return 'Calibration';
       default:
         return type;
     }
@@ -129,7 +290,15 @@ export default function UserRequestsPage() {
   return (
     <DashboardLayout>
       <div>
-        <h1 className="text-title text-xl md:text-2xl mb-6">My Requests</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-title text-xl md:text-2xl">My Requests</h1>
+          <button 
+            onClick={() => openRequestModal()}
+            className="btn btn-primary"
+          >
+            New Request
+          </button>
+        </div>
         
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
@@ -165,9 +334,8 @@ export default function UserRequestsPage() {
                 className="form-input"
               >
                 <option value="">All Types</option>
-                <option value="rental">Rental</option>
+                <option value="use">Use</option>
                 <option value="return">Return</option>
-                <option value="calibration">Calibration</option>
               </select>
             </div>
             <div>
@@ -207,7 +375,7 @@ export default function UserRequestsPage() {
         ) : requests.length === 0 ? (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
             <p className="text-yellow-700 font-medium">No requests found.</p>
-            <p className="text-yellow-600 mt-2">Visit the Items page to make a request for an item.</p>
+            <p className="text-yellow-600 mt-2">Use the "New Request" button to make a request for an item.</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md overflow-x-auto">
@@ -231,6 +399,9 @@ export default function UserRequestsPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Reason
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -261,6 +432,22 @@ export default function UserRequestsPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {request.reason || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {(request.status.name === 'APPROVED' || request.status.name === 'Approved') && 
+                       (request.requestType === 'use') && 
+                       !requests.some(r => 
+                         r.requestType === 'return' && 
+                         r.itemId === request.itemId && 
+                         (r.status.name === 'PENDING' || r.status.name === 'APPROVED')
+                       ) && (
+                        <button 
+                          onClick={() => openReturnModal(request)}
+                          className="text-blue-600 hover:text-blue-900 whitespace-nowrap"
+                        >
+                          Return
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -294,15 +481,185 @@ export default function UserRequestsPage() {
                       <p className="font-medium">{request.item.serialNumber || '-'}</p>
                     </div>
                   </div>
-                  <div>
+                  <div className="mb-3">
                     <p className="text-gray-500 text-sm">Reason:</p>
                     <p className="text-sm">{request.reason || '-'}</p>
                   </div>
+                  {(request.status.name === 'APPROVED' || request.status.name === 'Approved') && 
+                   (request.requestType === 'use') && 
+                   !requests.some(r => 
+                     r.requestType === 'return' && 
+                     r.itemId === request.itemId && 
+                     (r.status.name === 'PENDING' || r.status.name === 'APPROVED')
+                   ) && (
+                    <div className="mt-2">
+                      <button 
+                        onClick={() => openReturnModal(request)}
+                        className="text-blue-600 hover:text-blue-900 font-medium"
+                      >
+                        Return
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Request Modal */}
+        {showRequestModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-30">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">New Request</h3>
+                <button onClick={closeRequestModal} className="text-gray-400 hover:text-gray-500" aria-label="Close request modal" title="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <form onSubmit={submitRequest}>
+                {!selectedItem && (
+                  <div className="mb-4">
+                    <label htmlFor="itemSelect" className="form-label">
+                      Select Item
+                    </label>
+                    <select 
+                      id="itemSelect" 
+                      className="form-input"
+                      onChange={(e) => {
+                        const itemId = parseInt(e.target.value);
+                        const item = items.find(i => i.id === itemId);
+                        if (item) setSelectedItem(item);
+                      }}
+                      required
+                    >
+                      <option value="">Select an item</option>
+                      {items.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} {item.serialNumber ? `(${item.serialNumber})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                {selectedItem && (
+                  <div className="mb-4">
+                    <p className="text-subtitle mb-1">Item:</p>
+                    <p className="text-body">{selectedItem.name}</p>
+                  </div>
+                )}
+                
+                <div className="mb-4">
+                  <input
+                    type="hidden"
+                    id="requestType"
+                    name="requestType"
+                    value={requestForm.requestType}
+                  />
+                  <p className="text-subtitle mb-1">Request Type:</p>
+                  <p className="text-body">Use Item</p>
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="reason" className="form-label">
+                    Reason
+                  </label>
+                  <textarea
+                    id="reason"
+                    name="reason"
+                    value={requestForm.reason}
+                    onChange={handleRequestFormChange}
+                    rows={3}
+                    className="form-input"
+                    placeholder="Explain why you need this item..."
+                  />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  <button 
+                    type="button" 
+                    onClick={closeRequestModal}
+                    className="btn btn-secondary order-2 sm:order-1"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary order-1 sm:order-2"
+                    disabled={!selectedItem}
+                  >
+                    Submit Request
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        
+        {/* Return Modal */}
+        {showReturnModal && selectedItem && selectedRequest && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-30">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Return Item</h3>
+                <button onClick={closeReturnModal} className="text-gray-400 hover:text-gray-500" aria-label="Close return modal" title="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-subtitle mb-1">Item:</p>
+                <p className="text-body">{selectedItem.name}</p>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-subtitle mb-1">Request Type:</p>
+                <p className="text-body capitalize">{selectedRequest.requestType}</p>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-subtitle mb-1">Request Date:</p>
+                <p className="text-body">{new Date(selectedRequest.requestDate).toLocaleDateString('en-US')}</p>
+              </div>
+              
+              <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <h4 className="font-medium text-yellow-800 mb-1">Return Process:</h4>
+                <ol className="list-decimal pl-5 text-sm text-yellow-700 space-y-1">
+                  <li>Submit this return request</li>
+                  <li>Admin will verify your return</li>
+                  <li>After verification, the item status will change to AVAILABLE</li>
+                </ol>
+              </div>
+              
+              <p className="text-subtitle text-gray-500 mb-4">
+                Are you sure you want to return this item? The admin will receive a notification and verify the return.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={closeReturnModal}
+                  className="btn btn-secondary order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={submitReturn}
+                  className="btn btn-primary order-1 sm:order-2"
+                >
+                  Return
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
