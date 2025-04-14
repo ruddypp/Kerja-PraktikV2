@@ -8,12 +8,11 @@ interface Params {
 // GET a single item by ID
 export async function GET(
   request: Request,
-  { params }: { params: Params }
+  context: { params: Params }
 ) {
   try {
-    // Properly await params before using
-    const paramId = params.id;
-    const id = parseInt(paramId);
+    const params = await context.params;
+    const id = parseInt(params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -50,12 +49,11 @@ export async function GET(
 // PATCH update an item
 export async function PATCH(
   request: Request,
-  { params }: { params: Params }
+  context: { params: Params }
 ) {
   try {
-    // Properly await params before using
-    const paramId = params.id;
-    const id = parseInt(paramId);
+    const params = await context.params;
+    const id = parseInt(params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -148,12 +146,11 @@ export async function PATCH(
 // DELETE an item
 export async function DELETE(
   request: Request,
-  { params }: { params: Params }
+  context: { params: Params }
 ) {
   try {
-    // Properly await params before using
-    const paramId = params.id;
-    const id = parseInt(paramId);
+    const params = await context.params;
+    const id = parseInt(params.id);
     
     // Get force delete parameter from query string
     const url = new URL(request.url);
@@ -169,11 +166,18 @@ export async function DELETE(
       );
     }
     
-    // Check if item exists
+    // Check if item exists with all related entities
     const item = await prisma.item.findUnique({
       where: { id },
       include: {
-        requests: true
+        requests: {
+          include: {
+            calibration: true,
+            rental: true,
+            documents: true
+          }
+        },
+        itemHistory: true
       }
     });
     
@@ -236,30 +240,75 @@ export async function DELETE(
       );
     }
     
-    // If no associated requests or force delete is enabled
-    if (forceDelete && item.requests && item.requests.length > 0) {
-      // If force delete is enabled and there are associated requests, we need to delete them first
-      await prisma.$transaction([
-        // Delete all associated requests first
-        prisma.request.deleteMany({
-          where: { itemId: id }
-        }),
-        // Then delete the item
-        prisma.item.delete({
-          where: { id }
-        })
-      ]);
-      
-      return NextResponse.json(
-        { 
-          success: true,
-          message: 'Item and its associated requests have been permanently deleted'
-        },
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+    // If force delete is enabled, cascade delete all related records
+    if (forceDelete) {
+      try {
+        // Use a transaction for the entire deletion process
+        await prisma.$transaction(async (tx) => {
+          // Delete in this specific order to avoid foreign key constraint issues
+          
+          // 1. First, remove any itemHistory entries
+          if (item.itemHistory && item.itemHistory.length > 0) {
+            await tx.itemHistory.deleteMany({
+              where: { itemId: id }
+            });
+          }
+          
+          // 2. Process each request and its related records
+          for (const request of item.requests) {
+            // 2a. Delete any documents attached to the request
+            if (request.documents && request.documents.length > 0) {
+              await tx.document.deleteMany({
+                where: { requestId: request.id }
+              });
+            }
+            
+            // 2b. Delete any calibration record if it exists
+            if (request.calibration) {
+              await tx.calibration.delete({
+                where: { id: request.calibration.id }
+              });
+            }
+            
+            // 2c. Delete any rental record if it exists
+            if (request.rental) {
+              await tx.rental.delete({
+                where: { id: request.rental.id }
+              });
+            }
+            
+            // 2d. Finally delete the request itself
+            await tx.request.delete({
+              where: { id: request.id }
+            });
+          }
+          
+          // 3. Finally delete the item itself
+          await tx.item.delete({
+            where: { id }
+          });
+        });
+        
+        return NextResponse.json(
+          { 
+            success: true,
+            message: 'Item and all associated records have been permanently deleted'
+          },
+          { 
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      } catch (txError) {
+        console.error('Transaction error during deletion:', txError);
+        return NextResponse.json(
+          { error: 'Failed to delete item and its related records. Please try again.' },
+          { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
     } else {
       // If no associated requests, just delete the item
       await prisma.item.delete({

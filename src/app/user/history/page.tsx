@@ -222,7 +222,6 @@ export default function UserHistoryPage() {
               >
                 <option value="">All Activities</option>
                 <option value="request">Request</option>
-                <option value="rental">Rental</option>
                 <option value="calibration">Calibration</option>
                 <option value="return">Return</option>
               </select>
