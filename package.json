@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "npx ts-node prisma/seed.ts",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "standardize-calibration-statuses": "node fix-calibration-statuses.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

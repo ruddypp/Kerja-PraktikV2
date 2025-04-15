@@ -353,14 +353,14 @@ export default function RequestsPage() {
   };
 
   const getStatusBadgeColor = (statusName: string) => {
-    switch (statusName) {
-      case 'PENDING':
+    switch (statusName.toLowerCase()) {
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'APPROVED':
+      case 'approved':
         return 'bg-green-100 text-green-800';
-      case 'REJECTED':
+      case 'rejected':
         return 'bg-red-100 text-red-800';
-      case 'COMPLETED':
+      case 'completed':
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -537,7 +537,7 @@ export default function RequestsPage() {
                         <div className="text-muted text-sm">{request.user.email}</div>
                         <div className="sm:hidden">
                           <span className={`badge inline-block my-1 ${getStatusBadgeColor(request.status.name)}`}>
-                            {request.status.name}
+                            {request.status.name.toLowerCase()}
                           </span>
                           <div className="text-xs text-muted mt-1">
                             {request.item.name}
@@ -556,7 +556,7 @@ export default function RequestsPage() {
                       </td>
                       <td className="table-cell hidden sm:table-cell">
                         <span className={`badge ${getStatusBadgeColor(request.status.name)}`}>
-                          {request.status.name}
+                          {request.status.name.toLowerCase()}
                         </span>
                       </td>
                       <td className="table-cell text-right">
@@ -568,7 +568,7 @@ export default function RequestsPage() {
                             Detail
                           </button>
                           
-                          {request.status.name === 'PENDING' && (
+                          {request.status.name.toLowerCase() === 'pending' && (
                             <div className="flex flex-col justify-end gap-2 items-end">
                               <button
                                 onClick={() => handleApprove(request.id)}
@@ -585,7 +585,7 @@ export default function RequestsPage() {
                             </div>
                           )}
                           
-                          {request.status.name === 'APPROVED' && (
+                          {request.status.name.toLowerCase() === 'approved' && (
                             <button
                               onClick={() => handleComplete(request.id)}
                               className="text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap min-w-[80px] text-right"
@@ -637,7 +637,7 @@ export default function RequestsPage() {
                           <dt className="text-sm font-medium text-gray-700">Status</dt>
                           <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                             <span className={`badge ${getStatusBadgeColor(selectedRequest.status.name)}`}>
-                              {selectedRequest.status.name}
+                              {selectedRequest.status.name.toLowerCase()}
                             </span>
                           </dd>
                         </div>
@@ -677,7 +677,7 @@ export default function RequestsPage() {
                     </div>
                   </div>
                   
-                  {selectedRequest.status.name === 'PENDING' && (
+                  {selectedRequest.status.name.toLowerCase() === 'pending' && (
                     <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
                       <button
                         onClick={() => handleReject(selectedRequest.id)}
@@ -694,7 +694,7 @@ export default function RequestsPage() {
                     </div>
                   )}
                   
-                  {selectedRequest.status.name === 'APPROVED' && (
+                  {selectedRequest.status.name.toLowerCase() === 'approved' && (
                     <div className="mt-6 flex justify-end">
                       <button
                         onClick={() => handleComplete(selectedRequest.id)}

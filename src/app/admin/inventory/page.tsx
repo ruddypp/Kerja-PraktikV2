@@ -28,13 +28,13 @@ interface Item {
 export default function InventoryPage() {
   // Status color mappings
   const statusColors: Record<string, string> = {
-    'Available': 'bg-green-100 text-green-800',
-    'In Use': 'bg-yellow-100 text-yellow-800',
-    'In Calibration': 'bg-blue-100 text-blue-800',
-    'Maintenance': 'bg-red-100 text-red-800',
-    'Rented': 'bg-purple-100 text-purple-800',
-    'Damaged': 'bg-orange-100 text-orange-800',
-    'Retired': 'bg-gray-100 text-gray-800'
+    'available': 'bg-green-100 text-green-800',
+    'in use': 'bg-yellow-100 text-yellow-800',
+    'in_calibration': 'bg-blue-100 text-blue-800',
+    'maintenance': 'bg-red-100 text-red-800',
+    'rented': 'bg-purple-100 text-purple-800',
+    'damaged': 'bg-orange-100 text-orange-800',
+    'retired': 'bg-gray-100 text-gray-800'
   };
 
   const [items, setItems] = useState<Item[]>([]);
@@ -600,8 +600,8 @@ export default function InventoryPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[item.status.name] || 'bg-gray-100 text-gray-800'}`}>
-                      {item.status.name}
+                    <div className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[item.status.name.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
+                      {item.status.name.toLowerCase()}
                     </div>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
@@ -644,15 +644,15 @@ export default function InventoryPage() {
                   <p className="text-sm text-gray-600">{item.category.name}</p>
                 </div>
                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                  ${item.status.name === 'Available' && 'bg-green-100 text-green-800'}
-                  ${item.status.name === 'In Use' && 'bg-yellow-100 text-yellow-800'}
-                  ${item.status.name === 'In Calibration' && 'bg-blue-100 text-blue-800'}
-                  ${item.status.name === 'Maintenance' && 'bg-red-100 text-red-800'}
-                  ${item.status.name === 'Rented' && 'bg-purple-100 text-purple-800'}
-                  ${item.status.name === 'Damaged' && 'bg-orange-100 text-orange-800'}
-                  ${item.status.name === 'Retired' && 'bg-gray-100 text-gray-800'}
+                  ${item.status.name.toLowerCase() === 'available' && 'bg-green-100 text-green-800'}
+                  ${item.status.name.toLowerCase() === 'in use' && 'bg-yellow-100 text-yellow-800'}
+                  ${item.status.name.toLowerCase() === 'in_calibration' && 'bg-blue-100 text-blue-800'}
+                  ${item.status.name.toLowerCase() === 'maintenance' && 'bg-red-100 text-red-800'}
+                  ${item.status.name.toLowerCase() === 'rented' && 'bg-purple-100 text-purple-800'}
+                  ${item.status.name.toLowerCase() === 'damaged' && 'bg-orange-100 text-orange-800'}
+                  ${item.status.name.toLowerCase() === 'retired' && 'bg-gray-100 text-gray-800'}
                 `}>
-                  {item.status.name}
+                  {item.status.name.toLowerCase()}
                 </span>
               </div>
               

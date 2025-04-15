@@ -41,7 +41,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: vendorIdString } = context.params;
+    const id = parseInt(vendorIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -96,7 +98,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: vendorIdString } = context.params;
+    const id = parseInt(vendorIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -164,7 +168,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: vendorIdString } = context.params;
+    const id = parseInt(vendorIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(

@@ -100,10 +100,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { itemId, reason, vendorId } = body;
+    const { itemId, vendorId, reason } = body;
     
     // Get user ID from auth token
-    const userId = await getUserId(request) || 2; // Default to user ID 2 if not found
+    const userId = await getUserId(request) || 2; // Default to mock user ID
     
     if (!itemId) {
       return NextResponse.json(
@@ -126,8 +126,9 @@ export async function POST(request: Request) {
     }
     
     // If item is not available, reject request
-    const availableNames = ['Available', 'AVAILABLE', 'available'];
-    if (!availableNames.includes(item.status.name)) {
+    // Use case-insensitive check for item availability
+    const availableNames = ['available', 'Available', 'AVAILABLE'];
+    if (!availableNames.some(name => item.status.name.toLowerCase() === name.toLowerCase())) {
       return NextResponse.json(
         { error: 'Item is not available for calibration. Current status: ' + item.status.name },
         { status: 400 }
@@ -137,63 +138,32 @@ export async function POST(request: Request) {
     // Get or create PENDING status for requests
     let pendingStatus = await prisma.status.findFirst({
       where: {
-        name: 'PENDING',
+        name: {
+          mode: 'insensitive',
+          equals: 'pending'
+        },
         type: 'request'
       }
     });
     
-    // If PENDING status doesn't exist, create it
+    // If PENDING status doesn't exist, create it (with lowercase standardized name)
     if (!pendingStatus) {
+      console.log('Creating pending status for requests');
       pendingStatus = await prisma.status.create({
         data: {
-          name: 'PENDING',
+          name: 'pending',
           type: 'request',
         }
       });
     }
     
-    // Get or create PENDING status for calibration
-    let pendingCalibrationStatus = await prisma.status.findFirst({
-      where: {
-        name: 'PENDING',
-        type: 'calibration'
-      }
-    });
-    
-    // If PENDING calibration status doesn't exist, create it
-    if (!pendingCalibrationStatus) {
-      pendingCalibrationStatus = await prisma.status.create({
-        data: {
-          name: 'PENDING',
-          type: 'calibration',
-        }
-      });
-    }
-    
-    // Get or create IN_CALIBRATION status for items
-    let inCalibrationStatus = await prisma.status.findFirst({
-      where: {
-        name: 'IN_CALIBRATION',
-        type: 'item'
-      }
-    });
-    
-    if (!inCalibrationStatus) {
-      inCalibrationStatus = await prisma.status.create({
-        data: {
-          name: 'IN_CALIBRATION',
-          type: 'item'
-        }
-      });
-    }
-    
-    // Create the request with type 'calibration'
+    // Create the request
     const newRequest = await prisma.request.create({
       data: {
         userId: userId,
         itemId: parseInt(itemId),
         requestType: 'calibration',
-        reason: reason || 'Routine calibration',
+        reason: reason || null,
         requestDate: new Date(),
         statusId: pendingStatus.id
       },
@@ -209,7 +179,29 @@ export async function POST(request: Request) {
       }
     });
     
-    // Create a calibration record immediately
+    // Get or create PENDING status for calibrations
+    let pendingCalibrationStatus = await prisma.status.findFirst({
+      where: {
+        name: {
+          mode: 'insensitive',
+          equals: 'pending'
+        },
+        type: 'calibration'
+      }
+    });
+    
+    // If calibration PENDING status doesn't exist, create it (with lowercase standardized name)
+    if (!pendingCalibrationStatus) {
+      console.log('Creating pending status for calibrations');
+      pendingCalibrationStatus = await prisma.status.create({
+        data: {
+          name: 'pending',
+          type: 'calibration',
+        }
+      });
+    }
+    
+    // Create calibration record
     const calibration = await prisma.calibration.create({
       data: {
         requestId: newRequest.id,
@@ -217,12 +209,6 @@ export async function POST(request: Request) {
         calibrationDate: new Date(),
         statusId: pendingCalibrationStatus.id
       }
-    });
-    
-    // Update item status to IN_CALIBRATION
-    await prisma.item.update({
-      where: { id: parseInt(itemId) },
-      data: { statusId: inCalibrationStatus.id }
     });
     
     // Create an activity log entry
@@ -237,19 +223,25 @@ export async function POST(request: Request) {
     await prisma.notification.create({
       data: {
         userId: 1, // Admin user ID
-        message: `New calibration request from user ID ${userId} for item ${item.name}${vendorId ? ` with preferred vendor ID ${vendorId}` : ''}`,
+        message: `New calibration request from user ID ${userId} for item ${item.name}`,
         isRead: false
       }
     });
     
-    // Return the calibration data with request included
+    // Return full calibration data with request included
     const fullCalibration = await prisma.calibration.findUnique({
       where: { id: calibration.id },
       include: {
         request: {
           include: {
             item: true,
-            status: true
+            status: true,
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         status: true,

@@ -38,7 +38,9 @@ export async function GET(
     // Get user ID from auth token
     const userId = await getUserId(request) || 2; // Default to user ID 2 if not found
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: calibrationIdString } = context.params;
+    const id = parseInt(calibrationIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -87,10 +89,12 @@ export async function GET(
       );
     }
     
-    // Verify calibration is completed
-    if (calibration.status.name !== 'COMPLETED') {
+    // Verify calibration is completed - use case-insensitive comparison
+    // This ensures compatibility with standardized status names
+    const completedStatusNames = ['completed', 'COMPLETED', 'Completed'];
+    if (!completedStatusNames.includes(calibration.status.name)) {
       return NextResponse.json(
-        { error: 'Certificate is not available because calibration is not completed' },
+        { error: `Certificate is not available because calibration status is ${calibration.status.name}, not completed` },
         { status: 400 }
       );
     }

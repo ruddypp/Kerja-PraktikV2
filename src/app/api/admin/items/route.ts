@@ -7,6 +7,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
     const statusId = searchParams.get('statusId');
+    const statusName = searchParams.get('statusName');
     const search = searchParams.get('search');
     
     // Build where conditions with proper typing
@@ -18,6 +19,16 @@ export async function GET(request: Request) {
     
     if (statusId) {
       where.statusId = parseInt(statusId);
+    }
+    
+    // Handle status name search - case insensitive
+    if (statusName) {
+      where.status = {
+        name: {
+          mode: 'insensitive',
+          contains: statusName
+        }
+      };
     }
     
     if (search) {

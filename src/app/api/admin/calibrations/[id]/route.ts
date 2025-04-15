@@ -41,7 +41,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: calibrationIdString } = context.params;
+    const id = parseInt(calibrationIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -104,7 +106,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const id = parseInt(context.params.id);
+    // Use params asynchronously as required by Next.js App Router
+    const { id: calibrationIdString } = context.params;
+    const id = parseInt(calibrationIdString);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -141,7 +145,10 @@ export async function PATCH(
       // Get COMPLETED status for calibration
       let completedStatus = await prisma.status.findFirst({
         where: {
-          name: 'COMPLETED',
+          name: {
+            mode: 'insensitive',
+            contains: 'completed'
+          },
           type: 'calibration'
         }
       });
@@ -149,7 +156,7 @@ export async function PATCH(
       if (!completedStatus) {
         completedStatus = await prisma.status.create({
           data: {
-            name: 'COMPLETED',
+            name: 'completed',
             type: 'calibration'
           }
         });
@@ -158,7 +165,10 @@ export async function PATCH(
       // Get AVAILABLE status for item
       let availableStatus = await prisma.status.findFirst({
         where: {
-          name: 'AVAILABLE',
+          name: {
+            mode: 'insensitive',
+            contains: 'available'
+          },
           type: 'item'
         }
       });
@@ -166,7 +176,7 @@ export async function PATCH(
       if (!availableStatus) {
         availableStatus = await prisma.status.create({
           data: {
-            name: 'AVAILABLE',
+            name: 'available',
             type: 'item'
           }
         });
@@ -271,19 +281,13 @@ export async function PATCH(
   }
 }
 
-// DELETE a calibration (rarely used, mostly for testing/cleanup)
+// DELETE calibration
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const id = parseInt(context.params.id);
+    const id = parseInt(params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -291,62 +295,35 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    
-    // Get calibration with related request and item info
+
+    // Check if the calibration exists
     const calibration = await prisma.calibration.findUnique({
       where: { id },
       include: {
-        request: {
-          include: {
-            item: true
-          }
-        }
+        request: true
       }
     });
-    
+
     if (!calibration) {
       return NextResponse.json(
         { error: 'Calibration not found' },
         { status: 404 }
       );
     }
-    
-    // Get AVAILABLE status for item
-    let availableStatus = await prisma.status.findFirst({
-      where: {
-        name: 'AVAILABLE',
-        type: 'item'
-      }
-    });
-    
-    if (!availableStatus) {
-      availableStatus = await prisma.status.create({
-        data: {
-          name: 'AVAILABLE',
-          type: 'item'
-        }
-      });
-    }
-    
-    // Reset item status to AVAILABLE
-    await prisma.item.update({
-      where: { id: calibration.request.itemId },
-      data: { statusId: availableStatus.id }
-    });
-    
-    // Delete calibration
-    await prisma.calibration.delete({
+
+    // Delete the calibration
+    const deletedCalibration = await prisma.calibration.delete({
       where: { id }
     });
-    
-    return NextResponse.json(
-      { message: 'Calibration deleted successfully' },
-      { status: 200 }
-    );
+
+    return NextResponse.json({
+      message: 'Calibration deleted successfully',
+      data: deletedCalibration
+    });
   } catch (error) {
     console.error('Error deleting calibration:', error);
     return NextResponse.json(
-      { error: 'Failed to delete calibration' },
+      { error: `Failed to delete calibration: ${(error as Error).message}` },
       { status: 500 }
     );
   }

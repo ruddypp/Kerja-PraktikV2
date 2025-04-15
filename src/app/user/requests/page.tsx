@@ -262,14 +262,14 @@ export default function UserRequestsPage() {
   };
 
   const getStatusBadgeColor = (statusName: string) => {
-    switch (statusName.toUpperCase()) {
-      case 'PENDING':
+    switch (statusName.toLowerCase()) {
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'APPROVED':
+      case 'approved':
         return 'bg-green-100 text-green-800';
-      case 'REJECTED':
+      case 'rejected':
         return 'bg-red-100 text-red-800';
-      case 'COMPLETED':
+      case 'completed':
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -427,19 +427,19 @@ export default function UserRequestsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(request.status.name)}`}>
-                        {request.status.name}
+                        {request.status.name.toLowerCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {request.reason || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {(request.status.name === 'APPROVED' || request.status.name === 'Approved') && 
+                      {(request.status.name.toLowerCase() === 'approved') && 
                        (request.requestType === 'use') && 
                        !requests.some(r => 
                          r.requestType === 'return' && 
                          r.itemId === request.itemId && 
-                         (r.status.name === 'PENDING' || r.status.name === 'APPROVED')
+                         (r.status.name.toLowerCase() === 'pending' || r.status.name.toLowerCase() === 'approved')
                        ) && (
                         <button 
                           onClick={() => openReturnModal(request)}
@@ -468,7 +468,7 @@ export default function UserRequestsPage() {
                       <p className="text-sm text-gray-600">{getRequestTypeLabel(request.requestType)}</p>
                     </div>
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(request.status.name)}`}>
-                      {request.status.name}
+                      {request.status.name.toLowerCase()}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-3">
@@ -485,12 +485,12 @@ export default function UserRequestsPage() {
                     <p className="text-gray-500 text-sm">Reason:</p>
                     <p className="text-sm">{request.reason || '-'}</p>
                   </div>
-                  {(request.status.name === 'APPROVED' || request.status.name === 'Approved') && 
+                  {(request.status.name.toLowerCase() === 'approved') && 
                    (request.requestType === 'use') && 
                    !requests.some(r => 
                      r.requestType === 'return' && 
                      r.itemId === request.itemId && 
-                     (r.status.name === 'PENDING' || r.status.name === 'APPROVED')
+                     (r.status.name.toLowerCase() === 'pending' || r.status.name.toLowerCase() === 'approved')
                    ) && (
                     <div className="mt-2">
                       <button 

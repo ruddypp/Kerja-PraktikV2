@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestType = searchParams.get('requestType');
     const statusId = searchParams.get('statusId');
+    const statusName = searchParams.get('statusName');
     
     // Build where conditions
     const where: Record<string, unknown> = {
@@ -47,6 +48,18 @@ export async function GET(request: Request) {
       where.statusId = parseInt(statusId);
     }
     
+    // If status name is provided, fetch and filter by status name
+    if (statusName) {
+      // Create status filter condition
+      where.status = {
+        name: {
+          mode: 'insensitive',
+          contains: statusName
+        },
+        type: 'request'
+      };
+    }
+    
     try {
       const requests = await prisma.request.findMany({
         where,
@@ -56,10 +69,19 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               serialNumber: true,
+              categoryId: true,
+              category: true,
               status: true
             }
           },
-          status: true
+          status: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
         },
         orderBy: {
           requestDate: 'desc'
@@ -140,7 +162,7 @@ export async function POST(request: Request) {
     }
     
     // If item is not available, reject request
-    const availableNames = ['Available', 'AVAILABLE', 'available'];
+    const availableNames = ['Available'];
     if (!availableNames.includes(item.status.name)) {
       return NextResponse.json(
         { error: 'Item is not available for request. Current status: ' + item.status.name },
@@ -151,17 +173,20 @@ export async function POST(request: Request) {
     // Get or create PENDING status for requests
     let pendingStatus = await prisma.status.findFirst({
       where: {
-        name: 'PENDING',
+        name: {
+          mode: 'insensitive',
+          equals: 'pending'
+        },
         type: 'request'
       }
     });
     
-    // If PENDING status doesn't exist, create it
+    // If PENDING status doesn't exist, create it with lowercase standardized name
     if (!pendingStatus) {
-      console.log('Creating PENDING status for requests');
+      console.log('Creating pending status for requests');
       pendingStatus = await prisma.status.create({
         data: {
-          name: 'PENDING',
+          name: 'pending',
           type: 'request',
         }
       });
@@ -281,9 +306,9 @@ export async function PATCH(request: Request) {
     }
     
     // Check if request is in the right state to be returned (must be APPROVED)
-    // Accept variations of APPROVED status name
-    const approvedNames = ['APPROVED', 'Approved', 'approved'];
-    if (!approvedNames.includes(existingRequest.status.name)) {
+    // Accept variations of APPROVED status name using case-insensitive matching
+    const approvedStatuses = ['approved', 'APPROVED', 'Approved'];
+    if (!approvedStatuses.some(name => existingRequest.status.name.toLowerCase() === name.toLowerCase())) {
       return NextResponse.json(
         { error: 'Only approved requests can be returned' },
         { status: 400 }
@@ -293,17 +318,20 @@ export async function PATCH(request: Request) {
     // Get or create PENDING status for requests (for return request)
     let pendingStatus = await prisma.status.findFirst({
       where: {
-        name: 'PENDING',
+        name: {
+          mode: 'insensitive',
+          equals: 'pending'
+        },
         type: 'request'
       }
     });
     
-    // If PENDING status doesn't exist, create it
+    // If PENDING status doesn't exist, create it with lowercase standardized name
     if (!pendingStatus) {
-      console.log('Creating PENDING status for requests');
+      console.log('Creating pending status for requests');
       pendingStatus = await prisma.status.create({
         data: {
-          name: 'PENDING',
+          name: 'pending',
           type: 'request',
         }
       });

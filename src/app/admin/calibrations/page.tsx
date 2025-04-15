@@ -80,6 +80,7 @@ export default function CalibrationPage() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
   
@@ -100,6 +101,10 @@ export default function CalibrationPage() {
     completed: false
   });
   
+  const [rejectForm, setRejectForm] = useState({
+    reason: ''
+  });
+  
   // Filter state
   const [filter, setFilter] = useState({
     statusId: '',
@@ -112,6 +117,7 @@ export default function CalibrationPage() {
     fetchStatuses();
     fetchCalibrations();
     fetchPendingRequests();
+    ensureRejectedStatusExists();
   }, []);
   
   // Apply filters
@@ -132,10 +138,20 @@ export default function CalibrationPage() {
   
   const fetchStatuses = async () => {
     try {
-      const res = await fetch('/api/admin/statuses?type=calibration');
-      if (!res.ok) throw new Error('Failed to fetch statuses');
-      const data = await res.json();
-      setStatuses(data);
+      // Fetch all statuses for both 'calibration' and 'request' types
+      const [calibrationRes, requestRes] = await Promise.all([
+        fetch('/api/admin/statuses?type=calibration'),
+        fetch('/api/admin/statuses?type=request')
+      ]);
+      
+      if (!calibrationRes.ok || !requestRes.ok) 
+        throw new Error('Failed to fetch statuses');
+      
+      const calibrationData = await calibrationRes.json();
+      const requestData = await requestRes.json();
+      
+      // Combine both types of statuses
+      setStatuses([...calibrationData, ...requestData]);
     } catch (err) {
       console.error('Error fetching statuses:', err);
     }
@@ -171,9 +187,10 @@ export default function CalibrationPage() {
     try {
       setRequestsLoading(true);
       
-      const res = await fetch('/api/admin/requests?requestType=calibration&statusId=1');
+      const res = await fetch('/api/admin/requests?requestType=calibration&statusName=pending');
       if (!res.ok) throw new Error('Failed to fetch pending requests');
       const data = await res.json();
+      console.log(`Fetched ${data.length} pending calibration requests`);
       setPendingRequests(data);
     } catch (err) {
       console.error('Error fetching pending requests:', err);
@@ -238,6 +255,19 @@ export default function CalibrationPage() {
     setSelectedCalibration(null);
   };
   
+  const openRejectModal = (request: Request) => {
+    setSelectedRequest(request);
+    setRejectForm({
+      reason: ''
+    });
+    setShowRejectModal(true);
+  };
+  
+  const closeRejectModal = () => {
+    setShowRejectModal(false);
+    setSelectedRequest(null);
+  };
+  
   const handleApprovalFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setApprovalForm(prev => ({ ...prev, [name]: value }));
@@ -250,6 +280,168 @@ export default function CalibrationPage() {
       setEditForm(prev => ({ ...prev, [name]: checked }));
     } else {
       setEditForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
+  
+  const handleRejectCalibration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedRequest) return;
+    
+    console.log('Starting rejection process...');
+    console.log('Total statuses:', statuses.length);
+    
+    // Log the types of statuses we have
+    const statusTypes = statuses.map(s => s.type);
+    const uniqueTypes = [...new Set(statusTypes)];
+    console.log('Status types:', uniqueTypes);
+    
+    // Log the request-type statuses
+    const requestStatuses = statuses.filter(s => s.type.toLowerCase().includes('request'));
+    console.log('Request-type statuses:', requestStatuses);
+    
+    try {
+      // Find the rejected status ID
+      console.log('Available statuses:', statuses);
+      const rejectedStatus = statuses.find((status: Status) => {
+        const name = status.name?.toLowerCase() || '';
+        const type = status.type?.toLowerCase() || '';
+        return name.includes('reject') && type.includes('request');
+      });
+      
+      if (!rejectedStatus) {
+        // Create rejected status
+        try {
+          console.log('No rejected status found, creating one...');
+          const createRes = await fetch('/api/admin/statuses', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: 'rejected',
+              type: 'request'
+            })
+          });
+          
+          if (!createRes.ok) {
+            throw new Error('Failed to create rejected status');
+          }
+          
+          const createdStatus = await createRes.json();
+          console.log('Created rejected status:', createdStatus);
+          
+          // Use the newly created status
+          console.log(`Rejecting calibration request ${selectedRequest.id} with status ${createdStatus.id} and reason: ${rejectForm.reason}`);
+          
+          // Continue with reject
+          const requestRes = await fetch(`/api/admin/requests/${selectedRequest.id}/reject`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              rejectionReason: rejectForm.reason,
+              approvedBy: 1 // Admin ID
+            })
+          });
+          
+          // Process response
+          const responseData = await requestRes.json();
+          
+          if (!requestRes.ok) {
+            throw new Error(responseData.error || 'Failed to reject calibration request');
+          }
+          
+          // Success handling
+          console.log('Rejection successful:', responseData);
+          setSuccess('Calibration request rejected successfully!');
+          closeRejectModal();
+          setRejectForm({ reason: '' });
+          fetchCalibrations();
+          fetchPendingRequests();
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => {
+            setSuccess('');
+          }, 3000);
+          
+          return;
+        } catch (err: any) {
+          console.error('Error creating rejected status:', err);
+          setError(err.message || 'Failed to create rejected status');
+          setTimeout(() => {
+            setError('');
+          }, 3000);
+          return;
+        }
+      }
+      
+      // If we get here, we have a valid rejected status
+      console.log(`Rejecting calibration request ${selectedRequest.id} with status ${rejectedStatus.id} and reason: ${rejectForm.reason}`);
+      
+      // First check if this request has a calibration
+      let calibrationResponse = await fetch(`/api/admin/calibrations?requestId=${selectedRequest.id}`);
+      let calibrationData = await calibrationResponse.json();
+      
+      if (calibrationResponse.ok && Array.isArray(calibrationData) && calibrationData.length > 0) {
+        // If the calibration exists, update its status
+        const calibration = calibrationData[0];
+        console.log(`Found existing calibration #${calibration.id}, will update status`);
+        
+        // Delete the existing calibration since request will be rejected
+        const deleteRes = await fetch(`/api/admin/calibrations/${calibration.id}`, {
+          method: 'DELETE'
+        });
+        
+        if (!deleteRes.ok) {
+          const deleteData = await deleteRes.json();
+          throw new Error(deleteData.error || 'Failed to delete existing calibration');
+        }
+      }
+      
+      // Update the request to rejected status directly
+      const requestRes = await fetch(`/api/admin/requests/${selectedRequest.id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          rejectionReason: rejectForm.reason,
+          approvedBy: 1 // Admin ID
+        })
+      });
+      
+      const responseData = await requestRes.json();
+      
+      if (!requestRes.ok) {
+        throw new Error(responseData.error || 'Failed to reject calibration request');
+      }
+      
+      // Success
+      console.log('Rejection successful:', responseData);
+      setSuccess('Calibration request rejected successfully!');
+      closeRejectModal();
+      
+      // Reset form
+      setRejectForm({ reason: '' });
+      
+      // Refresh data
+      fetchCalibrations();
+      fetchPendingRequests();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (err: any) {
+      console.error('Error rejecting calibration:', err);
+      setError(err.message || 'Failed to reject calibration request');
+      
+      // Clear error message after 3 seconds
+      setTimeout(() => {
+        setError('');
+      }, 3000);
     }
   };
   
@@ -344,17 +536,58 @@ export default function CalibrationPage() {
   };
   
   const getStatusBadgeColor = (statusName: string) => {
-    switch (statusName.toUpperCase()) {
-      case 'PENDING':
+    switch (statusName.toLowerCase()) {
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'IN_PROGRESS':
+      case 'in_progress':
         return 'bg-blue-100 text-blue-800';
-      case 'COMPLETED':
+      case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'FAILED':
+      case 'failed':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  // Function to ensure rejected status exists
+  const ensureRejectedStatusExists = async () => {
+    try {
+      // Fetch all request statuses
+      const res = await fetch('/api/admin/statuses?type=request');
+      if (!res.ok) throw new Error('Failed to fetch request statuses');
+      const data = await res.json();
+      
+      // Check if rejected status exists
+      const rejectedExists = data.some((status: { name: string; type: string }) => 
+        status.name.toLowerCase() === 'rejected' && 
+        status.type.toLowerCase() === 'request'
+      );
+      
+      if (!rejectedExists) {
+        console.log('Creating rejected status for requests...');
+        // Create rejected status
+        const createRes = await fetch('/api/admin/statuses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: 'rejected',
+            type: 'request'
+          })
+        });
+        
+        if (!createRes.ok) {
+          throw new Error('Failed to create rejected status');
+        }
+        
+        // Refresh statuses
+        fetchStatuses();
+      }
+    } catch (err) {
+      console.error('Error ensuring rejected status exists:', err);
+      setError('There was a problem with the status configuration. Please contact the administrator.');
     }
   };
   
@@ -430,9 +663,15 @@ export default function CalibrationPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => openApproveModal(request)}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-green-600 hover:text-green-900 mr-3"
                           >
                             Approve
+                          </button>
+                          <button
+                            onClick={() => openRejectModal(request)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Reject
                           </button>
                         </td>
                       </tr>
@@ -541,7 +780,7 @@ export default function CalibrationPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(calibration.status.name)}`}>
-                            {calibration.status.name}
+                            {calibration.status.name.toLowerCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -858,7 +1097,7 @@ export default function CalibrationPage() {
                   <div className="font-semibold text-gray-500">Status:</div>
                   <div>
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(selectedCalibration.status.name)}`}>
-                      {selectedCalibration.status.name}
+                      {selectedCalibration.status.name.toLowerCase()}
                     </span>
                   </div>
                 </div>
@@ -894,6 +1133,60 @@ export default function CalibrationPage() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Reject Modal */}
+        {showRejectModal && selectedRequest && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Reject Calibration Request</h3>
+                <button onClick={closeRejectModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-subtitle mb-2">Are you sure you want to reject the calibration request for:</p>
+                <p className="font-medium">{selectedRequest.item.name} {selectedRequest.item.serialNumber && `(${selectedRequest.item.serialNumber})`}</p>
+                <p className="text-sm text-gray-600 mt-1">Requested by: {selectedRequest.user?.name || 'Unknown user'}</p>
+              </div>
+              
+              <form onSubmit={handleRejectCalibration}>
+                <div className="mb-4">
+                  <label htmlFor="reason" className="form-label">Rejection Reason</label>
+                  <textarea
+                    id="reason"
+                    name="reason"
+                    value={rejectForm.reason}
+                    onChange={(e) => setRejectForm({...rejectForm, reason: e.target.value})}
+                    rows={3}
+                    className="form-input"
+                    placeholder="Enter reason for rejection..."
+                    required
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={closeRejectModal}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-danger"
+                  >
+                    Reject Request
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

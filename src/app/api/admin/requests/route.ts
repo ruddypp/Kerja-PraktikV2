@@ -7,6 +7,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestType = searchParams.get('requestType');
     const statusId = searchParams.get('statusId');
+    const statusName = searchParams.get('statusName');
     const search = searchParams.get('search');
     
     // Build where conditions
@@ -18,6 +19,18 @@ export async function GET(request: Request) {
     
     if (statusId) {
       where.statusId = parseInt(statusId);
+    }
+    
+    // If status name is provided, fetch and filter by status name
+    if (statusName) {
+      // Create status filter condition
+      where.status = {
+        name: {
+          mode: 'insensitive',
+          contains: statusName
+        },
+        type: 'request'
+      };
     }
     
     // For search, we need to use OR conditions on related entities
@@ -178,9 +191,9 @@ export async function PATCH(request: Request) {
       }
     });
     
-    // If approving, update the item status if needed (for rental or calibration)
+    // If approving, update the item status if needed (for using item)
     if (status.name === 'APPROVED') {
-      if (existingRequest.requestType === 'rental') {
+      if (existingRequest.requestType === 'request') {
         // Get "In Use" status ID
         const inUseStatus = await prisma.status.findFirst({
           where: {
@@ -197,24 +210,7 @@ export async function PATCH(request: Request) {
             }
           });
         }
-      } else if (existingRequest.requestType === 'calibration') {
-        // Get "In Calibration" status ID
-        const inCalibrationStatus = await prisma.status.findFirst({
-          where: {
-            name: 'In Calibration',
-            type: 'item'
-          }
-        });
-        
-        if (inCalibrationStatus) {
-          await prisma.item.update({
-            where: { id: existingRequest.itemId },
-            data: {
-              statusId: inCalibrationStatus.id
-            }
-          });
-        }
-      }
+      } 
     }
     
     // If completing, update the item status back to available
