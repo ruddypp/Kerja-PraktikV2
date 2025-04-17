@@ -1,74 +1,138 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET all requests with user, item, and status details
+// Define enums locally since they might not be directly accessible
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
+enum RequestStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  COMPLETED = "COMPLETED"
+}
+
+// GET all requests with filtering
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const requestType = searchParams.get('requestType');
-    const statusId = searchParams.get('statusId');
-    const statusName = searchParams.get('statusName');
+    const statusFilter = searchParams.get('status') as RequestStatus | null;
     const search = searchParams.get('search');
     
     // Build where conditions
-    const where: Record<string, unknown> = {};
+    const where: any = {};
     
-    if (requestType) {
-      where.requestType = requestType;
+    if (statusFilter) {
+      where.status = statusFilter;
     }
     
-    if (statusId) {
-      where.statusId = parseInt(statusId);
-    }
-    
-    // If status name is provided, fetch and filter by status name
-    if (statusName) {
-      // Create status filter condition
-      where.status = {
-        name: {
-          mode: 'insensitive',
-          contains: statusName
-        },
-        type: 'request'
-      };
-    }
-    
-    // For search, we need to use OR conditions on related entities
     if (search) {
       where.OR = [
-        // Search by item name
-        {
-          item: {
-            name: {
-              contains: search,
-              mode: 'insensitive'
-            }
-          }
-        },
-        // Search by user name or email
-        {
-          user: {
-            OR: [
-              {
-                name: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                email: {
-                  contains: search,
-                  mode: 'insensitive'
-                }
-              }
-            ]
-          }
-        }
+        { reason: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { item: { name: { contains: search, mode: 'insensitive' } } }
       ];
     }
     
     const requests = await prisma.request.findMany({
-      where: where as any, // Type assertion needed for complex nested conditions
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        item: {
+          select: {
+            id: true,
+            name: true,
+            serialNumber: true,
+            status: true
+          }
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        requestDate: 'desc'
+      }
+    });
+    
+    return NextResponse.json(requests);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch requests' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create a new request
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, itemId, reason } = body;
+    
+    // Validation
+    if (!userId || !itemId) {
+      return NextResponse.json(
+        { error: 'User ID and Item ID are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) }
+    });
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if item exists and is available
+    const item = await prisma.item.findUnique({
+      where: { id: parseInt(itemId) }
+    });
+    
+    if (!item) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 400 }
+      );
+    }
+    
+    if (item.status !== ItemStatus.AVAILABLE) {
+      return NextResponse.json(
+        { error: 'Item is not available for request' },
+        { status: 400 }
+      );
+    }
+    
+    // Create the request
+    const newRequest = await prisma.request.create({
+      data: {
+        userId: parseInt(userId),
+        itemId: parseInt(itemId),
+        reason,
+        status: RequestStatus.PENDING,
+        requestDate: new Date()
+      },
       include: {
         user: {
           select: {
@@ -83,26 +147,23 @@ export async function GET(request: Request) {
             name: true,
             serialNumber: true
           }
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        status: true
-      },
-      orderBy: {
-        requestDate: 'desc'
+        }
       }
     });
     
-    return NextResponse.json(requests);
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: parseInt(userId),
+        activity: `Created request for item: ${item.name}`
+      }
+    });
+    
+    return NextResponse.json(newRequest, { status: 201 });
   } catch (error) {
-    console.error('Error fetching requests:', error);
+    console.error('Error creating request:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch requests' },
+      { error: 'Failed to create request' },
       { status: 500 }
     );
   }

@@ -1,99 +1,74 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
 
-// GET all requests for current user
+// Define enums locally
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
+enum RequestStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  COMPLETED = "COMPLETED"
+}
+
+// GET - Get all requests for a specific user
 export async function GET(request: Request) {
   try {
-    // Get user ID from auth token in cookies
-    let userId = 2; // Default to mock user ID
-    
-    try {
-      // Get token from cookies manually (similar to auth/me/route.ts)
-      const cookieHeader = request.headers.get('cookie') || '';
-      const cookies = Object.fromEntries(
-        cookieHeader.split('; ').map(c => {
-          const [name, ...value] = c.split('=');
-          return [name, value.join('=')];
-        })
-      );
-      
-      const token = cookies['auth_token'];
-      
-      if (token) {
-        const userData = decodeToken(token);
-        if (userData?.id) {
-          userId = userData.id;
-        }
-      }
-    } catch (authError) {
-      console.error('Error getting user from token:', authError);
-    }
-    
     const { searchParams } = new URL(request.url);
-    const requestType = searchParams.get('requestType');
-    const statusId = searchParams.get('statusId');
-    const statusName = searchParams.get('statusName');
+    const userId = searchParams.get('userId');
+    const status = searchParams.get('status') as RequestStatus | null;
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
     
     // Build where conditions
-    const where: Record<string, unknown> = {
-      userId: userId // Only requests for current user
+    const where: any = {
+      userId: parseInt(userId)
     };
     
-    if (requestType) {
-      where.requestType = requestType;
+    if (status) {
+      where.status = status;
     }
     
-    if (statusId) {
-      where.statusId = parseInt(statusId);
-    }
-    
-    // If status name is provided, fetch and filter by status name
-    if (statusName) {
-      // Create status filter condition
-      where.status = {
-        name: {
-          mode: 'insensitive',
-          contains: statusName
-        },
-        type: 'request'
-      };
-    }
-    
-    try {
-      const requests = await prisma.request.findMany({
-        where,
-        include: {
-          item: {
-            select: {
-              id: true,
-              name: true,
-              serialNumber: true,
-              categoryId: true,
-              category: true,
-              status: true
-            }
-          },
-          status: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
+    const requests = await prisma.request.findMany({
+      where,
+      include: {
+        item: {
+          select: {
+            id: true,
+            name: true,
+            serialNumber: true,
+            category: {
+              select: {
+                id: true,
+                name: true
+              }
             }
           }
         },
-        orderBy: {
-          requestDate: 'desc'
+        approvedBy: {
+          select: {
+            id: true,
+            name: true
+          }
         }
-      });
-      
-      return NextResponse.json(requests);
-    } catch (dbError) {
-      // Return empty array if there's a database error
-      console.error('Database error:', dbError);
-      return NextResponse.json([]);
-    }
+      },
+      orderBy: {
+        requestDate: 'desc'
+      }
+    });
+    
+    return NextResponse.json(requests);
   } catch (error) {
     console.error('Error fetching user requests:', error);
     return NextResponse.json(
@@ -103,131 +78,96 @@ export async function GET(request: Request) {
   }
 }
 
-// POST create a new request
+// POST - Create a new request
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { itemId, requestType, reason } = body;
+    const { userId, itemId, reason } = body;
     
-    // Get user ID from auth token in cookies
-    let userId = 2; // Default to mock user ID
-    
-    try {
-      // Get token from cookies manually
-      const cookieHeader = request.headers.get('cookie') || '';
-      const cookies = Object.fromEntries(
-        cookieHeader.split('; ').map(c => {
-          const [name, ...value] = c.split('=');
-          return [name, value.join('=')];
-        })
-      );
-      
-      const token = cookies['auth_token'];
-      
-      if (token) {
-        const userData = decodeToken(token);
-        if (userData?.id) {
-          userId = userData.id;
-        }
-      }
-    } catch (authError) {
-      console.error('Error getting user from token:', authError);
-    }
-    
-    if (!itemId) {
+    // Validation
+    if (!userId || !itemId) {
       return NextResponse.json(
-        { error: 'Item ID is required' },
+        { error: 'User ID and Item ID are required' },
         { status: 400 }
       );
     }
     
-    if (!requestType) {
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) }
+    });
+    
+    if (!user) {
       return NextResponse.json(
-        { error: 'Request type is required' },
+        { error: 'User not found' },
         { status: 400 }
       );
     }
     
-    // Verify if the item exists and is available
+    // Check if item exists and is available
     const item = await prisma.item.findUnique({
-      where: { id: parseInt(itemId) },
-      include: { status: true }
+      where: { id: parseInt(itemId) }
     });
     
     if (!item) {
       return NextResponse.json(
         { error: 'Item not found' },
-        { status: 404 }
-      );
-    }
-    
-    // If item is not available, reject request
-    const availableNames = ['Available'];
-    if (!availableNames.includes(item.status.name)) {
-      return NextResponse.json(
-        { error: 'Item is not available for request. Current status: ' + item.status.name },
         { status: 400 }
       );
     }
     
-    // Get or create PENDING status for requests
-    let pendingStatus = await prisma.status.findFirst({
-      where: {
-        name: {
-          mode: 'insensitive',
-          equals: 'pending'
-        },
-        type: 'request'
-      }
-    });
-    
-    // If PENDING status doesn't exist, create it with lowercase standardized name
-    if (!pendingStatus) {
-      console.log('Creating pending status for requests');
-      pendingStatus = await prisma.status.create({
-        data: {
-          name: 'pending',
-          type: 'request',
-        }
-      });
+    if (item.status !== ItemStatus.AVAILABLE) {
+      return NextResponse.json(
+        { error: 'Item is not available for request' },
+        { status: 400 }
+      );
     }
     
     // Create the request
     const newRequest = await prisma.request.create({
       data: {
-        userId: userId,
+        userId: parseInt(userId),
         itemId: parseInt(itemId),
-        requestType,
-        reason: reason || null,
-        requestDate: new Date(),
-        statusId: pendingStatus.id
+        reason,
+        status: RequestStatus.PENDING,
+        requestDate: new Date()
       },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         item: {
           select: {
             id: true,
             name: true,
             serialNumber: true
           }
-        },
-        status: true
+        }
       }
     });
     
-    // Create an activity log entry
+    // Log activity
     await prisma.activityLog.create({
       data: {
-        userId: userId,
-        activity: `New ${requestType} request created for item ${item.name}`
+        userId: parseInt(userId),
+        activity: `Created request for item: ${item.name}`
       }
     });
     
-    // Notify admin (in a real app, you'd use email/push notifications)
+    // Create notification for admin
     await prisma.notification.create({
       data: {
-        userId: 1, // Admin user ID
-        message: `New ${requestType} request from user ID ${userId} for item ${item.name}`,
-        isRead: false
+        // Assuming admin has ID 1, in real app would get from configuration
+        userId: 1,
+        type: "REQUEST_UPDATE",
+        message: `New request from ${user.name} for item: ${item.name}`,
+        relatedItemId: parseInt(itemId),
+        read: false,
+        createdAt: new Date()
       }
     });
     
@@ -241,146 +181,85 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH update a request (for return requests)
+// PATCH - Return request handling
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, action } = body;
+    const { requestId, userId } = body;
     
-    // Get user ID from auth token in cookies
-    let userId = 2; // Default to mock user ID
-    
-    try {
-      // Get token from cookies manually
-      const cookieHeader = request.headers.get('cookie') || '';
-      const cookies = Object.fromEntries(
-        cookieHeader.split('; ').map(c => {
-          const [name, ...value] = c.split('=');
-          return [name, value.join('=')];
-        })
-      );
-      
-      const token = cookies['auth_token'];
-      
-      if (token) {
-        const userData = decodeToken(token);
-        if (userData?.id) {
-          userId = userData.id;
-        }
-      }
-    } catch (authError) {
-      console.error('Error getting user from token:', authError);
-    }
-    
-    if (!id) {
+    if (!requestId || !userId) {
       return NextResponse.json(
-        { error: 'Request ID is required' },
+        { error: 'Request ID and User ID are required' },
         { status: 400 }
       );
     }
     
-    if (action !== 'return') {
-      return NextResponse.json(
-        { error: 'Invalid action' },
-        { status: 400 }
-      );
-    }
-    
-    // Verify if the request exists and belongs to the user
-    const existingRequest = await prisma.request.findUnique({
-      where: { 
-        id: parseInt(id),
-        userId: userId
+    // Check if request exists and belongs to the user
+    const existingRequest = await prisma.request.findFirst({
+      where: {
+        id: parseInt(requestId),
+        userId: parseInt(userId),
+        status: RequestStatus.APPROVED
       },
       include: {
-        item: true,
-        status: true
+        item: true
       }
     });
     
     if (!existingRequest) {
       return NextResponse.json(
-        { error: 'Request not found or unauthorized' },
+        { error: 'Approved request not found' },
         { status: 404 }
       );
     }
     
-    // Check if request is in the right state to be returned (must be APPROVED)
-    // Accept variations of APPROVED status name using case-insensitive matching
-    const approvedStatuses = ['approved', 'APPROVED', 'Approved'];
-    if (!approvedStatuses.some(name => existingRequest.status.name.toLowerCase() === name.toLowerCase())) {
-      return NextResponse.json(
-        { error: 'Only approved requests can be returned' },
-        { status: 400 }
-      );
-    }
-    
-    // Get or create PENDING status for requests (for return request)
-    let pendingStatus = await prisma.status.findFirst({
-      where: {
-        name: {
-          mode: 'insensitive',
-          equals: 'pending'
-        },
-        type: 'request'
+    // Update request to COMPLETED
+    const updatedRequest = await prisma.request.update({
+      where: { id: parseInt(requestId) },
+      data: {
+        status: RequestStatus.COMPLETED,
+        returnDate: new Date()
       }
     });
     
-    // If PENDING status doesn't exist, create it with lowercase standardized name
-    if (!pendingStatus) {
-      console.log('Creating pending status for requests');
-      pendingStatus = await prisma.status.create({
-        data: {
-          name: 'pending',
-          type: 'request',
-        }
-      });
-    }
-    
-    // Create a new request for return
-    const returnRequest = await prisma.request.create({
+    // Update item status to AVAILABLE
+    await prisma.item.update({
+      where: { id: existingRequest.itemId },
       data: {
-        userId: userId,
+        status: ItemStatus.AVAILABLE
+      }
+    });
+    
+    // Add to item history
+    await prisma.itemHistory.create({
+      data: {
         itemId: existingRequest.itemId,
-        requestType: 'return',
-        reason: `Return for request #${id}`,
-        requestDate: new Date(),
-        statusId: pendingStatus.id
-      },
-      include: {
-        item: {
-          select: {
-            id: true,
-            name: true,
-            serialNumber: true
-          }
-        },
-        status: true
+        activityType: "RETURN",
+        relatedRequestId: parseInt(requestId),
+        description: "Item returned by user",
+        performedById: parseInt(userId),
+        date: new Date()
       }
     });
     
-    // Create an activity log entry
-    await prisma.activityLog.create({
-      data: {
-        userId: userId,
-        activity: `Return request created for item ${existingRequest.item.name}`
-      }
-    });
-    
-    // Notify admin
+    // Create notification for admin
     await prisma.notification.create({
       data: {
-        userId: 1, // Admin user ID
-        message: `Return request from user ID ${userId} for item ${existingRequest.item.name}`,
-        isRead: false
+        // Assuming admin has ID 1
+        userId: 1,
+        type: "REQUEST_UPDATE",
+        message: `Item ${existingRequest.item.name} has been returned`,
+        relatedItemId: existingRequest.itemId,
+        read: false,
+        createdAt: new Date()
       }
     });
     
-    return NextResponse.json(returnRequest);
+    return NextResponse.json(updatedRequest);
   } catch (error) {
-    console.error('Error updating request:', error);
+    console.error('Error processing return request:', error);
     return NextResponse.json(
-      { error: 'Failed to update request' },
+      { error: 'Failed to process return request' },
       { status: 500 }
     );
   }

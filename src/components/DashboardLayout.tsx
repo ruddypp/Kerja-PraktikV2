@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
+import NotificationDropdown from './notifications/NotificationDropdown';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -12,8 +13,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [user, setUser] = useState<any>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   // Handle errors in layout
   useEffect(() => {
@@ -101,10 +120,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Sidebar onCloseMobileMenu={() => setIsMobileMenuOpen(false)} />
       </div>
       
-      {/* Content area */}
+      {/* Content area with header */}
       <div className={`transition-all duration-300 ${isMobile ? 'ml-0' : 'ml-64'}`}>
+        {/* Header with notifications and user profile */}
+        <header className="bg-white shadow-sm h-16 flex items-center justify-end px-4 sticky top-0 z-10">
+          <div className="flex items-center space-x-4">
+            {user && <NotificationDropdown userId={user.id} />}
+            
+            <div className="flex items-center space-x-2">
+              <span className="hidden md:inline text-sm font-medium">
+                {user?.name || 'Loading...'}
+              </span>
+              <div className="h-8 w-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+              </div>
+            </div>
+          </div>
+        </header>
+
         <div className="p-4 md:p-6">
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 min-h-[calc(100vh-3rem)]">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 min-h-[calc(100vh-7rem)]">
             {children}
           </div>
         </div>

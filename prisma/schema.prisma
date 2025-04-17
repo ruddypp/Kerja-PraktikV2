@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -26,21 +26,28 @@ model Role {
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  name           String
-  email          String          @unique
-  password       String
-  roleId         Int             @map("role_id")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  role           Role            @relation(fields: [roleId], references: [id])
-  requests       Request[]
-  approvals      Request[]       @relation("ApprovedBy")
-  activities     ActivityLog[]
-  notifications  Notification[]
-  documents      Document[]      @relation("UploadedBy")
-  itemHistory    ItemHistory[]   @relation("PerformedBy")
-  projectMembers ProjectMember[]
+  id                Int                @id @default(autoincrement())
+  name              String
+  email             String             @unique
+  password          String
+  roleId            Int                @map("role_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  role              Role               @relation(fields: [roleId], references: [id])
+  requests          Request[]
+  calibrationRequests CalibrationRequest[]
+  rentalRequests    RentalRequest[]
+  approvedRequests  Request[]          @relation("ApprovedBy")
+  approvedCalibrations CalibrationRequest[] @relation("CalibrationApprovedBy")
+  approvedRentals   RentalRequest[]    @relation("RentalApprovedBy")
+  activities        ActivityLog[]
+  notifications     Notification[]
+  documents         Document[]         @relation("UploadedBy")
+  checkedOutDocuments Document[]       @relation("CheckedOutBy")
+  itemHistory       ItemHistory[]      @relation("PerformedBy")
+  projectMembers    ProjectMember[]
+  inventoryExecutions InventoryExecution[]
+  inventoryVerifications InventoryVerification[]
 
   @@map("users")
 }
@@ -56,119 +63,166 @@ model Category {
   @@map("categories")
 }
 
-model Status {
-  id           Int           @id @default(autoincrement())
-  type         String // request, rental, calibration, item
-  name         String // pending, approved, etc
-  items        Item[]
-  requests     Request[]
-  rentals      Rental[]
-  calibrations Calibration[]
-
-  @@map("statuses")
+enum ItemStatus {
+  AVAILABLE
+  IN_USE
+  IN_CALIBRATION
+  IN_RENTAL
+  IN_MAINTENANCE
 }
 
 model Item {
-  id               Int           @id @default(autoincrement())
-  name             String
-  categoryId       Int           @map("category_id")
-  specification    String?
-  serialNumber     String?       @map("serial_number")
-  statusId         Int           @map("status_id")
-  lastVerifiedDate DateTime?     @map("last_verified_date")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
-  category         Category      @relation(fields: [categoryId], references: [id])
-  status           Status        @relation(fields: [statusId], references: [id])
-  requests         Request[]
-  itemHistory      ItemHistory[]
+  id                Int                @id @default(autoincrement())
+  name              String
+  categoryId        Int                @map("category_id")
+  specification     String?
+  serialNumber      String?            @map("serial_number")
+  status            ItemStatus         @default(AVAILABLE)
+  lastVerifiedDate  DateTime?          @map("last_verified_date")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  category          Category           @relation(fields: [categoryId], references: [id])
+  requests          Request[]
+  calibrationRequests CalibrationRequest[]
+  rentalRequests    RentalRequest[]
+  itemHistory       ItemHistory[]
+  inventoryVerifications InventoryVerification[]
 
   @@map("items")
 }
 
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
 model Request {
-  id          Int           @id @default(autoincrement())
-  userId      Int           @map("user_id")
-  itemId      Int           @map("item_id")
-  requestType String        @map("request_type") // usage, return, rental, calibration
-  reason      String?
-  approvedBy  Int?          @map("approved_by")
-  requestDate DateTime      @map("request_date")
-  statusId    Int           @map("status_id")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  user        User          @relation(fields: [userId], references: [id])
-  item        Item          @relation(fields: [itemId], references: [id])
-  approver    User?         @relation("ApprovedBy", fields: [approvedBy], references: [id])
-  status      Status        @relation(fields: [statusId], references: [id])
-  rental      Rental?
-  calibration Calibration?
-  documents   Document[]
-  itemHistory ItemHistory[] @relation("RelatedRequest")
+  id                Int                @id @default(autoincrement())
+  userId            Int                @map("user_id")
+  itemId            Int                @map("item_id")
+  reason            String?
+  approvedById      Int?               @map("approved_by_id")
+  requestDate       DateTime           @default(now()) @map("request_date")
+  returnDate        DateTime?          @map("return_date")
+  status            RequestStatus      @default(PENDING)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  user              User               @relation(fields: [userId], references: [id])
+  item              Item               @relation(fields: [itemId], references: [id])
+  approvedBy        User?              @relation("ApprovedBy", fields: [approvedById], references: [id])
+  documents         Document[]
+  itemHistory       ItemHistory[]      @relation("RelatedRequest")
 
   @@map("requests")
 }
 
-model Rental {
-  id               Int       @id @default(autoincrement())
-  requestId        Int       @unique @map("request_id")
-  startDate        DateTime  @map("start_date")
-  endDate          DateTime  @map("end_date")
-  actualReturnDate DateTime? @map("actual_return_date")
-  fineAmount       Decimal?  @map("fine_amount") @db.Decimal(10, 2)
-  statusId         Int       @map("status_id")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  request          Request   @relation(fields: [requestId], references: [id])
-  status           Status    @relation(fields: [statusId], references: [id])
-
-  @@map("rentals")
+enum CalibrationStatus {
+  PENDING
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
 }
 
-model Calibration {
-  id              Int      @id @default(autoincrement())
-  requestId       Int      @unique @map("request_id")
-  vendorId        Int?     @map("vendor_id")
-  calibrationDate DateTime @map("calibration_date")
-  result          String?
-  certificateUrl  String?  @map("certificate_url")
-  statusId        Int      @map("status_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  request         Request  @relation(fields: [requestId], references: [id])
-  status          Status   @relation(fields: [statusId], references: [id])
-  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
+model CalibrationRequest {
+  id                Int                @id @default(autoincrement())
+  userId            Int                @map("user_id")
+  itemId            Int                @map("item_id")
+  vendorId          Int?               @map("vendor_id")
+  reason            String?
+  approvedById      Int?               @map("approved_by_id")
+  requestDate       DateTime           @default(now()) @map("request_date")
+  calibrationDate   DateTime?          @map("calibration_date")
+  completionDate    DateTime?          @map("completion_date")
+  result            String?
+  certificateUrl    String?            @map("certificate_url")
+  validUntil        DateTime?          @map("valid_until")
+  status            CalibrationStatus  @default(PENDING)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  user              User               @relation(fields: [userId], references: [id])
+  item              Item               @relation(fields: [itemId], references: [id])
+  vendor            Vendor?            @relation(fields: [vendorId], references: [id])
+  approvedBy        User?              @relation("CalibrationApprovedBy", fields: [approvedById], references: [id])
+  documents         Document[]
+  itemHistory       ItemHistory[]      @relation("RelatedCalibration")
 
-  @@map("calibrations")
+  @@map("calibration_requests")
+}
+
+enum RentalStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  RETURNED
+  REJECTED
+}
+
+model RentalRequest {
+  id                Int                @id @default(autoincrement())
+  userId            Int                @map("user_id")
+  itemId            Int                @map("item_id")
+  reason            String?
+  approvedById      Int?               @map("approved_by_id")
+  requestDate       DateTime           @default(now()) @map("request_date")
+  startDate         DateTime           @map("start_date")
+  endDate           DateTime           @map("end_date")
+  actualReturnDate  DateTime?          @map("actual_return_date")
+  fineAmount        Decimal?           @map("fine_amount") @db.Decimal(10, 2)
+  status            RentalStatus       @default(PENDING)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  user              User               @relation(fields: [userId], references: [id])
+  item              Item               @relation(fields: [itemId], references: [id])
+  approvedBy        User?              @relation("RentalApprovedBy", fields: [approvedById], references: [id])
+  documents         Document[]
+  itemHistory       ItemHistory[]      @relation("RelatedRental")
+
+  @@map("rental_requests")
 }
 
 model Vendor {
-  id            Int           @id @default(autoincrement())
-  name          String
-  address       String?
-  contactPerson String?       @map("contact_person")
-  contactEmail  String?       @map("contact_email")
-  contactPhone  String?       @map("contact_phone")
-  services      String?
-  rating        Decimal?      @db.Decimal(3, 2)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  calibrations  Calibration[]
+  id                Int                @id @default(autoincrement())
+  name              String
+  address           String?
+  contactPerson     String?            @map("contact_person")
+  contactEmail      String?            @map("contact_email")
+  contactPhone      String?            @map("contact_phone")
+  services          String?
+  rating            Decimal?           @db.Decimal(3, 2)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  calibrations      CalibrationRequest[]
 
   @@map("vendors")
 }
 
+enum ActivityType {
+  USAGE
+  RETURN
+  CALIBRATION
+  RENTAL
+  MAINTENANCE
+  INVENTORY_CHECK
+}
+
 model ItemHistory {
-  id               Int      @id @default(autoincrement())
-  itemId           Int      @map("item_id")
-  activityType     String   @map("activity_type") // rental, calibration, maintenance, inventory_check
-  relatedRequestId Int?     @map("related_request_id")
-  description      String?
-  performedBy      Int      @map("performed_by")
-  date             DateTime
-  item             Item     @relation(fields: [itemId], references: [id])
-  relatedRequest   Request? @relation("RelatedRequest", fields: [relatedRequestId], references: [id])
-  performer        User     @relation("PerformedBy", fields: [performedBy], references: [id])
+  id                  Int               @id @default(autoincrement())
+  itemId              Int               @map("item_id")
+  activityType        ActivityType
+  relatedRequestId    Int?              @map("related_request_id")
+  relatedCalibrationId Int?             @map("related_calibration_id")
+  relatedRentalId     Int?              @map("related_rental_id")
+  description         String?
+  performedById       Int               @map("performed_by_id")
+  date                DateTime          @default(now())
+  item                Item              @relation(fields: [itemId], references: [id])
+  relatedRequest      Request?          @relation("RelatedRequest", fields: [relatedRequestId], references: [id])
+  relatedCalibration  CalibrationRequest? @relation("RelatedCalibration", fields: [relatedCalibrationId], references: [id])
+  relatedRental       RentalRequest?    @relation("RelatedRental", fields: [relatedRentalId], references: [id])
+  performedBy         User              @relation("PerformedBy", fields: [performedById], references: [id])
 
   @@map("item_history")
 }
@@ -183,13 +237,25 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+enum NotificationType {
+  REQUEST_UPDATE
+  CALIBRATION_UPDATE
+  RENTAL_UPDATE
+  INVENTORY_SCHEDULE
+  CALIBRATION_EXPIRY
+  RENTAL_EXPIRY
+  SYSTEM
+}
+
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  message   String
-  isRead    Boolean  @default(false) @map("is_read")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id])
+  id               Int              @id @default(autoincrement())
+  userId           Int              @map("user_id")
+  type             NotificationType
+  message          String
+  isRead           Boolean          @default(false) @map("is_read")
+  relatedItemId    Int?             @map("related_item_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  user             User             @relation(fields: [userId], references: [id])
 
   @@map("notifications")
 }
@@ -202,36 +268,47 @@ model DocumentType {
   @@map("document_types")
 }
 
+enum DocumentStatus {
+  DRAFT
+  FINAL
+  ARCHIVED
+}
+
 model Document {
-  id               Int               @id @default(autoincrement())
-  requestId        Int?              @map("request_id")
-  projectId        Int?              @map("project_id")
-  fileName         String            @map("file_name")
-  fileUrl          String            @map("file_url")
-  uploadedBy       Int               @map("uploaded_by")
-  typeId           Int               @map("type_id")
-  version          Int               @default(1)
-  status           String            @default("draft") // draft, final, archived
-  isCheckedOut     Boolean           @default(false) @map("is_checked_out")
-  checkedOutBy     Int?              @map("checked_out_by")
-  uploadedAt       DateTime          @default(now()) @map("uploaded_at")
-  request          Request?          @relation(fields: [requestId], references: [id])
-  project          Project?          @relation(fields: [projectId], references: [id])
-  uploader         User              @relation("UploadedBy", fields: [uploadedBy], references: [id])
-  documentType     DocumentType      @relation(fields: [typeId], references: [id])
-  documentVersions DocumentVersion[]
+  id                 Int               @id @default(autoincrement())
+  requestId          Int?              @map("request_id")
+  calibrationId      Int?              @map("calibration_id")
+  rentalId           Int?              @map("rental_id")
+  projectId          Int?              @map("project_id")
+  fileName           String            @map("file_name")
+  fileUrl            String            @map("file_url")
+  uploadedById       Int               @map("uploaded_by_id")
+  typeId             Int               @map("type_id")
+  version            Int               @default(1)
+  status             DocumentStatus    @default(DRAFT)
+  isCheckedOut       Boolean           @default(false) @map("is_checked_out")
+  checkedOutById     Int?              @map("checked_out_by_id")
+  uploadedAt         DateTime          @default(now()) @map("uploaded_at")
+  request            Request?          @relation(fields: [requestId], references: [id])
+  calibration        CalibrationRequest? @relation(fields: [calibrationId], references: [id])
+  rental             RentalRequest?    @relation(fields: [rentalId], references: [id])
+  project            Project?          @relation(fields: [projectId], references: [id])
+  uploadedBy         User              @relation("UploadedBy", fields: [uploadedById], references: [id])
+  checkedOutBy       User?             @relation("CheckedOutBy", fields: [checkedOutById], references: [id])
+  documentType       DocumentType      @relation(fields: [typeId], references: [id])
+  documentVersions   DocumentVersion[]
 
   @@map("documents")
 }
 
 model DocumentVersion {
-  id         Int      @id @default(autoincrement())
-  documentId Int      @map("document_id")
-  version    Int
-  fileUrl    String   @map("file_url")
-  uploadedBy Int      @map("uploaded_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  document   Document @relation(fields: [documentId], references: [id])
+  id                 Int               @id @default(autoincrement())
+  documentId         Int               @map("document_id")
+  version            Int
+  fileUrl            String            @map("file_url")
+  uploadedById       Int               @map("uploaded_by_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  document           Document          @relation(fields: [documentId], references: [id])
 
   @@map("document_versions")
 }
@@ -250,26 +327,88 @@ model Project {
   @@map("projects")
 }
 
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
 model ProjectMember {
-  id        Int     @id @default(autoincrement())
-  projectId Int     @map("project_id")
-  userId    Int     @map("user_id")
-  role      String // owner, editor, viewer
-  project   Project @relation(fields: [projectId], references: [id])
-  user      User    @relation(fields: [userId], references: [id])
+  id        Int         @id @default(autoincrement())
+  projectId Int         @map("project_id")
+  userId    Int         @map("user_id")
+  role      ProjectRole @default(VIEWER)
+  project   Project     @relation(fields: [projectId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
 
   @@unique([projectId, userId])
   @@map("project_members")
 }
 
+enum InventoryFrequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 model InventorySchedule {
-  id          Int      @id @default(autoincrement())
+  id          Int                @id @default(autoincrement())
   name        String
   description String?
-  frequency   String // monthly, quarterly, yearly
-  nextDate    DateTime @map("next_date")
+  frequency   InventoryFrequency
+  nextDate    DateTime           @map("next_date")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  executions  InventoryExecution[]
+  
+  @@map("inventory_schedules")
+}
+
+enum InventoryExecutionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model InventoryExecution {
+  id            Int                     @id @default(autoincrement())
+  name          String
+  scheduleId    Int                     @map("schedule_id")
+  performedById Int                     @map("performed_by_id")
+  status        InventoryExecutionStatus
+  date          DateTime
+  completedAt   DateTime?               @map("completed_at")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  schedule      InventorySchedule       @relation(fields: [scheduleId], references: [id])
+  performedBy   User                    @relation(fields: [performedById], references: [id])
+  verifications InventoryVerification[]
+  
+  @@map("inventory_executions")
+}
+
+model InventoryVerification {
+  id            Int                @id @default(autoincrement())
+  executionId   Int                @map("execution_id")
+  itemId        Int                @map("item_id")
+  verifiedById  Int                @map("verified_by_id")
+  verifiedAt    DateTime           @map("verified_at")
+  notes         String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+  execution     InventoryExecution @relation(fields: [executionId], references: [id])
+  item          Item               @relation(fields: [itemId], references: [id])
+  verifiedBy    User               @relation(fields: [verifiedById], references: [id])
+  
+  @@map("inventory_verifications")
+}
+
+// Add Status model
+
+model Status {
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String   // e.g., 'item', 'request', 'calibration', etc.
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@map("inventory_schedules")
+  @@map("statuses")
 }

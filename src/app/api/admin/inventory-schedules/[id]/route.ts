@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+interface Params {
+  id: string;
+}
+
+// GET a specific inventory schedule
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Params }
 ) {
   try {
     const id = parseInt(params.id);
     
-    // Validate ID
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid schedule ID' },
@@ -16,7 +20,6 @@ export async function GET(
       );
     }
     
-    // Find schedule
     const schedule = await prisma.inventorySchedule.findUnique({
       where: { id }
     });
@@ -30,27 +33,59 @@ export async function GET(
     
     return NextResponse.json(schedule);
   } catch (error) {
-    console.error('Error fetching inventory schedule:', error);
+    console.error('Error fetching schedule:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch inventory schedule' },
+      { error: 'Failed to fetch schedule' },
       { status: 500 }
     );
   }
 }
 
+// PATCH update an inventory schedule
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Params }
 ) {
   try {
     const id = parseInt(params.id);
-    const body = await request.json();
-    const { name, description, frequency, nextDate } = body;
     
-    // Validate ID
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid schedule ID' },
+        { status: 400 }
+      );
+    }
+    
+    const body = await request.json();
+    const { name, description, frequency, nextDate } = body;
+    
+    // Validation
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Schedule name is required' },
+        { status: 400 }
+      );
+    }
+    
+    if (!frequency) {
+      return NextResponse.json(
+        { error: 'Frequency is required' },
+        { status: 400 }
+      );
+    }
+    
+    if (!nextDate) {
+      return NextResponse.json(
+        { error: 'Next date is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate frequency
+    const validFrequencies = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
+    if (!validFrequencies.includes(frequency)) {
+      return NextResponse.json(
+        { error: 'Invalid frequency. Must be MONTHLY, QUARTERLY, or YEARLY' },
         { status: 400 }
       );
     }
@@ -65,48 +100,37 @@ export async function PATCH(
         { error: 'Schedule not found' },
         { status: 404 }
       );
-    }
-    
-    // Validate frequency if provided
-    if (frequency) {
-      const validFrequencies = ['monthly', 'quarterly', 'yearly'];
-      if (!validFrequencies.includes(frequency)) {
-        return NextResponse.json(
-          { error: 'Invalid frequency. Must be monthly, quarterly, or yearly' },
-          { status: 400 }
-        );
-      }
     }
     
     // Update schedule
     const updatedSchedule = await prisma.inventorySchedule.update({
       where: { id },
       data: {
-        name: name || undefined,
-        description: description !== undefined ? description : undefined,
-        frequency: frequency || undefined,
-        nextDate: nextDate ? new Date(nextDate) : undefined
+        name,
+        description,
+        frequency: frequency as any,
+        nextDate: new Date(nextDate)
       }
     });
     
     return NextResponse.json(updatedSchedule);
   } catch (error) {
-    console.error('Error updating inventory schedule:', error);
+    console.error('Error updating schedule:', error);
     return NextResponse.json(
-      { error: 'Failed to update inventory schedule' },
+      { error: 'Failed to update schedule' },
       { status: 500 }
     );
   }
 }
 
+// DELETE an inventory schedule
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Params }
 ) {
   try {
     const id = parseInt(params.id);
     
-    // Validate ID
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid schedule ID' },
@@ -115,27 +139,28 @@ export async function DELETE(
     }
     
     // Check if schedule exists
-    const existingSchedule = await prisma.inventorySchedule.findUnique({
+    const schedule = await prisma.inventorySchedule.findUnique({
       where: { id }
     });
     
-    if (!existingSchedule) {
+    if (!schedule) {
       return NextResponse.json(
         { error: 'Schedule not found' },
         { status: 404 }
       );
     }
     
-    // Delete schedule
     await prisma.inventorySchedule.delete({
       where: { id }
     });
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      message: 'Schedule deleted successfully'
+    });
   } catch (error) {
-    console.error('Error deleting inventory schedule:', error);
+    console.error('Error deleting schedule:', error);
     return NextResponse.json(
-      { error: 'Failed to delete inventory schedule' },
+      { error: 'Failed to delete schedule' },
       { status: 500 }
     );
   }

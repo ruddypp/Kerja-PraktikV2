@@ -1,191 +1,276 @@
-import DashboardLayout from '@/components/DashboardLayout';
-import { getDashboardStats } from './utils';
+'use client';
 
-export default async function AdminDashboard() {
-  const stats = await getDashboardStats();
-  
-  // Set default values in case API fails
-  const totalItems = stats?.totalItems || 0;
-  const statusMap = stats?.statusMap || {};
-  
-  // Get counts for different statuses (lowercase status names for consistency)
-  const availableCount = statusMap['available'] || 0;
-  const inUseCount = statusMap['in use'] || 0;
-  const maintenanceCount = statusMap['maintenance'] || 0;
-  const rentedCount = statusMap['rented'] || 0;
-  const inCalibrationCount = statusMap['in calibration'] || 0;
-  const approvedCount = statusMap['approved'] || 0;
-  const pendingCount = statusMap['pending'] || 0;
-  const rejectedCount = statusMap['rejected'] || 0;
-  const completedCount = statusMap['completed'] || 0;
-  const damagedCount = statusMap['damaged'] || 0;
+import { useEffect, useState } from 'react';
+import DashboardLayout from '@/components/DashboardLayout';
+import Link from 'next/link';
+
+// Tipe data untuk statistik dashboard
+type DashboardStats = {
+  totalItems: number;
+  availableItems: number;
+  inUseItems: number;
+  inCalibrationItems: number;
+  inRentalItems: number;
+  inMaintenanceItems: number;
+  pendingRequests: number;
+  pendingCalibrations: number;
+  pendingRentals: number;
+  upcomingCalibrations: number;
+  overdueRentals: number;
+  recentActivities: Array<{
+    id: number;
+    activity: string;
+    user: {
+      name: string;
+    };
+    createdAt: Date;
+  }>;
+  notifications: Array<{
+    id: number;
+    message: string;
+    isRead: boolean;
+    createdAt: Date;
+  }>;
+};
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const res = await fetch('/api/admin/dashboard');
+        if (!res.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+        const data = await res.json();
+        setStats(data);
+      } catch (err) {
+        setError('Error loading dashboard data. Please try again later.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Format date for display
+  const formatDate = (dateString: Date) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(date);
+  };
 
   return (
     <DashboardLayout>
       <div className="px-2 sm:px-0">
-        <h1 className="text-title text-xl md:text-2xl mb-6">Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Dashboard</h1>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-          <div className="card border-l-4 border-green-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
+            <span className="ml-3 text-lg text-gray-700">Loading dashboard data...</span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">
+            <p>{error}</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Statistik Utama */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg shadow-md">
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Barang</h2>
+                <div className="flex items-center">
+                  <div className="bg-green-100 p-3 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-2xl font-bold text-gray-800">{stats?.totalItems || 0}</p>
+                    <Link href="/admin/inventory" className="text-sm text-green-600 hover:underline">Lihat detail</Link>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-subtitle">Total Items</p>
-                <p className="text-2xl font-bold text-green-700">{totalItems}</p>
+              
+              <div className="bg-white p-4 rounded-lg shadow-md">
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">Permintaan</h2>
+                <div className="flex items-center">
+                  <div className="bg-blue-100 p-3 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingRequests || 0}</p>
+                    <Link href="/admin/requests" className="text-sm text-blue-600 hover:underline">Lihat pending</Link>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow-md">
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">Kalibrasi</h2>
+                <div className="flex items-center">
+                  <div className="bg-purple-100 p-3 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingCalibrations || 0}</p>
+                    <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:underline">Lihat pending</Link>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow-md">
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">Rental</h2>
+                <div className="flex items-center">
+                  <div className="bg-yellow-100 p-3 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingRentals || 0}</p>
+                    <Link href="/admin/rentals" className="text-sm text-yellow-600 hover:underline">Lihat pending</Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Status Barang */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Status Barang</h2>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-green-700 font-medium">Available</span>
+                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.availableItems || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-green-500 h-2" style={{ width: `${stats ? (stats.availableItems / stats.totalItems) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-blue-700 font-medium">In Use</span>
+                    <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inUseItems || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-blue-500 h-2" style={{ width: `${stats ? (stats.inUseItems / stats.totalItems) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-purple-700 font-medium">Calibration</span>
+                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inCalibrationItems || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-purple-500 h-2" style={{ width: `${stats ? (stats.inCalibrationItems / stats.totalItems) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-yellow-700 font-medium">Rental</span>
+                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inRentalItems || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-yellow-500 h-2" style={{ width: `${stats ? (stats.inRentalItems / stats.totalItems) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+                
+                <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-red-700 font-medium">Maintenance</span>
+                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inMaintenanceItems || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-red-500 h-2" style={{ width: `${stats ? (stats.inMaintenanceItems / stats.totalItems) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Pengingat dan Aktivitas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Pengingat */}
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Pengingat</h2>
+                <div className="space-y-3">
+                  <div className="flex items-start p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                    <div className="text-yellow-500 mr-2 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{stats?.upcomingCalibrations || 0} barang mendekati jadwal kalibrasi dalam 7 hari</p>
+                      <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:underline">Lihat detail</Link>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start p-3 bg-red-50 rounded-lg border border-red-100">
+                    <div className="text-red-500 mr-2 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{stats?.overdueRentals || 0} barang melebihi batas waktu rental</p>
+                      <Link href="/admin/rentals" className="text-xs text-red-600 hover:underline">Lihat detail</Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Aktivitas Terbaru */}
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Aktivitas Terbaru</h2>
+                <div className="space-y-3">
+                  {stats?.recentActivities && stats.recentActivities.length > 0 ? (
+                    stats.recentActivities.map((activity) => (
+                      <div key={activity.id} className="flex items-start p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="text-gray-500 mr-2 mt-0.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">{activity.activity}</p>
+                          <div className="flex justify-between">
+                            <span className="text-xs text-gray-500">{activity.user.name}</span>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(activity.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm">Tidak ada aktivitas terbaru</p>
+                  )}
+                  
+                  <Link href="/admin/activity-logs" className="block text-sm text-center text-green-600 hover:underline mt-4">
+                    Lihat semua aktivitas
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="card border-l-4 border-blue-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Available</p>
-                <p className="text-2xl font-bold text-blue-700">{availableCount}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="card border-l-4 border-yellow-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">In Use</p>
-                <p className="text-2xl font-bold text-yellow-700">{inUseCount}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="card border-l-4 border-red-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Maintenance</p>
-                <p className="text-2xl font-bold text-red-700">{maintenanceCount}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h2 className="text-title text-lg md:text-xl mb-4">Status Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
-          <div className="card border-l-4 border-purple-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-purple-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Rented</p>
-                <p className="text-2xl font-bold text-purple-700">{rentedCount}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card border-l-4 border-indigo-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-indigo-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">In Calibration</p>
-                <p className="text-2xl font-bold text-indigo-700">{inCalibrationCount}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card border-l-4 border-green-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Approved</p>
-                <p className="text-2xl font-bold text-green-700">{approvedCount}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card border-l-4 border-yellow-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Pending</p>
-                <p className="text-2xl font-bold text-yellow-700">{pendingCount}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card border-l-4 border-red-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Rejected</p>
-                <p className="text-2xl font-bold text-red-700">{rejectedCount}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h2 className="text-title text-lg md:text-xl mb-4">Lifecycle Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-8">
-          <div className="card border-l-4 border-green-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Completed</p>
-                <p className="text-2xl font-bold text-green-700">{completedCount}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card border-l-4 border-red-600 hover:shadow-lg transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-100 mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-subtitle">Damaged</p>
-                <p className="text-2xl font-bold text-red-700">{damagedCount}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

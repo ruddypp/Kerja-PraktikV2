@@ -1,37 +1,61 @@
-interface DashboardStats {
+// Dashboard utility types
+export interface DashboardStats {
   totalItems: number;
-  statusCounts: Record<string, number>;
-  statusMap: Record<string, number>;
+  availableItems: number;
+  inUseItems: number;
+  inCalibrationItems: number;
+  inRentalItems: number;
+  inMaintenanceItems: number;
+  pendingRequests: number;
+  pendingCalibrations: number;
+  pendingRentals: number;
+  upcomingCalibrations: number;
+  overdueRentals: number;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats | null> {
-  try {
-    // For server components in Next.js, we need to use absolute URL
-    const url = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const response = await fetch(`${url}/api/admin/dashboard`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Ensure we get fresh data each time
-      cache: 'no-store',
-      // For server components, this is important
-      next: { revalidate: 0 }
-    });
+// Format number with thousands separator
+export function formatNumber(num: number): string {
+  return num.toLocaleString('id-ID');
+}
 
-    if (!response.ok) {
-      console.error(`Failed to fetch dashboard stats: ${response.status} ${response.statusText}`);
-      throw new Error('Failed to fetch dashboard stats');
-    }
+// Calculate percentage
+export function calculatePercentage(value: number, total: number): number {
+  if (total === 0) return 0;
+  return (value / total) * 100;
+}
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
-    return {
-      totalItems: 0,
-      statusCounts: {},
-      statusMap: {}
-    };
+// Format date for display
+export function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return new Intl.DateTimeFormat('id-ID', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(dateObj);
+}
+
+// Get status badge color based on status
+export function getStatusBadgeColor(status: string): string {
+  switch (status.toUpperCase()) {
+    case 'AVAILABLE':
+      return 'bg-green-100 text-green-800';
+    case 'IN_USE':
+      return 'bg-blue-100 text-blue-800';
+    case 'IN_CALIBRATION':
+      return 'bg-purple-100 text-purple-800';
+    case 'IN_RENTAL':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'IN_MAINTENANCE':
+      return 'bg-red-100 text-red-800';
+    case 'PENDING':
+      return 'bg-orange-100 text-orange-800';
+    case 'COMPLETED':
+      return 'bg-green-100 text-green-800';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
   }
-} 
+}
+
+// Dashboard utility functions will be added later

@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 
+// Define ItemStatus enum since it might not be directly accessible from @prisma/client
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
 interface Category {
   id: number;
   name: string;
-}
-
-interface Status {
-  id: number;
-  name: string;
-  type: string;
 }
 
 interface Item {
@@ -22,24 +25,29 @@ interface Item {
   serialNumber: string | null;
   lastVerifiedDate: string | null;
   category: Category;
-  status: Status;
+  status: ItemStatus;
 }
 
 export default function InventoryPage() {
   // Status color mappings
-  const statusColors: Record<string, string> = {
-    'available': 'bg-green-100 text-green-800',
-    'in use': 'bg-yellow-100 text-yellow-800',
-    'in_calibration': 'bg-blue-100 text-blue-800',
-    'maintenance': 'bg-red-100 text-red-800',
-    'rented': 'bg-purple-100 text-purple-800',
-    'damaged': 'bg-orange-100 text-orange-800',
-    'retired': 'bg-gray-100 text-gray-800'
+  const statusColors: Record<ItemStatus, string> = {
+    [ItemStatus.AVAILABLE]: 'bg-green-100 text-green-800',
+    [ItemStatus.IN_USE]: 'bg-yellow-100 text-yellow-800',
+    [ItemStatus.IN_CALIBRATION]: 'bg-blue-100 text-blue-800',
+    [ItemStatus.IN_MAINTENANCE]: 'bg-red-100 text-red-800',
+    [ItemStatus.IN_RENTAL]: 'bg-purple-100 text-purple-800'
+  };
+
+  const statusDisplayNames: Record<ItemStatus, string> = {
+    [ItemStatus.AVAILABLE]: 'Available',
+    [ItemStatus.IN_USE]: 'In Use',
+    [ItemStatus.IN_CALIBRATION]: 'In Calibration',
+    [ItemStatus.IN_MAINTENANCE]: 'In Maintenance',
+    [ItemStatus.IN_RENTAL]: 'In Rental'
   };
 
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -49,7 +57,7 @@ export default function InventoryPage() {
     categoryId: '',
     specification: '',
     serialNumber: '',
-    statusId: '',
+    status: ItemStatus.AVAILABLE,
     lastVerifiedDate: ''
   });
   const [isEditing, setIsEditing] = useState(false);
@@ -58,7 +66,7 @@ export default function InventoryPage() {
   // Filters
   const [filters, setFilters] = useState({
     categoryId: '',
-    statusId: '',
+    status: '',
     search: ''
   });
 
@@ -74,7 +82,7 @@ export default function InventoryPage() {
       // Build query params for filtering
       const params = new URLSearchParams();
       if (filters.categoryId) params.append('categoryId', filters.categoryId);
-      if (filters.statusId) params.append('statusId', filters.statusId);
+      if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
@@ -110,24 +118,8 @@ export default function InventoryPage() {
     }
   };
 
-  const fetchStatuses = async () => {
-    try {
-      const res = await fetch('/api/admin/statuses?type=item');
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch statuses');
-      }
-      
-      const data = await res.json();
-      setStatuses(data);
-    } catch (err) {
-      console.error('Error fetching statuses:', err);
-      setError('Error loading statuses. Please try again.');
-    }
-  };
-
   useEffect(() => {
-    Promise.all([fetchItems(), fetchCategories(), fetchStatuses()]);
+    Promise.all([fetchItems(), fetchCategories()]);
   }, []);
 
   // Refetch items when filters change
@@ -154,7 +146,7 @@ export default function InventoryPage() {
   const resetFilters = () => {
     setFilters({
       categoryId: '',
-      statusId: '',
+      status: '',
       search: ''
     });
   };
@@ -186,7 +178,7 @@ export default function InventoryPage() {
           categoryId: formData.categoryId,
           specification: formData.specification || null,
           serialNumber: formData.serialNumber || null,
-          statusId: formData.statusId,
+          status: formData.status,
           lastVerifiedDate: lastVerified
         })
       });
@@ -203,13 +195,14 @@ export default function InventoryPage() {
         categoryId: '', 
         specification: '', 
         serialNumber: '', 
-        statusId: '',
-        lastVerifiedDate: ''
+        status: ItemStatus.AVAILABLE, 
+        lastVerifiedDate: '' 
       });
       setIsEditing(false);
       setShowForm(false);
+      setSuccess(isEditing ? 'Item updated successfully!' : 'Item added successfully!');
       fetchItems();
-    } catch (err: Error | unknown) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save item. Please try again.';
       setError(errorMessage);
     }
@@ -219,75 +212,59 @@ export default function InventoryPage() {
     setFormData({
       id: item.id,
       name: item.name,
-      categoryId: item.category.id.toString(),
+      categoryId: String(item.category.id),
       specification: item.specification || '',
       serialNumber: item.serialNumber || '',
-      statusId: item.status.id.toString(),
-      lastVerifiedDate: item.lastVerifiedDate ? item.lastVerifiedDate.split('T')[0] : ''
+      status: item.status,
+      lastVerifiedDate: item.lastVerifiedDate ? new Date(item.lastVerifiedDate).toISOString().split('T')[0] : ''
     });
     setIsEditing(true);
     setShowForm(true);
   };
 
-  // Add confirmDelete function to show the dialog
   const confirmDelete = (id: number) => {
     setItemToDelete(id);
-    setForceDelete(false);
     setShowDeleteConfirm(true);
   };
 
-  // Update handleDelete function to use the force delete option
   const handleDelete = async () => {
     if (!itemToDelete) return;
     
     try {
-      setError('');
-      setLoading(true);
+      const params = new URLSearchParams();
+      if (forceDelete) {
+        params.append('force', 'true');
+      }
       
-      const response = await fetch(`/api/admin/items/${itemToDelete}${forceDelete ? '?force=true' : ''}`, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json'
-        }
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      
+      const res = await fetch(`/api/admin/items/${itemToDelete}${queryString}`, {
+        method: 'DELETE'
       });
       
-      let data;
-      try {
-        // Try to parse the response as JSON
-        const textData = await response.text();
-        data = textData ? JSON.parse(textData) : {};
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError);
-        // If JSON parsing fails, continue with empty data object
-        data = {};
-      }
-      
-      if (!response.ok) {
-        // Check if we have an error message from the server
-        if (data && data.error) {
-          throw new Error(data.error);
-        } else {
-          throw new Error(`Server responded with status: ${response.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        
+        // If error is about dependent records and force delete not yet tried
+        if (errorData.error && errorData.error.includes('dependent') && !forceDelete) {
+          // Show confirmation for force delete
+          return;
         }
+        
+        throw new Error(errorData.error || 'Failed to delete item');
       }
       
-      // Show different success messages based on whether item was deleted or retired
-      if (data.message && data.message.includes('retired')) {
-        setSuccess(data.message || 'Item has been marked as retired because it has associated requests.');
-      } else {
-        setSuccess(data.message || 'Item deleted successfully.');
-      }
+      // Reset states
+      setItemToDelete(null);
+      setShowDeleteConfirm(false);
+      setForceDelete(false);
+      setSuccess('Item deleted successfully!');
       
-      // Refresh the item list
+      // Refresh items
       fetchItems();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete item. Please try again.';
       setError(errorMessage);
-      console.error('Delete error:', err);
-    } finally {
-      setLoading(false);
-      setShowDeleteConfirm(false);
-      setItemToDelete(null);
     }
   };
 
@@ -298,16 +275,16 @@ export default function InventoryPage() {
       categoryId: '', 
       specification: '', 
       serialNumber: '', 
-      statusId: '',
-      lastVerifiedDate: ''
+      status: ItemStatus.AVAILABLE, 
+      lastVerifiedDate: '' 
     });
     setIsEditing(false);
     setShowForm(false);
   };
 
-  // Format date for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not verified';
+    
     const date = new Date(dateString);
     return date.toLocaleDateString();
   };
@@ -407,21 +384,21 @@ export default function InventoryPage() {
                 />
               </div>
               <div>
-                <label htmlFor="statusId" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
                   Status*
                 </label>
                 <select
-                  id="statusId"
-                  name="statusId"
-                  value={formData.statusId}
+                  id="status"
+                  name="status"
+                  value={formData.status}
                   onChange={handleFormChange}
                   required
                   className="form-input"
                 >
                   <option value="">Select Status</option>
-                  {statuses.map(status => (
-                    <option key={status.id} value={status.id}>
-                      {status.name}
+                  {Object.values(ItemStatus).map(status => (
+                    <option key={status} value={status}>
+                      {statusDisplayNames[status]}
                     </option>
                   ))}
                 </select>
@@ -509,20 +486,20 @@ export default function InventoryPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="statusId" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
               Status
             </label>
             <select
-              id="statusId"
-              name="statusId"
-              value={filters.statusId}
+              id="status"
+              name="status"
+              value={filters.status}
               onChange={handleFilterChange}
               className="form-input"
             >
               <option value="">All Statuses</option>
-              {statuses.map(status => (
-                <option key={status.id} value={status.id}>
-                  {status.name}
+              {Object.values(ItemStatus).map(status => (
+                <option key={status} value={status}>
+                  {statusDisplayNames[status]}
                 </option>
               ))}
             </select>
@@ -600,8 +577,8 @@ export default function InventoryPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[item.status.name.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
-                      {item.status.name.toLowerCase()}
+                    <div className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[item.status] || 'bg-gray-100 text-gray-800'}`}>
+                      {statusDisplayNames[item.status]}
                     </div>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
@@ -644,15 +621,13 @@ export default function InventoryPage() {
                   <p className="text-sm text-gray-600">{item.category.name}</p>
                 </div>
                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                  ${item.status.name.toLowerCase() === 'available' && 'bg-green-100 text-green-800'}
-                  ${item.status.name.toLowerCase() === 'in use' && 'bg-yellow-100 text-yellow-800'}
-                  ${item.status.name.toLowerCase() === 'in_calibration' && 'bg-blue-100 text-blue-800'}
-                  ${item.status.name.toLowerCase() === 'maintenance' && 'bg-red-100 text-red-800'}
-                  ${item.status.name.toLowerCase() === 'rented' && 'bg-purple-100 text-purple-800'}
-                  ${item.status.name.toLowerCase() === 'damaged' && 'bg-orange-100 text-orange-800'}
-                  ${item.status.name.toLowerCase() === 'retired' && 'bg-gray-100 text-gray-800'}
+                  ${item.status === ItemStatus.AVAILABLE && 'bg-green-100 text-green-800'}
+                  ${item.status === ItemStatus.IN_USE && 'bg-yellow-100 text-yellow-800'}
+                  ${item.status === ItemStatus.IN_CALIBRATION && 'bg-blue-100 text-blue-800'}
+                  ${item.status === ItemStatus.IN_MAINTENANCE && 'bg-red-100 text-red-800'}
+                  ${item.status === ItemStatus.IN_RENTAL && 'bg-purple-100 text-purple-800'}
                 `}>
-                  {item.status.name.toLowerCase()}
+                  {statusDisplayNames[item.status]}
                 </span>
               </div>
               

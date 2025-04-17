@@ -1,18 +1,32 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Define enums locally since they might not be directly accessible
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
+enum RequestStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  COMPLETED = "COMPLETED"
+}
+
 interface Params {
   id: string;
 }
 
-// GET specific request by ID
+// GET a specific request
 export async function GET(
-  request: Request, 
+  request: Request,
   { params }: { params: Params }
 ) {
   try {
-    // Ensure we await the params object to resolve
-    await Promise.resolve();
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -22,7 +36,7 @@ export async function GET(
       );
     }
     
-    const requestData = await prisma.request.findUnique({
+    const req = await prisma.request.findUnique({
       where: { id },
       include: {
         user: {
@@ -36,28 +50,27 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            serialNumber: true
+            serialNumber: true,
+            status: true
           }
         },
-        approver: {
+        approvedBy: {
           select: {
             id: true,
-            name: true,
-            email: true
+            name: true
           }
-        },
-        status: true
+        }
       }
     });
     
-    if (!requestData) {
+    if (!req) {
       return NextResponse.json(
         { error: 'Request not found' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json(requestData);
+    return NextResponse.json(req);
   } catch (error) {
     console.error('Error fetching request:', error);
     return NextResponse.json(
@@ -67,14 +80,12 @@ export async function GET(
   }
 }
 
-// PATCH update request status
+// PATCH - Update request status (approve, reject, complete)
 export async function PATCH(
-  request: Request, 
+  request: Request,
   { params }: { params: Params }
 ) {
   try {
-    // Ensure we await the params object to resolve
-    await Promise.resolve();
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -85,72 +96,108 @@ export async function PATCH(
     }
     
     const body = await request.json();
-    const { statusId, approvedBy, rejectionReason } = body;
+    const { status, approvedById } = body;
     
-    if (!statusId) {
+    if (!status) {
       return NextResponse.json(
-        { error: 'Status ID is required' },
+        { error: 'Status is required' },
         { status: 400 }
       );
     }
     
-    console.log(`Updating request ${id} to status ${statusId}, rejectionReason: ${rejectionReason || 'none'}`);
-    
-    // Check if request exists
-    const existingRequest = await prisma.request.findUnique({
+    // Get the current request to check its status
+    const currentRequest = await prisma.request.findUnique({
       where: { id },
       include: {
-        item: true,
-        status: true
+        item: true
       }
     });
     
-    if (!existingRequest) {
+    if (!currentRequest) {
       return NextResponse.json(
         { error: 'Request not found' },
         { status: 404 }
       );
     }
     
-    // Check if status exists
-    const status = await prisma.status.findFirst({
-      where: { 
-        id: parseInt(statusId),
-        type: 'request'
-      }
-    });
+    // Process based on the status change
+    let itemStatusUpdate = {};
+    let activityType = "";
+    let activityDescription = "";
     
-    if (!status) {
-      const allStatuses = await prisma.status.findMany({
-        where: { type: 'request' }
-      });
-      console.log('Available request statuses:', allStatuses);
-      
-      return NextResponse.json(
-        { error: `Invalid status for request. Status ID ${statusId} not found with type 'request'` },
-        { status: 400 }
-      );
+    switch (status) {
+      case RequestStatus.APPROVED:
+        if (currentRequest.status !== RequestStatus.PENDING) {
+          return NextResponse.json(
+            { error: 'Only pending requests can be approved' },
+            { status: 400 }
+          );
+        }
+        
+        if (!approvedById) {
+          return NextResponse.json(
+            { error: 'Approver ID is required for approval' },
+            { status: 400 }
+          );
+        }
+        
+        // Update the item status to IN_USE
+        itemStatusUpdate = { status: ItemStatus.IN_USE };
+        activityType = "USAGE";
+        activityDescription = `Request approved by admin, item status changed to IN_USE`;
+        break;
+        
+      case RequestStatus.REJECTED:
+        if (currentRequest.status !== RequestStatus.PENDING) {
+          return NextResponse.json(
+            { error: 'Only pending requests can be rejected' },
+            { status: 400 }
+          );
+        }
+        
+        activityDescription = `Request rejected by admin`;
+        break;
+        
+      case RequestStatus.COMPLETED:
+        if (currentRequest.status !== RequestStatus.APPROVED) {
+          return NextResponse.json(
+            { error: 'Only approved requests can be completed' },
+            { status: 400 }
+          );
+        }
+        
+        // Update the item status back to AVAILABLE
+        itemStatusUpdate = { status: ItemStatus.AVAILABLE };
+        activityType = "RETURN";
+        activityDescription = `Request completed, item returned and status changed to AVAILABLE`;
+        break;
+        
+      default:
+        return NextResponse.json(
+          { error: 'Invalid status update' },
+          { status: 400 }
+        );
     }
     
-    console.log(`Found status: ${status.name} (ID: ${status.id})`);
-    
-    // Update request with additional notes field for rejected status
-    const updateData: Record<string, any> = {
-      status: {
-        connect: { id: parseInt(statusId) }
-      },
-      approvedBy: approvedBy ? parseInt(approvedBy) : null
+    // Update the request
+    const updateData: any = {
+      status: status as RequestStatus
     };
     
-    // If rejected, add rejection reason to notes
-    if (status.name.toLowerCase() === 'rejected' && rejectionReason) {
-      updateData.notes = rejectionReason;
-      console.log(`Adding rejection reason to notes: ${rejectionReason}`);
+    // Add approvedById if provided
+    if (approvedById) {
+      updateData.approvedById = parseInt(approvedById);
     }
     
-    try {
-      // Update request
-      const updatedRequest = await prisma.request.update({
+    // If completing the request, add returnDate
+    if (status === RequestStatus.COMPLETED) {
+      updateData.returnDate = new Date();
+    }
+    
+    // Start a transaction to update both request and item if needed
+    const [updatedRequest] = await prisma.$transaction([
+      // Update the request
+      prisma.request.update({
         where: { id },
         data: updateData,
         include: {
@@ -168,162 +215,110 @@ export async function PATCH(
               serialNumber: true
             }
           },
-          approver: {
+          approvedBy: {
             select: {
               id: true,
-              name: true,
-              email: true
+              name: true
             }
-          },
-          status: true
-        }
-      });
-      
-      console.log(`Request updated successfully: ${JSON.stringify(updatedRequest)}`);
-      
-      // Handle request-specific status changes
-      const statusName = status.name.toLowerCase();
-      
-      // If approving a calibration request
-      if (statusName === 'approved' && existingRequest.requestType === 'calibration') {
-        // Get IN_CALIBRATION status for items
-        const inCalibrationStatus = await prisma.status.findFirst({
-          where: {
-            name: {
-              mode: 'insensitive',
-              contains: 'in_calibration'
-            },
-            type: 'item'
           }
-        });
-        
-        if (inCalibrationStatus) {
-          // Update item status to IN_CALIBRATION
-          await prisma.item.update({
-            where: { id: existingRequest.itemId },
-            data: {
-              status: {
-                connect: { id: inCalibrationStatus.id }
-              }
-            }
-          });
-          
-          // Create appropriate notifications
-          await prisma.notification.create({
-            data: {
-              userId: existingRequest.userId,
-              message: `Your calibration request for ${existingRequest.item.name} has been approved`,
-              isRead: false
-            }
-          });
-          
-          // Log the activity
-          await prisma.activityLog.create({
-            data: {
-              userId: approvedBy ? parseInt(approvedBy) : 1,
-              activity: `Calibration request for ${existingRequest.item.name} approved`
-            }
-          });
         }
-      }
+      }),
       
-      // If rejecting a request
-      if (statusName === 'rejected') {
-        console.log(`Processing rejection for request ${id}`);
+      // Update the item status if needed
+      ...Object.keys(itemStatusUpdate).length > 0 
+        ? [
+            prisma.item.update({
+              where: { id: currentRequest.itemId },
+              data: itemStatusUpdate
+            })
+          ] 
+        : [],
         
-        // Get AVAILABLE status for item
-        const availableStatus = await prisma.status.findFirst({
-          where: {
-            name: {
-              mode: 'insensitive',
-              contains: 'available'
-            },
-            type: 'item'
-          }
-        });
-        
-        if (availableStatus) {
-          console.log(`Found available status: ${availableStatus.name} (ID: ${availableStatus.id})`);
-          
-          // Update item status back to AVAILABLE
-          const updatedItem = await prisma.item.update({
-            where: { id: existingRequest.itemId },
-            data: {
-              status: {
-                connect: { id: availableStatus.id }
+      // Add to item history
+      ...activityType 
+        ? [
+            prisma.itemHistory.create({
+              data: {
+                itemId: currentRequest.itemId,
+                activityType: activityType as any,
+                relatedRequestId: id,
+                description: activityDescription,
+                performedById: approvedById ? parseInt(approvedById) : 1, // Default to admin id 1 if not provided
+                date: new Date()
               }
-            }
-          });
-          
-          console.log(`Item updated successfully: ${JSON.stringify(updatedItem)}`);
-        } else {
-          console.log('No available status found for item');
-        }
+            })
+          ] 
+        : [],
         
-        try {
-          // Create appropriate notifications
-          const notification = await prisma.notification.create({
-            data: {
-              userId: existingRequest.userId,
-              message: `Your ${existingRequest.requestType} request for ${existingRequest.item.name} has been rejected${rejectionReason ? ': ' + rejectionReason : ''}`,
-              isRead: false
-            }
-          });
-          
-          console.log(`Notification created: ${JSON.stringify(notification)}`);
-          
-          // Log the activity
-          const activity = await prisma.activityLog.create({
-            data: {
-              userId: approvedBy ? parseInt(approvedBy) : 1,
-              activity: `${existingRequest.requestType} request for ${existingRequest.item.name} rejected`
-            }
-          });
-          
-          console.log(`Activity log created: ${JSON.stringify(activity)}`);
-        } catch (notificationError) {
-          console.error('Error creating notification or activity log:', notificationError);
-          // Continue with the request update even if notification fails
+      // Create notification for the user
+      prisma.notification.create({
+        data: {
+          userId: currentRequest.userId,
+          type: "REQUEST_UPDATE",
+          message: `Your request for "${currentRequest.item.name}" has been ${status.toLowerCase()}`,
+          relatedItemId: currentRequest.itemId,
+          read: false,
+          createdAt: new Date()
         }
-      }
-      
-      // If completing, update the item status back to available
-      if (statusName === 'completed') {
-        // Get "Available" status ID
-        const availableStatus = await prisma.status.findFirst({
-          where: {
-            name: {
-              mode: 'insensitive',
-              contains: 'available'
-            },
-            type: 'item'
-          }
-        });
-        
-        if (availableStatus) {
-          await prisma.item.update({
-            where: { id: existingRequest.itemId },
-            data: {
-              status: {
-                connect: { id: availableStatus.id }
-              }
-            }
-          });
-        }
-      }
-      
-      return NextResponse.json(updatedRequest);
-    } catch (updateError) {
-      console.error('Error updating request:', updateError);
+      })
+    ]);
+    
+    return NextResponse.json(updatedRequest);
+  } catch (error) {
+    console.error('Error updating request:', error);
+    return NextResponse.json(
+      { error: 'Failed to update request' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a request
+export async function DELETE(
+  request: Request,
+  { params }: { params: Params }
+) {
+  try {
+    const id = parseInt(params.id);
+    
+    if (isNaN(id)) {
       return NextResponse.json(
-        { error: `Failed to update request: ${(updateError as Error).message}` },
-        { status: 500 }
+        { error: 'Invalid request ID' },
+        { status: 400 }
       );
     }
+    
+    // Check if request exists
+    const req = await prisma.request.findUnique({
+      where: { id }
+    });
+    
+    if (!req) {
+      return NextResponse.json(
+        { error: 'Request not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Only pending requests can be deleted
+    if (req.status !== RequestStatus.PENDING) {
+      return NextResponse.json(
+        { error: 'Only pending requests can be deleted' },
+        { status: 400 }
+      );
+    }
+    
+    await prisma.request.delete({
+      where: { id }
+    });
+    
+    return NextResponse.json({ 
+      message: 'Request deleted successfully'
+    });
   } catch (error) {
-    console.error('Error processing request update:', error);
+    console.error('Error deleting request:', error);
     return NextResponse.json(
-      { error: `Failed to update request status: ${(error as Error).message}` },
+      { error: 'Failed to delete request' },
       { status: 500 }
     );
   }

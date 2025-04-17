@@ -8,6 +8,15 @@ interface Category {
   name: string;
 }
 
+// Define ItemStatus enum to match the schema
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
 interface Status {
   id: number;
   name: string;
@@ -20,8 +29,60 @@ interface Item {
   specification: string | null;
   serialNumber: string | null;
   category: Category;
-  status: Status;
+  // Item can have either a Status object or a direct ItemStatus enum string
+  status: Status | ItemStatus | string;
 }
+
+// Helper function to get status name safely regardless of format
+const getStatusName = (status: Status | ItemStatus | string): string => {
+  if (typeof status === 'string') {
+    return status;
+  }
+  if ('name' in status) {
+    return status.name;
+  }
+  return status;
+};
+
+// Add mapping functions for status display
+const getStatusDisplayName = (status: Status | ItemStatus | string): string => {
+  const name = getStatusName(status);
+  
+  // Convert to readable format
+  switch(name.toUpperCase()) {
+    case 'AVAILABLE':
+      return 'Available';
+    case 'IN_USE':
+      return 'In Use';
+    case 'IN_CALIBRATION':
+      return 'In Calibration';
+    case 'IN_RENTAL':
+      return 'In Rental';
+    case 'IN_MAINTENANCE':
+      return 'In Maintenance';
+    default:
+      return name;
+  }
+};
+
+const getStatusBadgeClass = (status: Status | ItemStatus | string): string => {
+  const name = getStatusName(status).toUpperCase();
+  
+  switch(name) {
+    case 'AVAILABLE':
+      return 'badge-success';
+    case 'IN_USE':
+      return 'badge-warning';
+    case 'IN_CALIBRATION':
+      return 'badge-info';
+    case 'IN_RENTAL':
+      return 'badge-purple';
+    case 'IN_MAINTENANCE':
+      return 'badge-danger';
+    default:
+      return 'badge-secondary';
+  }
+};
 
 export default function UserBarang() {
   const [items, setItems] = useState<Item[]>([]);
@@ -33,7 +94,7 @@ export default function UserBarang() {
   // Filters
   const [filters, setFilters] = useState({
     categoryId: '',
-    statusId: '',
+    status: '',
     search: ''
   });
 
@@ -53,9 +114,19 @@ export default function UserBarang() {
         
         // Fetch items with simple error handling
         try {
-          const itemsRes = await fetch('/api/admin/items');
-          const itemsData = await itemsRes.json();
-          setItems(itemsData);
+          const itemsRes = await fetch('/api/user/items');
+          if (!itemsRes.ok) {
+            // If user endpoint fails, try admin endpoint
+            const adminItemsRes = await fetch('/api/admin/items');
+            if (!adminItemsRes.ok) {
+              throw new Error('Failed to fetch items');
+            }
+            const itemsData = await adminItemsRes.json();
+            setItems(itemsData);
+          } else {
+            const itemsData = await itemsRes.json();
+            setItems(itemsData);
+          }
         } catch (err) {
           console.error('Error fetching items:', err);
         }
@@ -69,13 +140,30 @@ export default function UserBarang() {
           console.error('Error fetching categories:', err);
         }
         
-        // Fetch statuses
+        // Try to fetch statuses but don't fail if not available
         try {
           const statusesRes = await fetch('/api/admin/statuses?type=item');
-          const statusesData = await statusesRes.json();
-          setStatuses(statusesData);
+          if (statusesRes.ok) {
+            const statusesData = await statusesRes.json();
+            setStatuses(Array.isArray(statusesData) ? statusesData : []);
+          } else {
+            // If statuses endpoint fails, create status options from ItemStatus enum
+            const enumStatuses = Object.values(ItemStatus).map((value, index) => ({
+              id: index + 1,
+              name: value,
+              type: 'item'
+            }));
+            setStatuses(enumStatuses);
+          }
         } catch (err) {
           console.error('Error fetching statuses:', err);
+          // Create status options from ItemStatus enum
+          const enumStatuses = Object.values(ItemStatus).map((value, index) => ({
+            id: index + 1,
+            name: value,
+            type: 'item'
+          }));
+          setStatuses(enumStatuses);
         }
       } catch (error) {
         setError('An error occurred while loading data.');
@@ -97,17 +185,32 @@ export default function UserBarang() {
         // Build query params
         const params = new URLSearchParams();
         if (filters.categoryId) params.append('categoryId', filters.categoryId);
-        if (filters.statusId) params.append('statusId', filters.statusId);
+        if (filters.status) params.append('status', filters.status);
         if (filters.search) params.append('search', filters.search);
         
         const queryString = params.toString() ? `?${params.toString()}` : '';
-        const res = await fetch(`/api/admin/items${queryString}`);
         
-        const data = await res.json();
-        
-        setItems(data);
+        // First try user API endpoint
+        try {
+          const res = await fetch(`/api/user/items${queryString}`);
+          if (!res.ok) {
+            throw new Error('Failed to fetch from user endpoint');
+          }
+          const data = await res.json();
+          setItems(data);
+        } catch (err) {
+          // Fall back to admin endpoint
+          console.error('Error with user endpoint, trying admin endpoint:', err);
+          const adminRes = await fetch(`/api/admin/items${queryString}`);
+          if (!adminRes.ok) {
+            throw new Error('Failed to fetch from admin endpoint');
+          }
+          const data = await adminRes.json();
+          setItems(data);
+        }
       } catch (err) {
         console.error('Error applying filters:', err);
+        setError('Failed to filter items. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -118,13 +221,18 @@ export default function UserBarang() {
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    // Map statusId input to status filter value
+    if (name === 'statusId') {
+      setFilters(prev => ({ ...prev, status: value }));
+    } else {
+      setFilters(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const resetFilters = () => {
     setFilters({
       categoryId: '',
-      statusId: '',
+      status: '',
       search: ''
     });
   };
@@ -192,14 +300,14 @@ export default function UserBarang() {
               <select
                 id="statusId"
                 name="statusId"
-                value={filters.statusId}
+                value={filters.status}
                 onChange={handleFilterChange}
                 className="form-input"
               >
                 <option value="">All Statuses</option>
-                {statuses.map(status => (
-                  <option key={status.id} value={status.id}>
-                    {status.name}
+                {Object.values(ItemStatus).map(status => (
+                  <option key={status} value={status}>
+                    {getStatusDisplayName(status)}
                   </option>
                 ))}
               </select>
@@ -264,14 +372,8 @@ export default function UserBarang() {
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className={`badge whitespace-nowrap
-                          ${(item.status.name === 'Available' || item.status.name === 'AVAILABLE' || item.status.name === 'available') && 'badge-success'}
-                          ${(item.status.name === 'In Use' || item.status.name === 'IN USE' || item.status.name === 'in use') && 'badge-warning'}
-                          ${(item.status.name === 'Maintenance' || item.status.name === 'MAINTENANCE' || item.status.name === 'maintenance') && 'badge-danger'}
-                          ${(item.status.name === 'In Calibration' || item.status.name === 'IN CALIBRATION' || item.status.name === 'in calibration') && 'badge-info'}
-                          ${(item.status.name === 'Retired' || item.status.name === 'RETIRED' || item.status.name === 'retired') && 'badge-secondary'}
-                        `}>
-                          {item.status.name}
+                        <span className={`badge ${getStatusBadgeClass(item.status)}`}>
+                          {getStatusDisplayName(item.status)}
                         </span>
                       </td>
                     </tr>

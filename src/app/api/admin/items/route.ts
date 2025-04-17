@@ -1,34 +1,32 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Define ItemStatus enum locally
+enum ItemStatus {
+  AVAILABLE = "AVAILABLE",
+  IN_USE = "IN_USE",
+  IN_CALIBRATION = "IN_CALIBRATION",
+  IN_RENTAL = "IN_RENTAL",
+  IN_MAINTENANCE = "IN_MAINTENANCE"
+}
+
 // GET all items with category and status
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
-    const statusId = searchParams.get('statusId');
-    const statusName = searchParams.get('statusName');
+    const status = searchParams.get('status');
     const search = searchParams.get('search');
     
     // Build where conditions with proper typing
-    const where: Record<string, unknown> = {};
+    const where: any = {};
     
     if (categoryId) {
       where.categoryId = parseInt(categoryId);
     }
     
-    if (statusId) {
-      where.statusId = parseInt(statusId);
-    }
-    
-    // Handle status name search - case insensitive
-    if (statusName) {
-      where.status = {
-        name: {
-          mode: 'insensitive',
-          contains: statusName
-        }
-      };
+    if (status) {
+      where.status = status as ItemStatus;
     }
     
     if (search) {
@@ -39,25 +37,16 @@ export async function GET(request: Request) {
       ];
     }
     
-    // Create Promise that will reject after 10 seconds
-    const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 10000);
-    });
-    
     // Create the actual data fetch promise
-    const fetchData = prisma.item.findMany({
-      where: where as any, // Type assertion needed for Prisma
+    const items = await prisma.item.findMany({
+      where,
       include: {
-        category: true,
-        status: true
+        category: true
       },
       orderBy: {
         id: 'asc'
       }
     });
-    
-    // Race the promises - whichever finishes first wins
-    const items = await Promise.race([fetchData, timeout]);
     
     return NextResponse.json(items || []);
   } catch (error) {
@@ -71,7 +60,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, categoryId, specification, serialNumber, statusId, lastVerifiedDate } = body;
+    const { name, categoryId, specification, serialNumber, status, lastVerifiedDate } = body;
     
     // Validation
     if (!name) {
@@ -88,9 +77,9 @@ export async function POST(request: Request) {
       );
     }
     
-    if (!statusId) {
+    if (!status || !Object.values(ItemStatus).includes(status as ItemStatus)) {
       return NextResponse.json(
-        { error: 'Status is required' },
+        { error: 'Valid status is required' },
         { status: 400 }
       );
     }
@@ -107,21 +96,6 @@ export async function POST(request: Request) {
       );
     }
     
-    // Check if status exists
-    const status = await prisma.status.findFirst({
-      where: { 
-        id: parseInt(statusId),
-        type: 'item'
-      }
-    });
-    
-    if (!status) {
-      return NextResponse.json(
-        { error: 'Invalid status for item' },
-        { status: 400 }
-      );
-    }
-    
     // Create item
     const item = await prisma.item.create({
       data: {
@@ -129,12 +103,11 @@ export async function POST(request: Request) {
         categoryId: parseInt(categoryId),
         specification,
         serialNumber,
-        statusId: parseInt(statusId),
+        status: status as ItemStatus,
         lastVerifiedDate: lastVerifiedDate || null
       },
       include: {
-        category: true,
-        status: true
+        category: true
       }
     });
     

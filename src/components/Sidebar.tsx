@@ -187,7 +187,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                 <button 
                   onClick={toggleInventory}
                   className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
-                    isActive('/admin/inventory') || isActive('/admin/categories') 
+                    isActive('/admin/inventory') || isActive('/admin/categories') || isActive('/admin/inventory/schedules')
                       ? 'bg-green-50 text-green-700 font-medium' 
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                   }`}
@@ -196,40 +196,63 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    {(isOpen || isMobile) && 'Inventory'}
+                    {(isOpen || isMobile) && 'Inventaris'}
                   </div>
                   {(isOpen || isMobile) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${inventoryOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <svg 
+                      className={`transition-transform transform ${inventoryOpen ? 'rotate-180' : ''}`}
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                   )}
                 </button>
                 
-                {/* Dropdown Items */}
-                {(isOpen || isMobile) && inventoryOpen && (
-                  <ul className="ml-10 mt-1 space-y-1 bg-gray-50 rounded-md py-1">
+                {inventoryOpen && (isOpen || isMobile) && (
+                  <ul className="mt-1 pl-8 space-y-1">
                     <li>
                       <Link 
                         href="/admin/inventory" 
-                        className={`block px-4 py-2 text-sm rounded-md transition-colors ${isActive('/admin/inventory') && !isActive('/admin/inventory/categories') ? 'bg-green-100 text-green-700 font-medium' : 'text-gray-700 hover:bg-green-50 hover:text-green-700'}`}
+                        className={`flex items-center p-2 rounded-md transition-colors ${isActive('/admin/inventory') && !isActive('/admin/inventory/schedules') ? 'text-green-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
                         onClick={handleNavigation}
                       >
-                        Items
+                        <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                        Barang
                       </Link>
                     </li>
                     <li>
                       <Link 
                         href="/admin/inventory/categories" 
-                        className={`block px-4 py-2 text-sm rounded-md transition-colors ${isActive('/admin/inventory/categories') ? 'bg-green-100 text-green-700 font-medium' : 'text-gray-700 hover:bg-green-50 hover:text-green-700'}`}
+                        className={`flex items-center p-2 rounded-md transition-colors ${isActive('/admin/inventory/categories') ? 'text-green-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
                         onClick={handleNavigation}
                       >
-                        Categories
+                        <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                        Kategori
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        href="/admin/inventory/schedules" 
+                        className={`flex items-center p-2 rounded-md transition-colors ${isActive('/admin/inventory/schedules') ? 'text-green-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+                        onClick={handleNavigation}
+                      >
+                        <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                        Inventarisasi Berkala
                       </Link>
                     </li>
                   </ul>
                 )}
               </li>
-              
+
+              {/* Requests */}
               <li>
                 <Link 
                   href="/admin/requests" 
@@ -237,12 +260,13 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   onClick={handleNavigation}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  {(isOpen || isMobile) && 'Requests'}
+                  {(isOpen || isMobile) && 'Request'}
                 </Link>
               </li>
-              
+
+              {/* Calibrations */}
               <li>
                 <Link 
                   href="/admin/calibrations" 
@@ -253,10 +277,25 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  {(isOpen || isMobile) && 'Calibrations'}
+                  {(isOpen || isMobile) && 'Kalibrasi'}
+                </Link>
+              </li>
+
+              {/* Rentals */}
+              <li>
+                <Link 
+                  href="/admin/rentals" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/rentals') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Rental'}
                 </Link>
               </li>
               
+              {/* Vendors */}
               <li>
                 <Link 
                   href="/admin/vendors" 
@@ -266,10 +305,11 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                  {(isOpen || isMobile) && 'Vendors'}
+                  {(isOpen || isMobile) && 'Vendor'}
                 </Link>
               </li>
-              
+
+              {/* History */}
               <li>
                 <Link 
                   href="/admin/activity-logs" 
@@ -279,13 +319,42 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {(isOpen || isMobile) && 'Activity Logs'}
+                  {(isOpen || isMobile) && 'History'}
+                </Link>
+              </li>
+
+              {/* Documents */}
+              <li>
+                <Link 
+                  href="/admin/documents" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/documents') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Dokumen'}
+                </Link>
+              </li>
+
+              {/* Notifications */}
+              <li>
+                <Link 
+                  href="/admin/notifications" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/notifications') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Notifikasi'}
                 </Link>
               </li>
             </>
           ) : (
             // User Menu
             <>
+              {/* Barang */}
               <li>
                 <Link 
                   href="/user/barang" 
@@ -293,23 +362,13 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   onClick={handleNavigation}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                   {(isOpen || isMobile) && 'Barang'}
                 </Link>
               </li>
-              <li>
-                <Link 
-                  href="/user/requests"
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/requests') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Requests'}
-                </Link>
-              </li>
+
+              {/* Kalibrasi */}
               <li>
                 <Link 
                   href="/user/calibrations" 
@@ -320,10 +379,39 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  {(isOpen || isMobile) && 'Calibration'}
+                  {(isOpen || isMobile) && 'Kalibrasi'}
                 </Link>
               </li>
 
+              {/* Rental */}
+              <li>
+                <Link 
+                  href="/user/rental" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/rental') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Rental'}
+                </Link>
+              </li>
+
+              {/* Documents */}
+              <li>
+                <Link 
+                  href="/user/dokumen" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/dokumen') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Dokumen'}
+                </Link>
+              </li>
+
+              {/* History */}
               <li>
                 <Link 
                   href="/user/history" 
@@ -334,6 +422,20 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {(isOpen || isMobile) && 'History'}
+                </Link>
+              </li>
+
+              {/* Notifications */}
+              <li>
+                <Link 
+                  href="/user/notifications" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/notifications') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Notifikasi'}
                 </Link>
               </li>
             </>
