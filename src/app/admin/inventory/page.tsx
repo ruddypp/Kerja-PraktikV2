@@ -508,67 +508,76 @@ export default function AdminInventoryPage() {
               <p className="text-yellow-700">No items found. Add some inventory items or adjust your filters.</p>
         </div>
       ) : (
-            <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
+            <div className="overflow-x-auto w-full" style={{ overflowX: 'auto', maxWidth: '100%' }}>
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead className="bg-gray-50">
+                  <tr>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '150px' }}
                     >
                       Nama Produk
-                </th>
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '130px' }}
                     >
-                  Serial Number
-                </th>
+                      Serial Number
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '130px' }}
                     >
                       Part Number
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '120px' }}
                     >
                       Sensor
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '150px' }}
                     >
                       Description
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '130px' }}
                     >
                       Customer
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '120px' }}
                     >
                       History
-                </th>
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '120px' }}
                     >
-                  Status
-                </th>
+                      Status
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: '100px' }}
                     >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {items
                     .filter((item) => {
                       return !filters.status || filters.status === 'all' || item.status === filters.status;
@@ -580,20 +589,20 @@ export default function AdminInventoryPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.serialNumber}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.partNumber}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.sensor || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.description || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <Link href={`/admin/inventory/history/${item.serialNumber}`} className="text-indigo-600 hover:text-indigo-900">
                             View History
                           </Link>
@@ -602,29 +611,29 @@ export default function AdminInventoryPage() {
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                             {getStatusDisplayName(item.status)}
                           </span>
-                  </td>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
+                          <button
                             onClick={() => openEditModal(item)}
                             className="text-indigo-600 hover:text-indigo-900 mr-3"
-                        title="Edit Item"
-                      >
+                            title="Edit Item"
+                          >
                             <FiEdit2 />
-                      </button>
-                      <button
+                          </button>
+                          <button
                             onClick={() => openDeleteConfirm(item)}
                             className="text-red-600 hover:text-red-900"
-                        title="Delete Item"
-                      >
+                            title="Delete Item"
+                          >
                             <FiTrash2 />
-                      </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
         
         {/* Pagination */}
@@ -776,8 +785,8 @@ export default function AdminInventoryPage() {
                   {formErrors.name && (
                     <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                   )}
-              </div>
-              
+                </div>
+                
                 <div>
                   <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700 mb-1">
                     Part Number <span className="text-red-500">*</span>
@@ -870,19 +879,19 @@ export default function AdminInventoryPage() {
                     {formErrors.status && (
                       <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
                     )}
+                  </div>
                 </div>
-              </div>
-              
+                
                 <div className="mt-6 flex justify-end space-x-3">
-                <button
+                  <button
                     type="button"
                     onClick={() => setModalOpen(false)}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     disabled={formSubmitting}
                   >
                     Cancel
-                </button>
-                <button
+                  </button>
+                  <button
                     type="submit"
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     disabled={formSubmitting}
@@ -892,20 +901,20 @@ export default function AdminInventoryPage() {
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                        </svg>
                         Processing...
                       </div>
                     ) : isEditMode ? 'Update Item' : 'Create Item'}
-                </button>
-              </div>
+                  </button>
+                </div>
               </form>
             </div>
-        </div>
-      )}
+          </div>
+        )}
 
         {/* Delete Confirmation Modal */}
         {confirmDeleteOpen && currentItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
               <div className="flex items-center mb-4">
                 <div className="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3">
@@ -922,15 +931,15 @@ export default function AdminInventoryPage() {
               </p>
               
               <div className="flex justify-end space-x-3">
-              <button 
+                <button 
                   onClick={() => setConfirmDeleteOpen(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   disabled={formSubmitting}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDelete}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDelete}
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                   disabled={formSubmitting}
                 >
@@ -943,11 +952,11 @@ export default function AdminInventoryPage() {
                       Processing...
                     </div>
                   ) : 'Delete Item'}
-              </button>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </DashboardLayout>
   );

@@ -108,9 +108,12 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
   // Render loading state if data is still being fetched
   if (loading) {
     return (
-      <div className="h-screen w-64 md:w-64 bg-white border-r border-gray-200 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600 mr-2"></div>
-        <div className="text-green-600 font-medium">Loading...</div>
+      <div className="h-screen w-64 md:w-64 bg-white border-r border-gray-200 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
+        <div className="text-green-700 font-medium text-center">
+          <div>Paramata</div>
+          <div className="text-sm">Inventory System</div>
+        </div>
       </div>
     );
   }
@@ -122,7 +125,10 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
   return (
     <div className={`h-screen ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 fixed top-0 left-0 z-40 shadow-sm overflow-y-auto`}>
       <div className="p-4 flex justify-between items-center border-b border-gray-200 bg-green-50">
-        <h2 className={`font-bold text-green-700 text-xl ${isOpen || isMobile ? 'block' : 'hidden'}`}>Paramata</h2>
+        <div className={`${isOpen || isMobile ? 'block' : 'hidden'}`}>
+          <h2 className="font-bold text-green-700 text-lg">Paramata</h2>
+          <p className="text-xs text-green-600">Inventory System</p>
+        </div>
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-md hover:bg-green-100 text-green-600 md:block hidden"
