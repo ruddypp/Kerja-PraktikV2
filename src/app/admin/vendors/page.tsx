@@ -48,17 +48,26 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/admin/vendors${searchQuery ? `?search=${searchQuery}` : ''}`);
+      const res = await fetch('/api/admin/vendors', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store'
+      });
       
       if (!res.ok) {
-        throw new Error(`Failed to fetch vendors: ${res.statusText}`);
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch vendors: ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ''}`);
       }
       
       const data = await res.json();
       setVendors(data);
+      setError('');
     } catch (err) {
       console.error('Error fetching vendors:', err);
-      setError('Error loading vendors. Please try again.');
+      setError('Failed to load vendors. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -124,6 +133,7 @@ export default function VendorsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(vendorForm)
       });
       
@@ -162,6 +172,7 @@ export default function VendorsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(vendorForm)
       });
       
@@ -194,7 +205,11 @@ export default function VendorsPage() {
     
     try {
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Include cookies for authentication
       });
       
       if (!res.ok) {
@@ -242,6 +257,12 @@ export default function VendorsPage() {
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
             <p className="font-medium">{error}</p>
+            <button 
+              onClick={() => fetchVendors()}
+              className="mt-2 text-sm text-red-700 hover:text-red-600 underline"
+            >
+              Retry
+            </button>
           </div>
         )}
         

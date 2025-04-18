@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
+// Updated User type to match the new schema
 type User = {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  role: {
-    id: number;
-    name: string;
-  };
+  role: string; // Now a direct enum value: "ADMIN" or "USER"
+  createdAt: string;
+  updatedAt: string;
 };
 
 interface SidebarProps {
@@ -77,7 +77,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
 
   // Check if current path is under inventory to auto-expand dropdown
   useEffect(() => {
-    if (pathname?.includes('/admin/inventory') || pathname?.includes('/admin/categories')) {
+    if (pathname?.includes('/admin/inventory')) {
       setInventoryOpen(true);
     }
   }, [pathname]);
@@ -115,7 +115,8 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
     );
   }
 
-  const isAdmin = user?.role.name === 'Admin';
+  // Check if user is admin using the new schema (role is now a string enum)
+  const isAdmin = user?.role === 'ADMIN';
   const sidebarWidth = isMobile ? 'w-full max-w-xs' : (isOpen ? 'w-64' : 'w-20');
 
   return (
@@ -158,7 +159,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
           {(isOpen || isMobile) && (
             <div>
               <p className="font-medium text-gray-800">{user?.name}</p>
-              <p className="text-xs text-gray-600">{user?.role.name}</p>
+              <p className="text-xs text-gray-600">{user?.role}</p>
             </div>
           )}
         </div>
@@ -187,7 +188,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                 <button 
                   onClick={toggleInventory}
                   className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
-                    isActive('/admin/inventory') || isActive('/admin/categories') || isActive('/admin/inventory/schedules')
+                    isActive('/admin/inventory') || isActive('/admin/inventory/schedules')
                       ? 'bg-green-50 text-green-700 font-medium' 
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                   }`}
@@ -225,17 +226,7 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                         onClick={handleNavigation}
                       >
                         <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                        Barang
-                      </Link>
-                    </li>
-                    <li>
-                      <Link 
-                        href="/admin/inventory/categories" 
-                        className={`flex items-center p-2 rounded-md transition-colors ${isActive('/admin/inventory/categories') ? 'text-green-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
-                        onClick={handleNavigation}
-                      >
-                        <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                        Kategori
+                        Items
                       </Link>
                     </li>
                     <li>
@@ -245,27 +236,12 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                         onClick={handleNavigation}
                       >
                         <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                        Inventarisasi Berkala
+                        Schedules
                       </Link>
                     </li>
                   </ul>
                 )}
               </li>
-
-              {/* Requests */}
-              <li>
-                <Link 
-                  href="/admin/requests" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/requests') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Request'}
-                </Link>
-              </li>
-
               {/* Calibrations */}
               <li>
                 <Link 
@@ -322,21 +298,6 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                   {(isOpen || isMobile) && 'History'}
                 </Link>
               </li>
-
-              {/* Documents */}
-              <li>
-                <Link 
-                  href="/admin/documents" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/documents') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Dokumen'}
-                </Link>
-              </li>
-
               {/* Notifications */}
               <li>
                 <Link 
@@ -352,6 +313,8 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
               </li>
             </>
           ) : (
+
+            
             // User Menu
             <>
               {/* Barang */}
@@ -394,20 +357,6 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {(isOpen || isMobile) && 'Rental'}
-                </Link>
-              </li>
-
-              {/* Documents */}
-              <li>
-                <Link 
-                  href="/user/dokumen" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/dokumen') ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Dokumen'}
                 </Link>
               </li>
 

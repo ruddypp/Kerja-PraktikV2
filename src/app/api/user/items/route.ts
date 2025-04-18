@@ -1,79 +1,96 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Use consistent import
-import { ItemStatus } from '@prisma/client'; // Import from prisma/client instead of redefining
+import prisma from '@/lib/prisma';
+import { ItemStatus } from '@prisma/client';
+import { getUserFromRequest } from '@/lib/auth';
 
 // Interface for the item response
 interface ItemResponse {
-  id: string;
+  serialNumber: string;
   name: string;
-  serialNumber: string | null;
-  specification: string | null;
-  status: ItemStatus;
-  lastVerifiedDate: Date | null;
-  categoryId: number;
-  category: {
-    id: number;
+  partNumber: string;
+  category: string | null;
+  sensor: string | null;
+  description: string | null;
+  customerId: string | null;
+  customer: {
+    id: string;
     name: string;
-  };
+  } | null;
+  status: ItemStatus;
+  lastVerifiedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// GET - Get all items for a specific user, with simpler filters
-export async function GET(req: NextRequest) {
+// GET - Get all items for a specific user, dengan filtering sederhana
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const categoryId = searchParams.get('categoryId');
-    const status = searchParams.get('status');
+    // Verify session user
+    const user = await getUserFromRequest(request);
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     
-    // Build where conditions with proper typing
-    const whereClause: any = {};
+    // Get pagination parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
     
-    if (categoryId && categoryId !== 'all') {
-      whereClause.categoryId = parseInt(categoryId);
-    }
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
     
-    if (status && status !== 'all') {
-      whereClause.status = status as ItemStatus;
-    }
+    // Build where conditions
+    const where: Record<string, any> = {};
     
-    if (search && search.trim() !== '') {
-      whereClause.OR = [
+    if (search) {
+      where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { specification: { contains: search, mode: 'insensitive' } },
-        { serialNumber: { contains: search, mode: 'insensitive' } }
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { partNumber: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
       ];
     }
     
-    // Create the actual data fetch promise
+    // Get total count for pagination
+    const totalItems = await prisma.item.count({ where });
+    
+    // Get items with pagination
     const items = await prisma.item.findMany({
-      where: whereClause,
+      where,
       include: {
-        category: true
+        customer: true
       },
       orderBy: {
-        id: 'asc'
-      }
+        name: 'asc'
+      },
+      skip: skip,
+      take: limit
     });
     
-    // Format the response
-    const formattedItems: ItemResponse[] = items.map(item => ({
-      id: item.id.toString(),
-      name: item.name,
-      serialNumber: item.serialNumber,
-      specification: item.specification,
-      status: item.status,
-      lastVerifiedDate: item.lastVerifiedDate,
-      categoryId: item.categoryId,
-      category: {
-        id: item.category.id,
-        name: item.category.name
-      }
-    }));
-    
-    return NextResponse.json(formattedItems);
+    // Return paginated response
+    return NextResponse.json({
+      items: items,
+      total: totalItems,
+      page,
+      limit,
+      totalPages: Math.ceil(totalItems / limit)
+    });
   } catch (error) {
-    console.error('Error fetching items:', error);
-    // Return empty array instead of error to prevent UI crash
-    return NextResponse.json([], { status: 500 });
+    console.error('Error fetching user items:', error);
+    return NextResponse.json(
+      { 
+        items: [], 
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        error: 'Failed to fetch items' 
+      }, 
+      { status: 500 }
+    );
   }
 } 

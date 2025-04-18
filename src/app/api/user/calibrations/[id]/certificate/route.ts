@@ -1,76 +1,35 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
+import { RequestStatus } from '@prisma/client';
 
-// Helper function to get user ID from request
-async function getUserId(request: Request): Promise<number | null> {
-  try {
-    // Get token from cookies manually
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
-    
-    const token = cookies['auth_token'];
-    
-    if (token) {
-      const userData = decodeToken(token);
-      if (userData?.id) {
-        return userData.id;
-      }
-    }
-  } catch (authError) {
-    console.error('Error getting user from token:', authError);
-  }
-  
-  return null; // Return null if no valid user found
-}
-
-// Generate certificate data for a calibration
+// GET endpoint untuk mendownload sertifikat kalibrasi
 export async function GET(
-  request: Request,
-  context: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Get user ID from auth token
-    const userId = await getUserId(request) || 2; // Default to user ID 2 if not found
+    const calibrationId = params.id;
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: calibrationIdString } = context.params;
-    const id = parseInt(calibrationIdString);
+    // Verifikasi session user
+    const user = await getUserFromRequest(request);
     
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'Invalid calibration ID' },
-        { status: 400 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get the calibration with all related data
+    // Fetch calibration data
     const calibration = await prisma.calibration.findUnique({
-      where: { id },
+      where: { id: calibrationId },
       include: {
-        request: {
-          include: {
-            item: {
-              include: {
-                category: true
-              }
-            },
+        item: true,
+        vendor: true,
             user: {
               select: {
                 id: true,
-                name: true,
-                email: true
-              }
-            }
+            name: true
           }
-        },
-        status: true,
-        vendor: true
+        }
       }
     });
     
@@ -82,68 +41,57 @@ export async function GET(
     }
     
     // Verify user has access to this calibration
-    if (calibration.request.user.id !== userId) {
+    if (calibration.userId !== user.id && user.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'You do not have permission to view this certificate' },
+        { error: 'You do not have permission to access this certificate' },
         { status: 403 }
       );
     }
     
-    // Verify calibration is completed - use case-insensitive comparison
-    // This ensures compatibility with standardized status names
-    const completedStatusNames = ['completed', 'COMPLETED', 'Completed'];
-    if (!completedStatusNames.includes(calibration.status.name)) {
+    // Check if calibration is completed
+    if (calibration.status !== RequestStatus.COMPLETED) {
       return NextResponse.json(
-        { error: `Certificate is not available because calibration status is ${calibration.status.name}, not completed` },
+        { error: 'Certificate is only available for completed calibrations' },
         { status: 400 }
       );
     }
     
-    // Get format parameter (optional)
-    const { searchParams } = new URL(request.url);
-    const format = searchParams.get('format');
-    
     // Generate certificate data
-    const certificateData = {
+    // In a real app, you might fetch this from storage or generate a PDF
+    const certificate = {
       id: calibration.id,
+      certificateNumber: `CAL-${calibration.id.slice(0, 8).toUpperCase()}`,
       calibrationDate: calibration.calibrationDate,
+      validUntil: calibration.validUntil || new Date(new Date(calibration.calibrationDate).getTime() + 365*24*60*60*1000).toISOString(), // Default to 1 year if not set
       item: {
-        id: calibration.request.item.id,
-        name: calibration.request.item.name,
-        serialNumber: calibration.request.item.serialNumber,
-        category: calibration.request.item.category.name,
-        specification: calibration.request.item.specification
+        name: calibration.item.name,
+        serialNumber: calibration.item.serialNumber,
+        partNumber: calibration.item.partNumber,
+        description: calibration.item.description || 'Not specified'
       },
-      result: calibration.result,
       vendor: calibration.vendor ? {
-        id: calibration.vendor.id,
         name: calibration.vendor.name,
-        contactPerson: calibration.vendor.contactPerson,
-        contactEmail: calibration.vendor.contactEmail,
+        contactPerson: calibration.vendor.contactName,
         contactPhone: calibration.vendor.contactPhone
       } : null,
-      validUntil: new Date(calibration.calibrationDate.getTime() + (365 * 24 * 60 * 60 * 1000)), // Valid for 1 year
-      certificateNumber: `CAL-${calibration.id}-${new Date().getFullYear()}`,
-      user: {
-        id: calibration.request.user.id,
-        name: calibration.request.user.name,
-        email: calibration.request.user.email
-      }
+      calibratedBy: calibration.vendor?.name || 'Internal Calibration',
+      approvedBy: 'Quality Control Department',
+      notes: 'This certificate confirms that the equipment has been calibrated according to appropriate standards.'
     };
     
-    // If PDF format is requested, generate a PDF to download
-    if (format === 'pdf') {
-      // In a real API you would generate the PDF here and return it with proper Content-Type
-      // For this example, we'll respond with a 501 Not Implemented
-      return NextResponse.json(
-        { error: 'PDF download is available through the frontend' },
-        { status: 501 }
-      );
-    }
+    // Log the certificate access
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'ACCESSED_CERTIFICATE',
+        details: `Certificate for ${calibration.item.name} was accessed`,
+        ...(calibration.itemSerial ? { itemSerial: calibration.itemSerial } : {})
+      }
+    });
     
-    return NextResponse.json(certificateData);
+    return NextResponse.json(certificate);
   } catch (error) {
-    console.error('Error generating certificate:', error);
+    console.error('Error fetching calibration certificate:', error);
     return NextResponse.json(
       { error: 'Failed to generate certificate' },
       { status: 500 }

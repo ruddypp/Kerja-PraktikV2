@@ -32,12 +32,9 @@ export async function GET(request: Request) {
       throw new Error('Invalid token data');
     }
     
-    // Get fresh user data
+    // Get fresh user data - note that id is a string in our schema
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      include: {
-        role: true
-      }
+      where: { id: decoded.id }
     });
     
     if (!user) {
@@ -54,8 +51,7 @@ export async function GET(request: Request) {
       email: user.email,
       role: user.role,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roleId: user.roleId
+      updatedAt: user.updatedAt
     };
     
     return NextResponse.json({

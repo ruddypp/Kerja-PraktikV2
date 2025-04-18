@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 
-// GET all vendors (read-only for user)
+// GET all vendors - accessible by all authenticated users
 export async function GET(request: Request) {
   try {
-    // Verifikasi session user
-    const session = await getServerSession(authOptions);
+    // Verify the user is authenticated (but don't check role)
+    const user = await getUserFromRequest(request);
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
+    }
+    
     // Get search query from URL
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
@@ -23,23 +22,23 @@ export async function GET(request: Request) {
       whereClause = {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
-          { service: { contains: search, mode: 'insensitive' } }
+          { service: { contains: search, mode: 'insensitive' } },
+          { contactName: { contains: search, mode: 'insensitive' } }
         ]
       };
     }
     
-    // User hanya bisa melihat data vendor dasar, tanpa info performa
     const vendors = await prisma.vendor.findMany({
       where: whereClause,
+      orderBy: { name: 'asc' },
+      // Only return essential fields for user display
       select: {
         id: true,
         name: true,
-        address: true,
         contactName: true,
         contactPhone: true,
         service: true
-      },
-      orderBy: { name: 'asc' }
+      }
     });
     
     return NextResponse.json(vendors);

@@ -15,9 +15,6 @@ export async function POST(request: Request) {
     // Find the user
     const user = await prisma.user.findUnique({
       where: { email },
-      include: {
-        role: true,
-      },
     });
 
     if (!user) {
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`User found: ${user.name}, Role: ${user.role.name}`);
+    console.log(`User found: ${user.name}, Role: ${user.role}`);
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -44,7 +41,7 @@ export async function POST(request: Request) {
     const tokenPayload = {
       id: user.id,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     };
 
     console.log('Token payload:', tokenPayload);

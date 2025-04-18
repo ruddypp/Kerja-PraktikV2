@@ -1,385 +1,365 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
+import { toast } from 'react-hot-toast';
+import { FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { ItemStatus } from '@prisma/client';
 
-interface Category {
-  id: number;
-  name: string;
-}
-
-// Define ItemStatus enum to match the schema
-enum ItemStatus {
-  AVAILABLE = "AVAILABLE",
-  IN_USE = "IN_USE",
-  IN_CALIBRATION = "IN_CALIBRATION",
-  IN_RENTAL = "IN_RENTAL",
-  IN_MAINTENANCE = "IN_MAINTENANCE"
-}
-
-interface Status {
-  id: number;
-  name: string;
-  type: string;
-}
-
+// Types for the data
 interface Item {
-  id: number;
+  serialNumber: string;
   name: string;
-  specification: string | null;
-  serialNumber: string | null;
-  category: Category;
-  // Item can have either a Status object or a direct ItemStatus enum string
-  status: Status | ItemStatus | string;
+  partNumber: string;
+  sensor: string | null;
+  description: string | null;
+  customerId: string | null;
+  customer: {
+    id: string;
+    name: string;
+  } | null;
+  status: ItemStatus;
+  lastVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Helper function to get status name safely regardless of format
-const getStatusName = (status: Status | ItemStatus | string): string => {
-  if (typeof status === 'string') {
-    return status;
-  }
-  if ('name' in status) {
-    return status.name;
-  }
-  return status;
-};
-
-// Add mapping functions for status display
-const getStatusDisplayName = (status: Status | ItemStatus | string): string => {
-  const name = getStatusName(status);
+export default function UserItemsPage() {
+  const router = useRouter();
   
-  // Convert to readable format
-  switch(name.toUpperCase()) {
-    case 'AVAILABLE':
-      return 'Available';
-    case 'IN_USE':
-      return 'In Use';
-    case 'IN_CALIBRATION':
-      return 'In Calibration';
-    case 'IN_RENTAL':
-      return 'In Rental';
-    case 'IN_MAINTENANCE':
-      return 'In Maintenance';
-    default:
-      return name;
-  }
-};
-
-const getStatusBadgeClass = (status: Status | ItemStatus | string): string => {
-  const name = getStatusName(status).toUpperCase();
-  
-  switch(name) {
-    case 'AVAILABLE':
-      return 'badge-success';
-    case 'IN_USE':
-      return 'badge-warning';
-    case 'IN_CALIBRATION':
-      return 'badge-info';
-    case 'IN_RENTAL':
-      return 'badge-purple';
-    case 'IN_MAINTENANCE':
-      return 'badge-danger';
-    default:
-      return 'badge-secondary';
-  }
-};
-
-export default function UserBarang() {
+  // State for items and loading
   const [items, setItems] = useState<Item[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Filters
-  const [filters, setFilters] = useState({
-    categoryId: '',
-    status: '',
-    search: ''
-  });
-
-  // Simple function to handle retries
-  const handleRetry = () => {
-    setError('');
-    setLoading(true);
-    window.location.reload();
-  };
-
-  // Load data on component mount
-  useEffect(() => {
-    const loadAllData = async () => {
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Function to fetch items with pagination
+  const fetchItems = async (page: number, search: string = '') => {
       try {
         setLoading(true);
-        setError('');
-        
-        // Fetch items with simple error handling
-        try {
-          const itemsRes = await fetch('/api/user/items');
-          if (!itemsRes.ok) {
-            // If user endpoint fails, try admin endpoint
-            const adminItemsRes = await fetch('/api/admin/items');
-            if (!adminItemsRes.ok) {
+      
+      // Build query params
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      
+      // Add pagination params
+      params.append('page', page.toString());
+      params.append('limit', itemsPerPage.toString());
+      
+      const response = await fetch(`/api/user/items?${params.toString()}`);
+      
+      if (!response.ok) {
               throw new Error('Failed to fetch items');
             }
-            const itemsData = await adminItemsRes.json();
-            setItems(itemsData);
+      
+      const data = await response.json();
+      
+      // If API returns paginated data
+      if (data.items && typeof data.total === 'number') {
+        setItems(data.items);
+        setTotalItems(data.total);
           } else {
-            const itemsData = await itemsRes.json();
-            setItems(itemsData);
-          }
-        } catch (err) {
-          console.error('Error fetching items:', err);
-        }
-        
-        // Fetch categories
-        try {
-          const categoriesRes = await fetch('/api/admin/categories');
-          const categoriesData = await categoriesRes.json();
-          setCategories(categoriesData);
-        } catch (err) {
-          console.error('Error fetching categories:', err);
-        }
-        
-        // Try to fetch statuses but don't fail if not available
-        try {
-          const statusesRes = await fetch('/api/admin/statuses?type=item');
-          if (statusesRes.ok) {
-            const statusesData = await statusesRes.json();
-            setStatuses(Array.isArray(statusesData) ? statusesData : []);
-          } else {
-            // If statuses endpoint fails, create status options from ItemStatus enum
-            const enumStatuses = Object.values(ItemStatus).map((value, index) => ({
-              id: index + 1,
-              name: value,
-              type: 'item'
-            }));
-            setStatuses(enumStatuses);
-          }
-        } catch (err) {
-          console.error('Error fetching statuses:', err);
-          // Create status options from ItemStatus enum
-          const enumStatuses = Object.values(ItemStatus).map((value, index) => ({
-            id: index + 1,
-            name: value,
-            type: 'item'
-          }));
-          setStatuses(enumStatuses);
-        }
+        // Fallback if API doesn't support pagination yet
+        setItems(data);
+        setTotalItems(data.length);
+      }
+      
+      setLoading(false);
+      setIsSearching(false);
       } catch (error) {
-        setError('An error occurred while loading data.');
-        console.error('Error loading data:', error);
-      } finally {
+      console.error('Error fetching items:', error);
+      setError('Failed to load items. Please try again.');
         setLoading(false);
+      setIsSearching(false);
       }
     };
     
-    loadAllData();
-  }, []);
-
-  // Apply filters
+  // Fetch items on initial load and when page or search changes
   useEffect(() => {
-    const applyFilters = async () => {
-      try {
-        setLoading(true);
-        
-        // Build query params
-        const params = new URLSearchParams();
-        if (filters.categoryId) params.append('categoryId', filters.categoryId);
-        if (filters.status) params.append('status', filters.status);
-        if (filters.search) params.append('search', filters.search);
-        
-        const queryString = params.toString() ? `?${params.toString()}` : '';
-        
-        // First try user API endpoint
-        try {
-          const res = await fetch(`/api/user/items${queryString}`);
-          if (!res.ok) {
-            throw new Error('Failed to fetch from user endpoint');
-          }
-          const data = await res.json();
-          setItems(data);
-        } catch (err) {
-          // Fall back to admin endpoint
-          console.error('Error with user endpoint, trying admin endpoint:', err);
-          const adminRes = await fetch(`/api/admin/items${queryString}`);
-          if (!adminRes.ok) {
-            throw new Error('Failed to fetch from admin endpoint');
-          }
-          const data = await adminRes.json();
-          setItems(data);
-        }
-      } catch (err) {
-        console.error('Error applying filters:', err);
-        setError('Failed to filter items. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+    fetchItems(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
+  
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+  
+  // Handle search form submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSearching(true);
+    setCurrentPage(1); // Reset to first page when searching
+    fetchItems(1, searchQuery);
+  };
+  
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+  
+  // Calculate total pages
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  // Function to get status display name
+  const getStatusDisplayName = (status: ItemStatus) => {
+    const statusMap: Record<string, string> = {
+      [ItemStatus.AVAILABLE]: 'Available',
+      [ItemStatus.IN_USE]: 'In Use',
+      [ItemStatus.MAINTENANCE]: 'Under Maintenance',
+      [ItemStatus.CALIBRATION]: 'Under Calibration',
+      [ItemStatus.RETIRED]: 'Retired'
     };
     
-    applyFilters();
-  }, [filters]);
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    // Map statusId input to status filter value
-    if (name === 'statusId') {
-      setFilters(prev => ({ ...prev, status: value }));
-    } else {
-      setFilters(prev => ({ ...prev, [name]: value }));
-    }
+    return statusMap[status] || status;
   };
-
-  const resetFilters = () => {
-    setFilters({
-      categoryId: '',
-      status: '',
-      search: ''
-    });
+  
+  // Function to get status badge class
+  const getStatusBadgeClass = (status: ItemStatus) => {
+    const statusClassMap: Record<string, string> = {
+      [ItemStatus.AVAILABLE]: 'bg-green-100 text-green-800',
+      [ItemStatus.IN_USE]: 'bg-blue-100 text-blue-800',
+      [ItemStatus.MAINTENANCE]: 'bg-yellow-100 text-yellow-800',
+      [ItemStatus.CALIBRATION]: 'bg-purple-100 text-purple-800',
+      [ItemStatus.RETIRED]: 'bg-gray-100 text-gray-800'
+    };
+    
+    return statusClassMap[status] || 'bg-gray-100 text-gray-800';
   };
 
   return (
     <DashboardLayout>
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Item List</h1>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Product Catalog</h1>
+        
+        {/* Search bar */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            <div className="w-full md:w-2/3">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search products by name, serial number, or part number..."
+                  className="pl-10 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiSearch className="text-gray-400" />
+                </div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md"
+              disabled={isSearching}
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </form>
         </div>
         
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{error}</p>
-            <button 
-              onClick={handleRetry}
-              className="mt-2 text-red-700 underline hover:text-red-800"
-            >
-              Try Again
-            </button>
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+            <p>{error}</p>
           </div>
         )}
         
-        {/* Filters */}
-        <div className="card mb-6 border border-gray-200">
-          <h2 className="text-subtitle mb-4">Filter Items</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label htmlFor="search" className="form-label">
-                Search
-              </label>
-              <input
-                type="text"
-                id="search"
-                name="search"
-                value={filters.search}
-                onChange={handleFilterChange}
-                placeholder="Search by item name..."
-                className="form-input"
-              />
-            </div>
-            <div>
-              <label htmlFor="categoryId" className="form-label">
-                Category
-              </label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                value={filters.categoryId}
-                onChange={handleFilterChange}
-                className="form-input"
-              >
-                <option value="">All Categories</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="statusId" className="form-label">
-                Status
-              </label>
-              <select
-                id="statusId"
-                name="statusId"
-                value={filters.status}
-                onChange={handleFilterChange}
-                className="form-input"
-              >
-                <option value="">All Statuses</option>
-                {Object.values(ItemStatus).map(status => (
-                  <option key={status} value={status}>
-                    {getStatusDisplayName(status)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={resetFilters}
-                className="btn btn-secondary w-full"
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
-        </div>
-        
         {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-            <p className="mt-4 text-subtitle">Loading items...</p>
+          <div className="text-center py-10">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading products...</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-            <p className="text-yellow-700 font-medium">No items found. Please adjust your filters.</p>
-            <button 
-              onClick={handleRetry}
-              className="mt-2 text-yellow-700 underline hover:text-yellow-800"
-            >
-              Refresh Data
-            </button>
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <p className="text-yellow-700">No products found. Please try a different search term.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="table-container bg-white">
+          <div>
+            <div className="bg-white shadow overflow-hidden rounded-md">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="table-header">Item Name</th>
-                    <th className="table-header hidden md:table-cell">Specification</th>
-                    <th className="table-header hidden sm:table-cell">Category</th>
-                    <th className="table-header hidden lg:table-cell">Serial Number</th>
-                    <th className="table-header">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nama Produk
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Serial Number
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Part Number
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sensor
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      History
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="table-cell">
-                        <div className="text-subtitle">{item.name}</div>
-                        <div className="text-muted text-xs sm:hidden">
-                          {item.category.name}
-                        </div>
+                    <tr key={item.serialNumber}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <div className="text-muted text-sm line-clamp-2">{item.specification || '-'}</div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{item.serialNumber}</div>
                       </td>
-                      <td className="table-cell hidden sm:table-cell">
-                        <div className="text-body">{item.category.name}</div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{item.partNumber}</div>
                       </td>
-                      <td className="table-cell hidden lg:table-cell">
-                        <div className="text-muted text-sm">
-                          {item.serialNumber || '-'}
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{item.sensor || '-'}</div>
                       </td>
-                      <td className="table-cell">
-                        <span className={`badge ${getStatusBadgeClass(item.status)}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{item.description || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Link href={`/user/barang/history/${item.serialNumber}`} className="text-indigo-600 hover:text-indigo-900">
+                          View History
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {item.status === ItemStatus.AVAILABLE && (
+                          <Link
+                            href={`/user/calibrations/request?itemSerial=${item.serialNumber}`}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            Request Calibration
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                      currentPage === 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                      currentPage === totalPages
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                      <span className="font-medium">
+                        {Math.min(currentPage * itemsPerPage, totalItems)}
+                      </span>{' '}
+                      of <span className="font-medium">{totalItems}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                          currentPage === 1
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="sr-only">Previous</span>
+                        <FiChevronLeft className="h-5 w-5" />
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        // Show pages around current page
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              currentPage === pageNum
+                                ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                          currentPage === totalPages
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="sr-only">Next</span>
+                        <FiChevronRight className="h-5 w-5" />
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

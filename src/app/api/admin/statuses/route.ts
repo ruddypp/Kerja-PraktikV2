@@ -1,20 +1,53 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { ItemStatus, RequestStatus } from '@prisma/client';
 
-// GET all statuses, optionally filtered by type
+// GET all statuses, returning the appropriate enums based on type
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     
-    const where = type ? { type } : {};
+    let statuses = [];
+    let statusType = '';
     
-    const statuses = await prisma.status.findMany({
-      where,
-      orderBy: {
-        id: 'asc'
-      }
-    });
+    if (type === 'item') {
+      // Return item statuses
+      statuses = Object.values(ItemStatus).map(status => ({
+        id: `item_${status}`,
+        name: status,
+        type: 'item'
+      }));
+      statusType = 'item';
+    } else if (type === 'request' || type === 'calibration') {
+      // Return request statuses
+      statuses = Object.values(RequestStatus).map(status => ({
+        id: `${type}_${status}`,
+        name: status,
+        type: type
+      }));
+      statusType = type;
+    } else {
+      // Return all statuses
+      const itemStatuses = Object.values(ItemStatus).map(status => ({
+        id: `item_${status}`,
+        name: status,
+        type: 'item'
+      }));
+      
+      const requestStatuses = Object.values(RequestStatus).map(status => ({
+        id: `request_${status}`,
+        name: status,
+        type: 'request'
+      }));
+
+      const calibrationStatuses = Object.values(RequestStatus).map(status => ({
+        id: `calibration_${status}`,
+        name: status,
+        type: 'calibration'
+      }));
+      
+      statuses = [...itemStatuses, ...requestStatuses, ...calibrationStatuses];
+    }
     
     return NextResponse.json(statuses);
   } catch (error) {
@@ -26,57 +59,13 @@ export async function GET(request: Request) {
   }
 }
 
-// POST create a new status
+// POST - no longer needed as statuses are now enums
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { name, type } = body;
-    
-    if (!name || !type) {
-      return NextResponse.json(
-        { error: 'Name and type are required' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if status already exists
-    const existingStatus = await prisma.status.findFirst({
-      where: {
-        AND: [
-          {
-            name: {
-              mode: 'insensitive',
-              contains: name
-            }
-          },
-          {
-            type: {
-              mode: 'insensitive',
-              equals: type
-            }
-          }
-        ]
-      }
-    });
-    
-    if (existingStatus) {
-      return NextResponse.json(existingStatus);
-    }
-    
-    // Create new status
-    const newStatus = await prisma.status.create({
-      data: {
-        name: name.toLowerCase(),
-        type: type.toLowerCase()
-      }
-    });
-    
-    return NextResponse.json(newStatus, { status: 201 });
-  } catch (error) {
-    console.error('Error creating status:', error);
-    return NextResponse.json(
-      { error: 'Failed to create status' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { 
+      error: 'Statuses are now defined as enums in the schema',
+      message: 'Status values cannot be added at runtime'
+    },
+    { status: 400 }
+  );
 } 

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
@@ -14,81 +8,16 @@ datasource db {
   url      = "postgresql://postgres:ganteng@localhost:5432/project-paramata?schema=public"
 }
 
-model Role {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  users       User[]
-
-  @@map("roles")
-}
-
-model User {
-  id                Int                @id @default(autoincrement())
-  name              String
-  email             String             @unique
-  password          String
-  roleId            Int                @map("role_id")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  role              Role               @relation(fields: [roleId], references: [id])
-  requests          Request[]
-  calibrationRequests CalibrationRequest[]
-  rentalRequests    RentalRequest[]
-  approvedRequests  Request[]          @relation("ApprovedBy")
-  approvedCalibrations CalibrationRequest[] @relation("CalibrationApprovedBy")
-  approvedRentals   RentalRequest[]    @relation("RentalApprovedBy")
-  activities        ActivityLog[]
-  notifications     Notification[]
-  documents         Document[]         @relation("UploadedBy")
-  checkedOutDocuments Document[]       @relation("CheckedOutBy")
-  itemHistory       ItemHistory[]      @relation("PerformedBy")
-  projectMembers    ProjectMember[]
-  inventoryExecutions InventoryExecution[]
-  inventoryVerifications InventoryVerification[]
-
-  @@map("users")
-}
-
-model Category {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  items       Item[]
-
-  @@map("categories")
+enum Role {
+  ADMIN
+  USER
 }
 
 enum ItemStatus {
   AVAILABLE
-  IN_USE
   IN_CALIBRATION
-  IN_RENTAL
+  RENTED
   IN_MAINTENANCE
-}
-
-model Item {
-  id                Int                @id @default(autoincrement())
-  name              String
-  categoryId        Int                @map("category_id")
-  specification     String?
-  serialNumber      String?            @map("serial_number")
-  status            ItemStatus         @default(AVAILABLE)
-  lastVerifiedDate  DateTime?          @map("last_verified_date")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  category          Category           @relation(fields: [categoryId], references: [id])
-  requests          Request[]
-  calibrationRequests CalibrationRequest[]
-  rentalRequests    RentalRequest[]
-  itemHistory       ItemHistory[]
-  inventoryVerifications InventoryVerification[]
-
-  @@map("items")
 }
 
 enum RequestStatus {
@@ -96,319 +25,231 @@ enum RequestStatus {
   APPROVED
   REJECTED
   COMPLETED
-}
-
-model Request {
-  id                Int                @id @default(autoincrement())
-  userId            Int                @map("user_id")
-  itemId            Int                @map("item_id")
-  reason            String?
-  approvedById      Int?               @map("approved_by_id")
-  requestDate       DateTime           @default(now()) @map("request_date")
-  returnDate        DateTime?          @map("return_date")
-  status            RequestStatus      @default(PENDING)
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  user              User               @relation(fields: [userId], references: [id])
-  item              Item               @relation(fields: [itemId], references: [id])
-  approvedBy        User?              @relation("ApprovedBy", fields: [approvedById], references: [id])
-  documents         Document[]
-  itemHistory       ItemHistory[]      @relation("RelatedRequest")
-
-  @@map("requests")
-}
-
-enum CalibrationStatus {
-  PENDING
-  APPROVED
-  IN_PROGRESS
-  COMPLETED
-  REJECTED
-}
-
-model CalibrationRequest {
-  id                Int                @id @default(autoincrement())
-  userId            Int                @map("user_id")
-  itemId            Int                @map("item_id")
-  vendorId          Int?               @map("vendor_id")
-  reason            String?
-  approvedById      Int?               @map("approved_by_id")
-  requestDate       DateTime           @default(now()) @map("request_date")
-  calibrationDate   DateTime?          @map("calibration_date")
-  completionDate    DateTime?          @map("completion_date")
-  result            String?
-  certificateUrl    String?            @map("certificate_url")
-  validUntil        DateTime?          @map("valid_until")
-  status            CalibrationStatus  @default(PENDING)
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  user              User               @relation(fields: [userId], references: [id])
-  item              Item               @relation(fields: [itemId], references: [id])
-  vendor            Vendor?            @relation(fields: [vendorId], references: [id])
-  approvedBy        User?              @relation("CalibrationApprovedBy", fields: [approvedById], references: [id])
-  documents         Document[]
-  itemHistory       ItemHistory[]      @relation("RelatedCalibration")
-
-  @@map("calibration_requests")
-}
-
-enum RentalStatus {
-  PENDING
-  APPROVED
-  ACTIVE
-  RETURNED
-  REJECTED
-}
-
-model RentalRequest {
-  id                Int                @id @default(autoincrement())
-  userId            Int                @map("user_id")
-  itemId            Int                @map("item_id")
-  reason            String?
-  approvedById      Int?               @map("approved_by_id")
-  requestDate       DateTime           @default(now()) @map("request_date")
-  startDate         DateTime           @map("start_date")
-  endDate           DateTime           @map("end_date")
-  actualReturnDate  DateTime?          @map("actual_return_date")
-  fineAmount        Decimal?           @map("fine_amount") @db.Decimal(10, 2)
-  status            RentalStatus       @default(PENDING)
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  user              User               @relation(fields: [userId], references: [id])
-  item              Item               @relation(fields: [itemId], references: [id])
-  approvedBy        User?              @relation("RentalApprovedBy", fields: [approvedById], references: [id])
-  documents         Document[]
-  itemHistory       ItemHistory[]      @relation("RelatedRental")
-
-  @@map("rental_requests")
-}
-
-model Vendor {
-  id                Int                @id @default(autoincrement())
-  name              String
-  address           String?
-  contactPerson     String?            @map("contact_person")
-  contactEmail      String?            @map("contact_email")
-  contactPhone      String?            @map("contact_phone")
-  services          String?
-  rating            Decimal?           @db.Decimal(3, 2)
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  calibrations      CalibrationRequest[]
-
-  @@map("vendors")
-}
-
-enum ActivityType {
-  USAGE
-  RETURN
-  CALIBRATION
-  RENTAL
-  MAINTENANCE
-  INVENTORY_CHECK
-}
-
-model ItemHistory {
-  id                  Int               @id @default(autoincrement())
-  itemId              Int               @map("item_id")
-  activityType        ActivityType
-  relatedRequestId    Int?              @map("related_request_id")
-  relatedCalibrationId Int?             @map("related_calibration_id")
-  relatedRentalId     Int?              @map("related_rental_id")
-  description         String?
-  performedById       Int               @map("performed_by_id")
-  date                DateTime          @default(now())
-  item                Item              @relation(fields: [itemId], references: [id])
-  relatedRequest      Request?          @relation("RelatedRequest", fields: [relatedRequestId], references: [id])
-  relatedCalibration  CalibrationRequest? @relation("RelatedCalibration", fields: [relatedCalibrationId], references: [id])
-  relatedRental       RentalRequest?    @relation("RelatedRental", fields: [relatedRentalId], references: [id])
-  performedBy         User              @relation("PerformedBy", fields: [performedById], references: [id])
-
-  @@map("item_history")
-}
-
-model ActivityLog {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  activity  String
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@map("activity_logs")
+  CANCELLED
 }
 
 enum NotificationType {
-  REQUEST_UPDATE
-  CALIBRATION_UPDATE
-  RENTAL_UPDATE
+  RENTAL_REQUEST
+  RENTAL_STATUS_CHANGE
+  CALIBRATION_REMINDER
+  CALIBRATION_STATUS_CHANGE
+  RENTAL_DUE_REMINDER
+  MAINTENANCE_REMINDER
   INVENTORY_SCHEDULE
-  CALIBRATION_EXPIRY
-  RENTAL_EXPIRY
-  SYSTEM
+  VENDOR_INFO
+  GENERAL_INFO
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rentals               Rental[]
+  calibrations          Calibration[]
+  maintenances          Maintenance[]
+  activities            ActivityLog[]
+  inventoryChecks       InventoryCheck[]
+  calibrationStatusLogs CalibrationStatusLog[]
+  maintenanceStatusLogs MaintenanceStatusLog[]
+  rentalStatusLogs      RentalStatusLog[]
+  notifications         Notification[]
+}
+
+model Item {
+  serialNumber    String         @id
+  name            String
+  partNumber      String
+  category        String?
+  sensor          String?
+  description     String?
+  customer        Vendor?        @relation("CustomerItems", fields: [customerId], references: [id])
+  customerId      String?
+  status          ItemStatus     @default(AVAILABLE)
+  lastVerifiedAt  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  rentals           Rental[]
+  calibrations      Calibration[]
+  maintenances      Maintenance[]
+  histories         ItemHistory[]
+  inventoryCheckItems InventoryCheckItem[]
+  activityLogs      ActivityLog[]
+}
+
+model Rental {
+  id           String        @id @default(uuid())
+  item         Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial   String
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  status       RequestStatus @default(PENDING)
+  startDate    DateTime
+  endDate      DateTime?
+  returnDate   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  statusLogs   RentalStatusLog[]
+}
+
+model Calibration {
+  id              String        @id @default(uuid())
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  status          RequestStatus @default(PENDING)
+  calibrationDate DateTime
+  validUntil      DateTime?
+  certificateUrl  String?
+  statusLogs      CalibrationStatusLog[]
+  vendor          Vendor        @relation(fields: [vendorId], references: [id])
+  vendorId        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Maintenance {
+  id              String        @id @default(uuid())
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  status          RequestStatus @default(COMPLETED)
+  description     String?
+  beforePhotoUrl  String?
+  afterPhotoUrl   String?
+  startDate       DateTime      @default(now())
+  endDate         DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  statusLogs      MaintenanceStatusLog[]
+}
+
+// For usage tracking - rentals, calibrations, maintenance history
+model ItemHistory {
+  id         String      @id @default(uuid())
+  item       Item        @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial String
+  action     String      // RENTED, CALIBRATED, MAINTAINED
+  details    String?     // Details about the usage
+  relatedId  String?     // ID of related rental/calibration/maintenance record
+  startDate  DateTime    @default(now())
+  endDate    DateTime?
+  createdAt  DateTime    @default(now())
+}
+
+// For movement and actions tracking
+model ActivityLog {
+  id         String    @id @default(uuid())
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+  item       Item?     @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial String?
+  action     String    // ADDED, MOVED, ASSIGNED, STATUS_CHANGED, etc.
+  details    String?   // Description of the activity
+  createdAt  DateTime  @default(now())
+}
+
+model Vendor {
+  id           String        @id @default(uuid())
+  name         String
+  address      String?
+  contactName  String?
+  contactPhone String?
+  service      String?
+  rating       Float?
+  performanceNotes String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  calibrations   Calibration[]
+  vendorHistory  VendorHistory[]
+  customerItems  Item[]       @relation("CustomerItems")
+}
+
+model VendorHistory {
+  id           String      @id @default(uuid())
+  vendor       Vendor      @relation(fields: [vendorId], references: [id])
+  vendorId     String
+  action       String      // CALIBRATION_COMPLETED, CONTRACT_RENEWED, etc.
+  details      String?
+  performance  Float?      // Rating for this specific interaction
+  createdAt    DateTime    @default(now())
+}
+
+// Inventarisasi berkala
+model InventoryCheck {
+  id           String      @id @default(uuid())
+  scheduledDate DateTime
+  completedDate DateTime?
+  notes        String?
+  createdBy    User        @relation(fields: [userId], references: [id])
+  userId       String
+  items        InventoryCheckItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model InventoryCheckItem {
+  id              String        @id @default(uuid())
+  inventoryCheck  InventoryCheck @relation(fields: [checkId], references: [id])
+  checkId         String
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  verifiedStatus  ItemStatus
+  notes           String?
+  createdAt       DateTime      @default(now())
+}
+
+// Status change logs
+model CalibrationStatusLog {
+  id            String        @id @default(uuid())
+  calibration   Calibration   @relation(fields: [calibrationId], references: [id])
+  calibrationId String
+  status        RequestStatus
+  notes         String?
+  changedBy     User          @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime      @default(now())
+}
+
+model MaintenanceStatusLog {
+  id              String        @id @default(uuid())
+  maintenance     Maintenance   @relation(fields: [maintenanceId], references: [id])
+  maintenanceId   String
+  status          RequestStatus
+  notes           String?
+  changedBy       User          @relation(fields: [userId], references: [id])
+  userId          String
+  createdAt       DateTime      @default(now())
+}
+
+model RentalStatusLog {
+  id            String        @id @default(uuid())
+  rental        Rental        @relation(fields: [rentalId], references: [id])
+  rentalId      String
+  status        RequestStatus
+  notes         String?
+  changedBy     User          @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime      @default(now())
 }
 
 model Notification {
-  id               Int              @id @default(autoincrement())
-  userId           Int              @map("user_id")
-  type             NotificationType
-  message          String
-  isRead           Boolean          @default(false) @map("is_read")
-  relatedItemId    Int?             @map("related_item_id")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  user             User             @relation(fields: [userId], references: [id])
-
-  @@map("notifications")
-}
-
-model DocumentType {
-  id        Int        @id @default(autoincrement())
-  name      String
-  documents Document[]
-
-  @@map("document_types")
-}
-
-enum DocumentStatus {
-  DRAFT
-  FINAL
-  ARCHIVED
-}
-
-model Document {
-  id                 Int               @id @default(autoincrement())
-  requestId          Int?              @map("request_id")
-  calibrationId      Int?              @map("calibration_id")
-  rentalId           Int?              @map("rental_id")
-  projectId          Int?              @map("project_id")
-  fileName           String            @map("file_name")
-  fileUrl            String            @map("file_url")
-  uploadedById       Int               @map("uploaded_by_id")
-  typeId             Int               @map("type_id")
-  version            Int               @default(1)
-  status             DocumentStatus    @default(DRAFT)
-  isCheckedOut       Boolean           @default(false) @map("is_checked_out")
-  checkedOutById     Int?              @map("checked_out_by_id")
-  uploadedAt         DateTime          @default(now()) @map("uploaded_at")
-  request            Request?          @relation(fields: [requestId], references: [id])
-  calibration        CalibrationRequest? @relation(fields: [calibrationId], references: [id])
-  rental             RentalRequest?    @relation(fields: [rentalId], references: [id])
-  project            Project?          @relation(fields: [projectId], references: [id])
-  uploadedBy         User              @relation("UploadedBy", fields: [uploadedById], references: [id])
-  checkedOutBy       User?             @relation("CheckedOutBy", fields: [checkedOutById], references: [id])
-  documentType       DocumentType      @relation(fields: [typeId], references: [id])
-  documentVersions   DocumentVersion[]
-
-  @@map("documents")
-}
-
-model DocumentVersion {
-  id                 Int               @id @default(autoincrement())
-  documentId         Int               @map("document_id")
-  version            Int
-  fileUrl            String            @map("file_url")
-  uploadedById       Int               @map("uploaded_by_id")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  document           Document          @relation(fields: [documentId], references: [id])
-
-  @@map("document_versions")
-}
-
-model Project {
-  id          Int             @id @default(autoincrement())
-  name        String
-  description String?
-  startDate   DateTime?       @map("start_date")
-  endDate     DateTime?       @map("end_date")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  documents   Document[]
-  members     ProjectMember[]
-
-  @@map("projects")
-}
-
-enum ProjectRole {
-  OWNER
-  EDITOR
-  VIEWER
-}
-
-model ProjectMember {
-  id        Int         @id @default(autoincrement())
-  projectId Int         @map("project_id")
-  userId    Int         @map("user_id")
-  role      ProjectRole @default(VIEWER)
-  project   Project     @relation(fields: [projectId], references: [id])
-  user      User        @relation(fields: [userId], references: [id])
-
-  @@unique([projectId, userId])
-  @@map("project_members")
-}
-
-enum InventoryFrequency {
-  MONTHLY
-  QUARTERLY
-  YEARLY
-}
-
-model InventorySchedule {
-  id          Int                @id @default(autoincrement())
-  name        String
-  description String?
-  frequency   InventoryFrequency
-  nextDate    DateTime           @map("next_date")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
-  executions  InventoryExecution[]
-  
-  @@map("inventory_schedules")
-}
-
-enum InventoryExecutionStatus {
-  IN_PROGRESS
-  COMPLETED
-}
-
-model InventoryExecution {
-  id            Int                     @id @default(autoincrement())
-  name          String
-  scheduleId    Int                     @map("schedule_id")
-  performedById Int                     @map("performed_by_id")
-  status        InventoryExecutionStatus
-  date          DateTime
-  completedAt   DateTime?               @map("completed_at")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
-  schedule      InventorySchedule       @relation(fields: [scheduleId], references: [id])
-  performedBy   User                    @relation(fields: [performedById], references: [id])
-  verifications InventoryVerification[]
-  
-  @@map("inventory_executions")
-}
-
-model InventoryVerification {
-  id            Int                @id @default(autoincrement())
-  executionId   Int                @map("execution_id")
-  itemId        Int                @map("item_id")
-  verifiedById  Int                @map("verified_by_id")
-  verifiedAt    DateTime           @map("verified_at")
-  notes         String?
-  createdAt     DateTime           @default(now()) @map("created_at")
-  execution     InventoryExecution @relation(fields: [executionId], references: [id])
-  item          Item               @relation(fields: [itemId], references: [id])
-  verifiedBy    User               @relation(fields: [verifiedById], references: [id])
-  
-  @@map("inventory_verifications")
-}
-
-// Add Status model
-
-model Status {
-  id          Int      @id @default(autoincrement())
-  name        String
-  type        String   // e.g., 'item', 'request', 'calibration', etc.
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("statuses")
+  id          String           @id @default(uuid())
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String
+  title       String
+  message     String
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  relatedId   String?          // Reference to related entity (rental/calibration/etc)
+  createdAt   DateTime         @default(now())
 }

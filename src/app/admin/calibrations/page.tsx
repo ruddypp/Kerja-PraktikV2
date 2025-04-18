@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FiCheckCircle, FiUpload, FiEdit2, FiInfo, FiFileText } from 'react-icons/fi';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 interface Status {
   id: number;
@@ -68,30 +69,23 @@ interface Calibration {
 
 export default function CalibrationPage() {
   const [calibrations, setCalibrations] = useState<Calibration[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<Request[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
   // Modal states
-  const [showApproveModal, setShowApproveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [completeModal, setCompleteModal] = useState(false);
+  const [approveModal, setApproveModal] = useState(false);
+  const [rejectModal, setRejectModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
+  const [actionInProgress, setActionInProgress] = useState(false);
   
   // Form states
-  const [approvalForm, setApprovalForm] = useState({
-    vendorId: '',
-    calibrationDate: new Date().toISOString().split('T')[0],
-    result: '',
-    notes: ''
-  });
-  
   const [editForm, setEditForm] = useState({
     vendorId: '',
     calibrationDate: '',
@@ -101,9 +95,12 @@ export default function CalibrationPage() {
     completed: false
   });
   
-  const [rejectForm, setRejectForm] = useState({
-    reason: ''
-  });
+  // Complete form states
+  const [certificateNumber, setCertificateNumber] = useState('');
+  const [calibrationDate, setCalibrationDate] = useState('');
+  const [nextCalibrationDate, setNextCalibrationDate] = useState('');
+  const [calibrationResult, setCalibrationResult] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   
   // Filter state
   const [filter, setFilter] = useState({
@@ -111,13 +108,19 @@ export default function CalibrationPage() {
     vendorId: ''
   });
   
+  // Reset complete form
+  const resetCompleteForm = () => {
+    setCertificateNumber('');
+    setCalibrationDate('');
+    setNextCalibrationDate('');
+    setCalibrationResult('');
+  };
+  
   // Load data on component mount
   useEffect(() => {
     fetchVendors();
     fetchStatuses();
     fetchCalibrations();
-    fetchPendingRequests();
-    ensureRejectedStatusExists();
   }, []);
   
   // Apply filters
@@ -127,75 +130,88 @@ export default function CalibrationPage() {
   
   const fetchVendors = async () => {
     try {
-      const res = await fetch('/api/admin/vendors');
-      if (!res.ok) throw new Error('Failed to fetch vendors');
-      const data = await res.json();
+      const response = await fetch('/api/admin/vendors', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      }
+      
+      const data = await response.json();
       setVendors(data);
     } catch (err) {
       console.error('Error fetching vendors:', err);
+      // Don't set global error for vendors as it's not the primary data
     }
   };
   
   const fetchStatuses = async () => {
     try {
-      // Fetch all statuses for both 'calibration' and 'request' types
-      const [calibrationRes, requestRes] = await Promise.all([
-        fetch('/api/admin/statuses?type=calibration'),
-        fetch('/api/admin/statuses?type=request')
-      ]);
+      // Only fetch calibration statuses, not request statuses
+      const calibrationRes = await fetch('/api/admin/statuses?type=calibration', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        cache: 'no-store'
+      });
       
-      if (!calibrationRes.ok || !requestRes.ok) 
-        throw new Error('Failed to fetch statuses');
+      if (!calibrationRes.ok) {
+        const errorText = await calibrationRes.text();
+        throw new Error(`Failed to fetch statuses: ${calibrationRes.status} ${calibrationRes.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      }
       
       const calibrationData = await calibrationRes.json();
-      const requestData = await requestRes.json();
       
-      // Combine both types of statuses
-      setStatuses([...calibrationData, ...requestData]);
+      // Set statuses directly from calibration data
+      setStatuses(calibrationData);
+      
+      // Clear any existing error
+      if (error.includes('status')) {
+        setError('');
+      }
     } catch (err) {
       console.error('Error fetching statuses:', err);
+      // Display user-friendly error
+      setError('Could not load status information. Please try refreshing the page.');
+      // Still set empty statuses array to prevent undefined errors
+      setStatuses([]);
     }
   };
   
   const fetchCalibrations = async () => {
     try {
       setLoading(true);
+      const response = await fetch('/api/admin/calibrations', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store'
+      });
       
-      let url = '/api/admin/calibrations';
-      const params = new URLSearchParams();
-      
-      if (filter.statusId) params.append('statusId', filter.statusId);
-      if (filter.vendorId) params.append('vendorId', filter.vendorId);
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch calibrations: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
       }
       
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch calibrations');
-      const data = await res.json();
+      const data = await response.json();
       setCalibrations(data);
+      setError('');
     } catch (err) {
       console.error('Error fetching calibrations:', err);
-      setError('Failed to load calibrations');
+      setError('Failed to load calibration requests. Please try refreshing the page.');
     } finally {
       setLoading(false);
-    }
-  };
-  
-  const fetchPendingRequests = async () => {
-    try {
-      setRequestsLoading(true);
-      
-      const res = await fetch('/api/admin/requests?requestType=calibration&statusName=pending');
-      if (!res.ok) throw new Error('Failed to fetch pending requests');
-      const data = await res.json();
-      console.log(`Fetched ${data.length} pending calibration requests`);
-      setPendingRequests(data);
-    } catch (err) {
-      console.error('Error fetching pending requests:', err);
-    } finally {
-      setRequestsLoading(false);
     }
   };
   
@@ -211,32 +227,24 @@ export default function CalibrationPage() {
     });
   };
   
-  const openApproveModal = (request: Request) => {
-    setSelectedRequest(request);
-    setApprovalForm({
-      vendorId: '',
-      calibrationDate: new Date().toISOString().split('T')[0],
-      result: '',
-      notes: ''
-    });
-    setShowApproveModal(true);
-  };
-  
-  const closeApproveModal = () => {
-    setShowApproveModal(false);
-    setSelectedRequest(null);
-  };
-  
   const openEditModal = (calibration: Calibration) => {
     setSelectedCalibration(calibration);
+    
+    // Find the matching status in the statuses array by name and type
+    const matchingStatus = statuses.find(s => 
+      s.name === calibration.status.name && 
+      s.type === 'calibration'
+    );
+    
     setEditForm({
       vendorId: calibration.vendorId?.toString() || '',
-      calibrationDate: new Date(calibration.calibrationDate).toISOString().split('T')[0],
+      calibrationDate: calibration.calibrationDate.split('T')[0],
       result: calibration.result || '',
       certificateUrl: calibration.certificateUrl || '',
-      statusId: calibration.statusId.toString(),
+      statusId: matchingStatus ? String(matchingStatus.id) : String(calibration.statusId),
       completed: false
     });
+    
     setShowEditModal(true);
   };
   
@@ -255,238 +263,24 @@ export default function CalibrationPage() {
     setSelectedCalibration(null);
   };
   
-  const openRejectModal = (request: Request) => {
-    setSelectedRequest(request);
-    setRejectForm({
-      reason: ''
-    });
-    setShowRejectModal(true);
+  const openCompleteModal = (calibration: Calibration) => {
+    setSelectedCalibration(calibration);
+    setCalibrationDate(calibration.calibrationDate.split('T')[0]);
+    setCompleteModal(true);
   };
   
-  const closeRejectModal = () => {
-    setShowRejectModal(false);
-    setSelectedRequest(null);
-  };
-  
-  const handleApprovalFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setApprovalForm(prev => ({ ...prev, [name]: value }));
+  const closeCompleteModal = () => {
+    setCompleteModal(false);
+    setSelectedCalibration(null);
+    resetCompleteForm();
   };
   
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
-    
-    if (type === 'checkbox') {
-      setEditForm(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setEditForm(prev => ({ ...prev, [name]: value }));
-    }
-  };
-  
-  const handleRejectCalibration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedRequest) return;
-    
-    console.log('Starting rejection process...');
-    console.log('Total statuses:', statuses.length);
-    
-    // Log the types of statuses we have
-    const statusTypes = statuses.map(s => s.type);
-    const uniqueTypes = [...new Set(statusTypes)];
-    console.log('Status types:', uniqueTypes);
-    
-    // Log the request-type statuses
-    const requestStatuses = statuses.filter(s => s.type.toLowerCase().includes('request'));
-    console.log('Request-type statuses:', requestStatuses);
-    
-    try {
-      // Find the rejected status ID
-      console.log('Available statuses:', statuses);
-      const rejectedStatus = statuses.find((status: Status) => {
-        const name = status.name?.toLowerCase() || '';
-        const type = status.type?.toLowerCase() || '';
-        return name.includes('reject') && type.includes('request');
-      });
-      
-      if (!rejectedStatus) {
-        // Create rejected status
-        try {
-          console.log('No rejected status found, creating one...');
-          const createRes = await fetch('/api/admin/statuses', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              name: 'rejected',
-              type: 'request'
-            })
-          });
-          
-          if (!createRes.ok) {
-            throw new Error('Failed to create rejected status');
-          }
-          
-          const createdStatus = await createRes.json();
-          console.log('Created rejected status:', createdStatus);
-          
-          // Use the newly created status
-          console.log(`Rejecting calibration request ${selectedRequest.id} with status ${createdStatus.id} and reason: ${rejectForm.reason}`);
-          
-          // Continue with reject
-          const requestRes = await fetch(`/api/admin/requests/${selectedRequest.id}/reject`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              rejectionReason: rejectForm.reason,
-              approvedBy: 1 // Admin ID
-            })
-          });
-          
-          // Process response
-          const responseData = await requestRes.json();
-          
-          if (!requestRes.ok) {
-            throw new Error(responseData.error || 'Failed to reject calibration request');
-          }
-          
-          // Success handling
-          console.log('Rejection successful:', responseData);
-          setSuccess('Calibration request rejected successfully!');
-          closeRejectModal();
-          setRejectForm({ reason: '' });
-          fetchCalibrations();
-          fetchPendingRequests();
-          
-          // Clear success message after 3 seconds
-          setTimeout(() => {
-            setSuccess('');
-          }, 3000);
-          
-          return;
-        } catch (err: any) {
-          console.error('Error creating rejected status:', err);
-          setError(err.message || 'Failed to create rejected status');
-          setTimeout(() => {
-            setError('');
-          }, 3000);
-          return;
-        }
-      }
-      
-      // If we get here, we have a valid rejected status
-      console.log(`Rejecting calibration request ${selectedRequest.id} with status ${rejectedStatus.id} and reason: ${rejectForm.reason}`);
-      
-      // First check if this request has a calibration
-      let calibrationResponse = await fetch(`/api/admin/calibrations?requestId=${selectedRequest.id}`);
-      let calibrationData = await calibrationResponse.json();
-      
-      if (calibrationResponse.ok && Array.isArray(calibrationData) && calibrationData.length > 0) {
-        // If the calibration exists, update its status
-        const calibration = calibrationData[0];
-        console.log(`Found existing calibration #${calibration.id}, will update status`);
-        
-        // Delete the existing calibration since request will be rejected
-        const deleteRes = await fetch(`/api/admin/calibrations/${calibration.id}`, {
-          method: 'DELETE'
-        });
-        
-        if (!deleteRes.ok) {
-          const deleteData = await deleteRes.json();
-          throw new Error(deleteData.error || 'Failed to delete existing calibration');
-        }
-      }
-      
-      // Update the request to rejected status directly
-      const requestRes = await fetch(`/api/admin/requests/${selectedRequest.id}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          rejectionReason: rejectForm.reason,
-          approvedBy: 1 // Admin ID
-        })
-      });
-      
-      const responseData = await requestRes.json();
-      
-      if (!requestRes.ok) {
-        throw new Error(responseData.error || 'Failed to reject calibration request');
-      }
-      
-      // Success
-      console.log('Rejection successful:', responseData);
-      setSuccess('Calibration request rejected successfully!');
-      closeRejectModal();
-      
-      // Reset form
-      setRejectForm({ reason: '' });
-      
-      // Refresh data
-      fetchCalibrations();
-      fetchPendingRequests();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-    } catch (err: any) {
-      console.error('Error rejecting calibration:', err);
-      setError(err.message || 'Failed to reject calibration request');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => {
-        setError('');
-      }, 3000);
-    }
-  };
-  
-  const handleApproveCalibration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedRequest) return;
-    
-    try {
-      const res = await fetch('/api/admin/calibrations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          requestId: selectedRequest.id,
-          vendorId: approvalForm.vendorId || null,
-          calibrationDate: approvalForm.calibrationDate,
-          result: approvalForm.notes
-        })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to approve calibration');
-      }
-      
-      // Success
-      setSuccess('Calibration request approved successfully!');
-      closeApproveModal();
-      fetchCalibrations();
-      fetchPendingRequests();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to approve calibration');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => {
-        setError('');
-      }, 3000);
-    }
+    const { name, value, type } = e.target;
+    setEditForm(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value 
+    }));
   };
   
   const handleUpdateCalibration = async (e: React.FormEvent) => {
@@ -495,29 +289,56 @@ export default function CalibrationPage() {
     if (!selectedCalibration) return;
     
     try {
+      const body: any = {
+        vendorId: editForm.vendorId ? parseInt(editForm.vendorId) : null,
+        calibrationDate: editForm.calibrationDate,
+        result: editForm.result.trim() || null
+      };
+      
+      // Update status if changed
+      if (editForm.statusId && editForm.statusId !== selectedCalibration.statusId.toString()) {
+        // Extract the actual status value from the combined ID (format: type_STATUS)
+        const statusId = editForm.statusId.includes('_') 
+          ? editForm.statusId
+          : parseInt(editForm.statusId); // For backward compatibility
+          
+        body.statusId = statusId;
+      }
+      
+      // Add certificate URL if provided
+      if (editForm.certificateUrl.trim()) {
+        body.certificateUrl = editForm.certificateUrl.trim();
+      }
+      
       const res = await fetch(`/api/admin/calibrations/${selectedCalibration.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editForm)
+        credentials: 'include', // Add this to include auth cookies
+        body: JSON.stringify(body),
       });
       
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to update calibration');
+        throw new Error(errorData.message || 'Failed to update calibration');
       }
       
-      // Success
-      setSuccess('Calibration updated successfully!');
-      closeEditModal();
+      // Show success message
+      setSuccess(`Calibration #${selectedCalibration.id} was updated successfully`);
+      
+      // Refresh data
       fetchCalibrations();
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
+      
+      // Close modal
+      closeEditModal();
     } catch (err: any) {
+      console.error('Error updating calibration:', err);
       setError(err.message || 'Failed to update calibration');
       
       // Clear error message after 3 seconds
@@ -550,44 +371,115 @@ export default function CalibrationPage() {
     }
   };
   
-  // Function to ensure rejected status exists
-  const ensureRejectedStatusExists = async () => {
+  const handleApprove = async (id: string) => {
     try {
-      // Fetch all request statuses
-      const res = await fetch('/api/admin/statuses?type=request');
-      if (!res.ok) throw new Error('Failed to fetch request statuses');
-      const data = await res.json();
+      setActionInProgress(true);
+      const response = await fetch(`/api/admin/calibrations/${id}/approve`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
       
-      // Check if rejected status exists
-      const rejectedExists = data.some((status: { name: string; type: string }) => 
-        status.name.toLowerCase() === 'rejected' && 
-        status.type.toLowerCase() === 'request'
-      );
-      
-      if (!rejectedExists) {
-        console.log('Creating rejected status for requests...');
-        // Create rejected status
-        const createRes = await fetch('/api/admin/statuses', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: 'rejected',
-            type: 'request'
-          })
-        });
-        
-        if (!createRes.ok) {
-          throw new Error('Failed to create rejected status');
-        }
-        
-        // Refresh statuses
-        fetchStatuses();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to approve calibration request');
       }
-    } catch (err) {
-      console.error('Error ensuring rejected status exists:', err);
-      setError('There was a problem with the status configuration. Please contact the administrator.');
+      
+      await fetchCalibrations();
+      setApproveModal(false);
+      toast.success('Calibration request approved successfully');
+    } catch (err: any) {
+      console.error('Error approving calibration request:', err);
+      toast.error(err.message || 'Failed to approve calibration request');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      setActionInProgress(true);
+      const response = await fetch(`/api/admin/calibrations/${id}/reject`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        body: JSON.stringify({ status: 'REJECTED', rejectionReason: rejectionReason }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to reject calibration request');
+      }
+      
+      await fetchCalibrations();
+      setRejectModal(false);
+      setRejectionReason('');
+      toast.success('Calibration request rejected successfully');
+    } catch (err: any) {
+      console.error('Error rejecting calibration request:', err);
+      toast.error(err.message || 'Failed to reject calibration request');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleCertificateNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCertificateNumber(e.target.value);
+  };
+
+  const handleCalibrationDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCalibrationDate(e.target.value);
+  };
+
+  const handleNextCalibrationDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNextCalibrationDate(e.target.value);
+  };
+
+  const handleCalibrationResultChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCalibrationResult(e.target.value);
+  };
+
+  const handleRejectionReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setRejectionReason(e.target.value);
+  };
+
+  const handleComplete = async (id: string) => {
+    try {
+      setActionInProgress(true);
+      const response = await fetch(`/api/admin/calibrations/${id}/complete`, {
+        method: 'PATCH',
+          headers: {
+          'Content-Type': 'application/json',
+          },
+        credentials: 'include', // Include cookies for authentication
+          body: JSON.stringify({
+          status: 'COMPLETED',
+          certificateNumber: certificateNumber,
+          calibrationDate: calibrationDate,
+          nextCalibrationDate: nextCalibrationDate,
+          result: calibrationResult,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to complete calibration request');
+      }
+      
+      await fetchCalibrations();
+      setCompleteModal(false);
+      resetCompleteForm();
+      toast.success('Calibration request marked as completed successfully');
+    } catch (err: any) {
+      console.error('Error completing calibration request:', err);
+      toast.error(err.message || 'Failed to complete calibration request');
+    } finally {
+      setActionInProgress(false);
     }
   };
   
@@ -604,6 +496,12 @@ export default function CalibrationPage() {
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
             <p className="font-medium">{error}</p>
+            <button 
+              onClick={() => fetchCalibrations()}
+              className="mt-2 text-sm text-red-700 hover:text-red-600 underline"
+            >
+              Retry
+            </button>
           </div>
         )}
         
@@ -612,76 +510,6 @@ export default function CalibrationPage() {
             <p className="font-medium">{success}</p>
           </div>
         )}
-        
-        {/* Pending Requests Section */}
-        <div className="mb-8">
-          <h2 className="text-subtitle text-lg mb-4">Pending Calibration Requests</h2>
-          
-          {requestsLoading ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-500">Loading requests...</p>
-            </div>
-          ) : pendingRequests.length === 0 ? (
-            <div className="bg-gray-50 p-4 rounded border border-gray-200 text-center">
-              <p className="text-gray-600">No pending calibration requests.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {pendingRequests.map((request) => (
-                      <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          #{request.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{request.item.name}</div>
-                          <div className="text-xs text-gray-500">{request.item.serialNumber || 'No S/N'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{request.user?.name || 'Unknown'}</div>
-                          <div className="text-xs text-gray-500">{request.user?.email || ''}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(request.requestDate)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                          {request.reason || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => openApproveModal(request)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => openRejectModal(request)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Reject
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
         
         {/* Calibrations Section */}
         <div>
@@ -702,7 +530,7 @@ export default function CalibrationPage() {
                 >
                   <option value="">All Statuses</option>
                   {statuses.map(status => (
-                    <option key={status.id} value={status.id}>{status.name}</option>
+                    <option key={`status-${status.id}`} value={status.id}>{status.name}</option>
                   ))}
                 </select>
               </div>
@@ -717,7 +545,7 @@ export default function CalibrationPage() {
                 >
                   <option value="">All Vendors</option>
                   {vendors.map(vendor => (
-                    <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                    <option key={`filter-vendor-${vendor.id}`} value={vendor.id}>{vendor.name}</option>
                   ))}
                 </select>
               </div>
@@ -741,7 +569,7 @@ export default function CalibrationPage() {
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
               <p className="text-yellow-700 font-medium">No calibration records found.</p>
               <p className="text-yellow-600 mt-2">
-                Approve pending calibration requests to start tracking calibrations.
+                Add calibrations through the Edit button to start tracking calibrations.
               </p>
             </div>
           ) : (
@@ -800,19 +628,40 @@ export default function CalibrationPage() {
                           </button>
                           {calibration.status.name !== 'COMPLETED' && (
                             <button
-                              onClick={() => {
-                                setSelectedCalibration(calibration);
-                                setEditForm(prev => ({
-                                  ...prev,
-                                  completed: true
-                                }));
-                                setShowEditModal(true);
-                              }}
-                              className="text-green-600 hover:text-green-900"
+                              onClick={() => openCompleteModal(calibration)}
+                              className="text-green-600 hover:text-green-900 mr-2"
                               title="Mark as Completed"
                             >
                               <FiCheckCircle className="inline-block" />
                             </button>
+                          )}
+                          {calibration.status.name === 'PENDING' && (
+                            <>
+                            <button
+                              onClick={() => {
+                                setSelectedCalibration(calibration);
+                                  setApproveModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-900 mr-2"
+                                title="Approve Request"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedCalibration(calibration);
+                                  setRejectModal(true);
+                                }}
+                                className="text-red-600 hover:text-red-900"
+                                title="Reject Request"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -823,97 +672,6 @@ export default function CalibrationPage() {
             </div>
           )}
         </div>
-        
-        {/* Approve Calibration Modal */}
-        {showApproveModal && selectedRequest && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Approve Calibration Request</h3>
-                <button onClick={closeApproveModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <form onSubmit={handleApproveCalibration}>
-                <div className="mb-4">
-                  <p className="text-subtitle mb-1">Item:</p>
-                  <p className="text-body">{selectedRequest.item.name}</p>
-                </div>
-                
-                <div className="mb-4">
-                  <p className="text-subtitle mb-1">User:</p>
-                  <p className="text-body">{selectedRequest.user?.name || 'Unknown'}</p>
-                </div>
-                
-                <div className="mb-4">
-                  <p className="text-subtitle mb-1">Request Reason:</p>
-                  <p className="text-body">{selectedRequest.reason || '-'}</p>
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="vendorId" className="form-label">Assign Vendor</label>
-                  <select
-                    id="vendorId"
-                    name="vendorId"
-                    value={approvalForm.vendorId}
-                    onChange={handleApprovalFormChange}
-                    className="form-input"
-                  >
-                    <option value="">Select a vendor</option>
-                    {vendors.map(vendor => (
-                      <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="calibrationDate" className="form-label">Calibration Date</label>
-                  <input
-                    id="calibrationDate"
-                    name="calibrationDate"
-                    type="date"
-                    value={approvalForm.calibrationDate}
-                    onChange={handleApprovalFormChange}
-                    className="form-input"
-                    required
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="notes" className="form-label">Notes</label>
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    value={approvalForm.notes}
-                    onChange={handleApprovalFormChange}
-                    rows={3}
-                    className="form-input"
-                    placeholder="Add any initial notes about this calibration..."
-                  />
-                </div>
-                
-                <div className="flex flex-col sm:flex-row justify-end gap-2">
-                  <button 
-                    type="button" 
-                    onClick={closeApproveModal}
-                    className="btn btn-secondary order-2 sm:order-1"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary order-1 sm:order-2"
-                  >
-                    Approve Calibration
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
         
         {/* Edit Calibration Modal */}
         {showEditModal && selectedCalibration && (
@@ -947,7 +705,7 @@ export default function CalibrationPage() {
                   >
                     <option value="">Select a vendor</option>
                     {vendors.map(vendor => (
-                      <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                      <option key={`edit-vendor-${vendor.id}`} value={vendor.id}>{vendor.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1003,7 +761,7 @@ export default function CalibrationPage() {
                       required
                     >
                       {statuses.map(status => (
-                        <option key={status.id} value={status.id}>{status.name}</option>
+                        <option key={`edit-status-${status.id}`} value={status.id}>{status.name}</option>
                       ))}
                     </select>
                   </div>
@@ -1137,13 +895,13 @@ export default function CalibrationPage() {
           </div>
         )}
         
-        {/* Reject Modal */}
-        {showRejectModal && selectedRequest && (
+        {/* Complete Modal */}
+        {completeModal && selectedCalibration && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Reject Calibration Request</h3>
-                <button onClick={closeRejectModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                <h3 className="text-title text-lg">Complete Calibration</h3>
+                <button onClick={closeCompleteModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -1151,42 +909,185 @@ export default function CalibrationPage() {
               </div>
               
               <div className="mb-4">
-                <p className="text-subtitle mb-2">Are you sure you want to reject the calibration request for:</p>
-                <p className="font-medium">{selectedRequest.item.name} {selectedRequest.item.serialNumber && `(${selectedRequest.item.serialNumber})`}</p>
-                <p className="text-sm text-gray-600 mt-1">Requested by: {selectedRequest.user?.name || 'Unknown user'}</p>
+                <p className="text-gray-700">Please enter the details to complete the calibration for: <strong>{selectedCalibration.request.item.name}</strong></p>
               </div>
               
-              <form onSubmit={handleRejectCalibration}>
+              <form onSubmit={(e) => { e.preventDefault(); handleComplete(selectedCalibration.id.toString()); }}>
                 <div className="mb-4">
-                  <label htmlFor="reason" className="form-label">Rejection Reason</label>
-                  <textarea
-                    id="reason"
-                    name="reason"
-                    value={rejectForm.reason}
-                    onChange={(e) => setRejectForm({...rejectForm, reason: e.target.value})}
-                    rows={3}
+                  <label htmlFor="certificateNumber" className="form-label">Certificate Number</label>
+                  <input
+                    type="text"
+                    id="certificateNumber"
+                    value={certificateNumber}
+                    onChange={handleCertificateNumberChange}
                     className="form-input"
-                    placeholder="Enter reason for rejection..."
+                    placeholder="Enter certificate number"
                     required
                   />
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="calibrationDate" className="form-label">Calibration Date</label>
+                  <input
+                    type="date"
+                    id="calibrationDate"
+                    value={calibrationDate}
+                    onChange={handleCalibrationDateChange}
+                    className="form-input"
+                    required
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="nextCalibrationDate" className="form-label">Next Calibration Date</label>
+                  <input
+                    type="date"
+                    id="nextCalibrationDate"
+                    value={nextCalibrationDate}
+                    onChange={handleNextCalibrationDateChange}
+                    className="form-input"
+                    required
+                  />
+                </div>
+                
+                <div className="mb-6">
+                  <label htmlFor="calibrationResult" className="form-label">Result</label>
+                  <textarea
+                    id="calibrationResult"
+                    value={calibrationResult}
+                    onChange={handleCalibrationResultChange}
+                    className="form-input"
+                    rows={3}
+                    placeholder="Enter calibration results"
+                    required
+                  ></textarea>
                 </div>
                 
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
-                    onClick={closeRejectModal}
+                    onClick={closeCompleteModal}
                     className="btn btn-secondary"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-danger"
+                    className="btn btn-primary"
+                    disabled={actionInProgress}
                   >
-                    Reject Request
+                    {actionInProgress ? (
+                      <>
+                        <span className="animate-spin mr-2">⟳</span>
+                        Processing...
+                      </>
+                    ) : (
+                      'Complete Calibration'
+                    )}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        
+        {/* Approve Modal */}
+        {approveModal && selectedCalibration && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Approve Calibration Request</h3>
+                <button onClick={() => setApproveModal(false)} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-gray-700">Are you sure you want to approve the calibration request for: <strong>{selectedCalibration.request.item.name}</strong>?</p>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setApproveModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApprove(selectedCalibration.id.toString())}
+                  className="btn btn-primary"
+                  disabled={actionInProgress}
+                >
+                  {actionInProgress ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span>
+                      Processing...
+                    </>
+                  ) : (
+                    'Approve'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Reject Modal */}
+        {rejectModal && selectedCalibration && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Reject Calibration Request</h3>
+                <button onClick={() => setRejectModal(false)} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-gray-700">Please provide a reason for rejecting the calibration request for: <strong>{selectedCalibration.request.item.name}</strong></p>
+                
+                <div className="mt-3">
+                  <textarea
+                    value={rejectionReason}
+                    onChange={handleRejectionReasonChange}
+                    className="form-input"
+                    rows={3}
+                    placeholder="Enter rejection reason"
+                    required
+                  ></textarea>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setRejectModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReject(selectedCalibration.id.toString())}
+                  className="btn btn-primary"
+                  disabled={actionInProgress || !rejectionReason.trim()}
+                >
+                  {actionInProgress ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span>
+                      Processing...
+                    </>
+                  ) : (
+                    'Reject'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

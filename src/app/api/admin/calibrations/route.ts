@@ -1,90 +1,89 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { RequestStatus, ItemStatus } from '@prisma/client';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { z } from 'zod';
 
-// Helper function to check if a status ID corresponds to a completed status
-async function isCompletedStatus(statusId: number): Promise<boolean> {
-  const status = await prisma.status.findUnique({
-    where: { id: statusId }
-  });
+// Schema for validating calibration approval
+const approveCalibrationSchema = z.object({
+  id: z.string().min(1, "Calibration ID is required"),
+  validUntil: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: "Valid until must be a valid date"
+  }),
+  notes: z.string().optional().nullable()
+});
+
+// Schema for updating calibration
+const updateCalibrationSchema = z.object({
+  id: z.string().min(1, "Calibration ID is required"),
+  statusId: z.string().or(z.enum([RequestStatus.PENDING, RequestStatus.APPROVED, RequestStatus.REJECTED, RequestStatus.COMPLETED])),
+  validUntil: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: "Valid until must be a valid date"
+  }).optional().nullable(),
+  notes: z.string().optional().nullable()
+});
+
+// Helper function to extract status value from ID
+function extractStatusFromId(statusId: string): RequestStatus {
+  if (typeof statusId !== 'string') return statusId as RequestStatus;
   
-  return status?.name?.toLowerCase().includes('completed') || false;
-}
-
-// Helper function to get admin status
-async function isAdminUser(request: Request): Promise<boolean> {
-  try {
-    // Get token from cookies manually
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
-    
-    const token = cookies['auth_token'];
-    
-    if (token) {
-      const userData = decodeToken(token);
-      if (userData?.role === 'Admin') {
-        return true;
-      }
+  // If in format like "calibration_PENDING", extract the part after underscore
+  const parts = statusId.split('_');
+  if (parts.length > 1) {
+    const statusValue = parts[parts.length - 1];
+    if (Object.values(RequestStatus).includes(statusValue as RequestStatus)) {
+      return statusValue as RequestStatus;
     }
-  } catch (authError) {
-    console.error('Error getting user from token:', authError);
   }
   
-  return false;
+  // Return as is if no underscore or not a valid enum value
+  return statusId as RequestStatus;
 }
 
-// GET all calibrations (for admin)
+// GET all calibrations for admin
 export async function GET(request: Request) {
   try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
+    // Get user from session and verify admin status
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Parse query parameters
+    // Parse URL parameters
     const { searchParams } = new URL(request.url);
     const statusId = searchParams.get('statusId');
     const vendorId = searchParams.get('vendorId');
-    const itemId = searchParams.get('itemId');
-    const requestId = searchParams.get('requestId');
+    const itemSerial = searchParams.get('itemSerial');
     
-    // Build where clause
+    // Build where conditions
     const where: Record<string, any> = {};
     
     if (statusId) {
-      where.statusId = parseInt(statusId);
+      // Extract status from ID format (e.g., "calibration_PENDING" -> "PENDING")
+      let status = statusId;
+      if (statusId.includes('_')) {
+        const parts = statusId.split('_');
+        status = parts[parts.length - 1];
+      }
+      
+      if (Object.values(RequestStatus).includes(status as RequestStatus)) {
+        where.status = status as RequestStatus;
+      }
     }
     
     if (vendorId) {
-      where.vendorId = parseInt(vendorId);
+      where.vendorId = vendorId;
     }
     
-    if (itemId) {
-      where.request = {
-        itemId: parseInt(itemId)
-      };
+    if (itemSerial) {
+      where.itemSerial = itemSerial;
     }
     
-    if (requestId) {
-      where.requestId = parseInt(requestId);
-    }
-    
+    // Fetch all calibrations with filter
     const calibrations = await prisma.calibration.findMany({
       where,
       include: {
-        request: {
-          include: {
-            item: {
-              include: {
-                category: true
-              }
-            },
+        item: true,
             user: {
               select: {
                 id: true,
@@ -92,14 +91,23 @@ export async function GET(request: Request) {
                 email: true
               }
             },
-            status: true
+        vendor: true,
+        statusLogs: {
+          include: {
+            changedBy: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
-        },
-        status: true,
-        vendor: true
+        }
       },
       orderBy: {
-        calibrationDate: 'desc'
+        createdAt: 'desc'
       }
     });
     
@@ -113,221 +121,200 @@ export async function GET(request: Request) {
   }
 }
 
-// POST create or update a calibration (for admin)
+// POST to approve a calibration
 export async function POST(request: Request) {
   try {
-    // Check admin authorization
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { requestId, vendorId, calibrationDate, result } = body;
-
-    // Validate request ID
-    if (!requestId) {
-      return NextResponse.json({ message: 'Request ID is required' }, { status: 400 });
-    }
-
-    // Parse IDs to integers
-    const requestIdInt = parseInt(requestId);
-    const vendorIdInt = vendorId ? parseInt(vendorId) : null;
-
-    // Check if the request exists
-    const existingRequest = await prisma.request.findUnique({
-      where: { id: requestIdInt },
-      include: { item: true, user: true }
-    });
-
-    if (!existingRequest) {
-      return NextResponse.json({ message: 'Request not found' }, { status: 404 });
-    }
-
-    // Find in-progress status for calibration
-    let inProgressStatus = await prisma.status.findFirst({
-      where: {
-        name: { contains: 'progress', mode: 'insensitive' },
-        type: 'CALIBRATION'
-      }
-    });
-
-    if (!inProgressStatus) {
-      inProgressStatus = await prisma.status.create({
-        data: {
-          name: 'IN_PROGRESS',
-          type: 'CALIBRATION'
-        }
-      });
-    }
-
-    // Check if a calibration already exists for this request
-    const existingCalibration = await prisma.calibration.findFirst({
-      where: { requestId: requestIdInt }
-    });
-
-    let calibration;
-
-    if (existingCalibration) {
-      // Update existing calibration
-      calibration = await prisma.calibration.update({
-        where: { id: existingCalibration.id },
-        data: {
-          vendorId: vendorIdInt,
-          calibrationDate: new Date(calibrationDate),
-          result,
-          statusId: inProgressStatus.id
-        },
-        include: {
-          status: true,
-          request: {
-            include: {
-              user: true,
-              item: true
-            }
-          }
-        }
-      });
-    } else {
-      // Create new calibration
-      calibration = await prisma.calibration.create({
-        data: {
-          requestId: requestIdInt,
-          vendorId: vendorIdInt,
-          calibrationDate: new Date(calibrationDate),
-          result,
-          statusId: inProgressStatus.id
-        },
-        include: {
-          status: true,
-          request: {
-            include: {
-              user: true,
-              item: true
-            }
-          }
-        }
-      });
-    }
-
-    // Find or create in-progress request status
-    let inProgressRequestStatus = await prisma.status.findFirst({
-      where: {
-        name: { contains: 'progress', mode: 'insensitive' },
-        type: 'REQUEST'
-      }
-    });
-
-    if (!inProgressRequestStatus) {
-      inProgressRequestStatus = await prisma.status.create({
-        data: {
-          name: 'IN_PROGRESS',
-          type: 'REQUEST'
-        }
-      });
-    }
-
-    // Update the request status to in-progress
-    await prisma.request.update({
-      where: { id: requestIdInt },
-      data: { statusId: inProgressRequestStatus.id }
-    });
-
-    // Find or create in-calibration item status
-    let inCalibrationItemStatus = await prisma.status.findFirst({
-      where: {
-        name: { contains: 'calibration', mode: 'insensitive' },
-        type: 'ITEM'
-      }
-    });
-
-    if (!inCalibrationItemStatus) {
-      inCalibrationItemStatus = await prisma.status.create({
-        data: {
-          name: 'IN_CALIBRATION',
-          type: 'ITEM'
-        }
-      });
-    }
-
-    // Update the item status to in calibration
-    await prisma.item.update({
-      where: { id: existingRequest.itemId },
-      data: { statusId: inCalibrationItemStatus.id }
-    });
-
-    return NextResponse.json(
-      { 
-        message: 'Calibration started successfully', 
-        calibration 
-      }, 
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error in calibration approval process:', error);
-    return NextResponse.json(
-      { message: 'Error in calibration approval process', error: (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: Request) {
-  try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
+    // Get user from session and verify admin status
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Parse and validate the request body
     const body = await request.json();
-    const { id, vendorId, calibrationDate, result, certificateUrl, statusId } = body;
+    const validation = approveCalibrationSchema.safeParse(body);
     
-    if (!id) {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Calibration ID is required' },
+        { error: validation.error.format() },
         { status: 400 }
       );
     }
     
-    // Check if calibration exists
-    const existingCalibration = await prisma.calibration.findUnique({
-      where: { id: parseInt(id) },
+    const { id, validUntil, notes } = validation.data;
+    
+    // Find the calibration to ensure it exists
+    const calibration = await prisma.calibration.findUnique({
+      where: { id },
       include: {
-        request: {
-          include: {
-            item: true,
-            user: true
-          }
-        },
-        status: true
+        item: true,
+        user: true
       }
     });
     
-    if (!existingCalibration) {
+    if (!calibration) {
       return NextResponse.json(
         { error: 'Calibration not found' },
         { status: 404 }
       );
     }
     
-    // Check if the status is being changed to completed
-    const isCompletingCalibration = statusId && 
-      existingCalibration.statusId !== parseInt(statusId) &&
-      await isCompletedStatus(parseInt(statusId));
+    // Ensure the calibration is in PENDING state
+    if (calibration.status !== RequestStatus.PENDING) {
+      return NextResponse.json(
+        { error: `Cannot approve calibration with status ${calibration.status}` },
+        { status: 400 }
+      );
+    }
     
-    // Update calibration
+    // Update the calibration to APPROVED
     const updatedCalibration = await prisma.calibration.update({
-      where: { id: parseInt(id) },
+      where: { id },
+        data: {
+        status: RequestStatus.APPROVED,
+        validUntil: new Date(validUntil)
+        },
+        include: {
+        item: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        vendor: true
+      }
+    });
+    
+    // Create status log
+    await prisma.calibrationStatusLog.create({
+        data: {
+        calibrationId: id,
+        status: RequestStatus.APPROVED,
+        notes: notes || 'Calibration approved by admin',
+        userId: user.id
+      }
+    });
+    
+    // Create certificate URL (if needed)
+    // This would typically generate a PDF and store the URL
+    
+    // Create notification for the user
+    await prisma.notification.create({
       data: {
-        vendorId: vendorId ? parseInt(vendorId) : undefined,
-        calibrationDate: calibrationDate ? new Date(calibrationDate) : undefined,
-        result,
-        certificateUrl,
-        statusId: statusId ? parseInt(statusId) : undefined
-      },
-      include: {
-        request: {
+        userId: calibration.userId,
+        type: 'CALIBRATION_STATUS_CHANGE',
+        title: 'Calibration Approved',
+        message: `Your calibration for ${calibration.item.name} has been approved`,
+        isRead: false
+      }
+    });
+    
+    // Create activity log
+    await prisma.activityLog.create({
+        data: {
+        userId: user.id,
+        action: 'APPROVED_CALIBRATION',
+        details: `Approved calibration for ${calibration.item.name}`,
+        itemSerial: calibration.itemSerial
+      }
+    });
+    
+    return NextResponse.json(updatedCalibration);
+  } catch (error) {
+    console.error('Error approving calibration:', error);
+    return NextResponse.json(
+      { error: 'Failed to approve calibration' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH to update a calibration status
+export async function PATCH(request: Request) {
+  try {
+    // Get user from session and verify admin status
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Parse and validate the request body
+    const body = await request.json();
+    const validation = updateCalibrationSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.format() },
+        { status: 400 }
+      );
+    }
+    
+    const { id, statusId, validUntil, notes } = validation.data;
+    
+    // Extract actual status value from format statusType_STATUSVALUE
+    const status = extractStatusFromId(statusId);
+    
+    // Find the calibration to ensure it exists
+    const calibration = await prisma.calibration.findUnique({
+      where: { id },
+          include: {
+            item: true,
+            user: true
+      }
+    });
+    
+    if (!calibration) {
+      return NextResponse.json(
+        { error: 'Calibration not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Prepare update data
+    const updateData: Record<string, any> = {
+      status
+    };
+    
+    // Add validUntil if provided
+    if (validUntil) {
+      updateData.validUntil = new Date(validUntil);
+    }
+    
+    // If rejecting, update item status back to AVAILABLE
+    if (status === RequestStatus.REJECTED && calibration.status !== RequestStatus.REJECTED) {
+      await prisma.item.update({
+        where: { serialNumber: calibration.itemSerial },
+        data: { status: ItemStatus.AVAILABLE }
+      });
+    }
+    
+    // If completing, update item status back to AVAILABLE (although this should be done by user)
+    if (status === RequestStatus.COMPLETED && calibration.status !== RequestStatus.COMPLETED) {
+      await prisma.item.update({
+        where: { serialNumber: calibration.itemSerial },
+        data: { status: ItemStatus.AVAILABLE }
+      });
+      
+      // Update item history
+      await prisma.itemHistory.updateMany({
+        where: {
+          itemSerial: calibration.itemSerial,
+          action: 'CALIBRATED',
+          relatedId: id,
+          endDate: null
+        },
+        data: {
+          endDate: new Date()
+        }
+      });
+    }
+    
+    // Update the calibration
+    const updatedCalibration = await prisma.calibration.update({
+      where: { id },
+      data: updateData,
           include: {
             item: true,
             user: {
@@ -335,80 +322,56 @@ export async function PATCH(request: Request) {
                 id: true,
                 name: true,
                 email: true
-              }
-            }
           }
         },
-        status: true,
         vendor: true
       }
     });
     
-    // If calibration is now marked as completed
-    if (isCompletingCalibration) {
-      // Get COMPLETED status for requests
-      let completedRequestStatus = await prisma.status.findFirst({
-        where: {
-          name: {
-            mode: 'insensitive',
-            contains: 'completed'
-          },
-          type: 'request'
-        }
-      });
-      
-      // If completed status doesn't exist, create it
-      if (!completedRequestStatus) {
-        completedRequestStatus = await prisma.status.create({
+    // Create status log
+    await prisma.calibrationStatusLog.create({
           data: {
-            name: 'completed',
-            type: 'request'
-          }
-        });
+        calibrationId: id,
+        status,
+        notes: notes || `Calibration status updated to ${status} by admin`,
+        userId: user.id
       }
-      
-      // Update the original request status to completed
-      await prisma.request.update({
-        where: { id: existingCalibration.requestId },
-        data: { statusId: completedRequestStatus.id }
-      });
-      
-      // Get available status for items
-      let availableItemStatus = await prisma.status.findFirst({
-        where: {
-          name: {
-            mode: 'insensitive',
-            contains: 'available'
-          },
-          type: 'item'
-        }
-      });
-      
-      // Update item status to available
-      if (availableItemStatus) {
-        await prisma.item.update({
-          where: { id: existingCalibration.request.itemId },
-          data: { statusId: availableItemStatus.id }
-        });
-      }
-      
-      // Create notification for user
+    });
+    
+    // Create notification for the user
+    const statusMap: Record<string, string> = {
+      [RequestStatus.PENDING]: 'updated to pending',
+      [RequestStatus.APPROVED]: 'approved',
+      [RequestStatus.REJECTED]: 'rejected',
+      [RequestStatus.COMPLETED]: 'completed'
+    };
+    
       await prisma.notification.create({
         data: {
-          userId: existingCalibration.request.userId,
-          message: `Calibration for ${existingCalibration.request.item.name} has been completed`,
+        userId: calibration.userId,
+        type: 'CALIBRATION_STATUS_CHANGE',
+        title: `Calibration ${statusMap[status] || 'Updated'}`,
+        message: `Your calibration for ${calibration.item.name} has been ${statusMap[status] || 'updated'}`,
           isRead: false
         }
       });
       
-      // Log activity
+    // Create activity log
+    const actionMap: Record<string, string> = {
+      [RequestStatus.PENDING]: 'UPDATED_CALIBRATION',
+      [RequestStatus.APPROVED]: 'APPROVED_CALIBRATION',
+      [RequestStatus.REJECTED]: 'REJECTED_CALIBRATION',
+      [RequestStatus.COMPLETED]: 'COMPLETED_CALIBRATION'
+    };
+    
       await prisma.activityLog.create({
         data: {
-          userId: 1, // Admin ID
-          activity: `Calibration #${id} for ${existingCalibration.request.item.name} marked as completed`
-        }
-      });
-    }
+        userId: user.id,
+        action: actionMap[status] || 'UPDATED_CALIBRATION',
+        details: `Updated calibration for ${calibration.item.name} to ${status}`,
+        itemSerial: calibration.itemSerial
+      }
+    });
     
     return NextResponse.json(updatedCalibration);
   } catch (error) {

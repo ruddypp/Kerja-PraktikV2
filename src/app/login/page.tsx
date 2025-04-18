@@ -36,10 +36,10 @@ export default function Login() {
         throw new Error(data.message || 'Login failed');
       }
 
-      console.log(`Login successful, redirecting to ${data.user.role.name} dashboard`);
+      console.log(`Login successful, redirecting to ${data.user.role} dashboard`);
       
       // Force a hard reload to a specific URL based on role
-      if (data.user.role.name === 'Admin') {
+      if (data.user.role === 'ADMIN') {
         document.cookie = `redirect=true; path=/`;
         window.location.href = '/admin-dashboard';
       } else {

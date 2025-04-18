@@ -3,20 +3,10 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
+import { DashboardStats, formatDate, formatNumber, calculatePercentage } from '@/lib/utils/dashboard';
 
 // Tipe data untuk statistik dashboard
-type DashboardStats = {
-  totalItems: number;
-  availableItems: number;
-  inUseItems: number;
-  inCalibrationItems: number;
-  inRentalItems: number;
-  inMaintenanceItems: number;
-  pendingRequests: number;
-  pendingCalibrations: number;
-  pendingRentals: number;
-  upcomingCalibrations: number;
-  overdueRentals: number;
+type DashboardData = DashboardStats & {
   recentActivities: Array<{
     id: number;
     activity: string;
@@ -34,7 +24,7 @@ type DashboardStats = {
 };
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,16 +47,6 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
   }, []);
-
-  // Format date for display
-  const formatDate = (dateString: Date) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
-  };
 
   return (
     <DashboardLayout>
@@ -95,7 +75,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats?.totalItems || 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.totalItems) : 0}</p>
                     <Link href="/admin/inventory" className="text-sm text-green-600 hover:underline">Lihat detail</Link>
                   </div>
                 </div>
@@ -110,7 +90,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingRequests || 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingRequests) : 0}</p>
                     <Link href="/admin/requests" className="text-sm text-blue-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -126,7 +106,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingCalibrations || 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingCalibrations) : 0}</p>
                     <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -141,7 +121,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats?.pendingRentals || 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingRentals) : 0}</p>
                     <Link href="/admin/rentals" className="text-sm text-yellow-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -151,54 +131,44 @@ export default function AdminDashboard() {
             {/* Status Barang */}
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Status Barang</h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-green-700 font-medium">Available</span>
-                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.availableItems || 0}</span>
+                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.availableItems) : 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-green-500 h-2" style={{ width: `${stats ? (stats.availableItems / stats.totalItems) * 100 : 0}%` }}></div>
-                  </div>
-                </div>
-                
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-blue-700 font-medium">In Use</span>
-                    <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inUseItems || 0}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-2" style={{ width: `${stats ? (stats.inUseItems / stats.totalItems) * 100 : 0}%` }}></div>
+                    <div className="bg-green-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-purple-700 font-medium">Calibration</span>
-                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inCalibrationItems || 0}</span>
+                    <span className="text-purple-700 font-medium">In Calibration</span>
+                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inCalibrationItems) : 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-2" style={{ width: `${stats ? (stats.inCalibrationItems / stats.totalItems) * 100 : 0}%` }}></div>
+                    <div className="bg-purple-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-yellow-700 font-medium">Rental</span>
-                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inRentalItems || 0}</span>
+                    <span className="text-yellow-700 font-medium">Rented</span>
+                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inRentalItems) : 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-yellow-500 h-2" style={{ width: `${stats ? (stats.inRentalItems / stats.totalItems) * 100 : 0}%` }}></div>
+                    <div className="bg-yellow-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-red-50 p-4 rounded-lg border border-red-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-red-700 font-medium">Maintenance</span>
-                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">{stats?.inMaintenanceItems || 0}</span>
+                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inMaintenanceItems) : 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-red-500 h-2" style={{ width: `${stats ? (stats.inMaintenanceItems / stats.totalItems) * 100 : 0}%` }}></div>
+                    <div className="bg-red-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -241,33 +211,45 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Aktivitas Terbaru</h2>
                 <div className="space-y-3">
                   {stats?.recentActivities && stats.recentActivities.length > 0 ? (
-                    stats.recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-start p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className="text-gray-500 mr-2 mt-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">{activity.activity}</p>
-                          <div className="flex justify-between">
-                            <span className="text-xs text-gray-500">{activity.user.name}</span>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(activity.createdAt)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                    <div className="flex justify-between items-center">
+                      <Link href="/admin/activity-logs" className="text-sm text-green-600 hover:underline">Lihat semua aktivitas</Link>
+                      <span className="text-xs text-gray-500">
+                        {stats.recentActivities.length} aktivitas
+                      </span>
+                    </div>
                   ) : (
                     <p className="text-gray-500 text-sm">Tidak ada aktivitas terbaru</p>
                   )}
                   
-                  <Link href="/admin/activity-logs" className="block text-sm text-center text-green-600 hover:underline mt-4">
-                    Lihat semua aktivitas
-                  </Link>
+                  <div className="flex justify-between items-center">
+                    <Link href="/admin/activity-logs" className="text-sm text-green-600 hover:underline">Lihat semua aktivitas</Link>
+                    <span className="text-xs text-gray-500">
+                      {stats?.recentActivities && stats.recentActivities.length > 0 ? formatDate(stats.recentActivities[0].createdAt) : ''}
+                    </span>
+                  </div>
                 </div>
               </div>
+            </div>
+            
+            {/* Notifikasi Terbaru */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Notifikasi Terbaru</h2>
+                <Link href="/admin/notifications" className="text-sm text-blue-600 hover:underline">Lihat semua</Link>
+              </div>
+              
+              {stats?.notifications && stats.notifications.length > 0 ? (
+                <div className="space-y-3">
+                  {stats.notifications.slice(0, 5).map(notification => (
+                    <div key={notification.id} className={`px-4 py-3 rounded-lg border-l-4 ${notification.isRead ? 'border-gray-300 bg-gray-50' : 'border-blue-500 bg-blue-50'}`}>
+                      <p className="text-sm font-medium text-gray-800">{notification.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">{formatDate(notification.createdAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">Tidak ada notifikasi terbaru</p>
+              )}
             </div>
           </div>
         )}

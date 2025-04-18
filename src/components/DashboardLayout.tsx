@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setUser(data);
+          setUser(data.user); // Store the entire user object 
         }
       } catch (error) {
         console.error('Error fetching user:', error);
