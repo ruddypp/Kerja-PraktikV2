@@ -552,7 +552,7 @@ export default function CalibrationPage() {
               <div className="flex items-end">
                 <button
                   onClick={resetFilters}
-                  className="btn btn-secondary w-full"
+                  className="btn btn-secondary"
                 >
                   Reset Filters
                 </button>

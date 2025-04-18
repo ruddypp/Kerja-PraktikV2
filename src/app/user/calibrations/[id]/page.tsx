@@ -12,6 +12,7 @@ interface Calibration {
   dueDate: string | null;
   completedDate: string | null;
   result: string | null;
+  certificateUrl: string | null;
   vendorId: number;
   statusId: number;
   createdAt: string;
@@ -294,26 +295,27 @@ export default function CalibrationDetailPage() {
               />
               
               <div className="mt-4 flex flex-wrap gap-3">
-                <button 
-                  className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                <button
                   onClick={handleSaveResult}
                   disabled={saving}
+                  className="btn btn-primary flex items-center mt-2"
                 >
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      <span className="animate-spin mr-2">⟳</span>
                       Saving...
                     </>
                   ) : (
                     <>
-                      <FiSave className="mr-2" /> Save Notes
+                      <FiSave className="mr-2" />
+                      Save Notes
                     </>
                   )}
                 </button>
                 
                 {isCompleted && calibration.certificateNumber && (
                   <button 
-                    className="flex items-center px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                    className="btn btn-primary flex items-center"
                     onClick={() => window.open(`/api/user/calibrations/${calibration.id}/certificate?format=pdf`, '_blank')}
                   >
                     <FiDownload className="mr-2" /> Download Certificate

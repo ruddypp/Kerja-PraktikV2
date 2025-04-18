@@ -24,9 +24,9 @@ export async function GET(
       include: {
         item: true,
         vendor: true,
-            user: {
-              select: {
-                id: true,
+        user: {
+          select: {
+            id: true,
             name: true
           }
         }
@@ -60,7 +60,7 @@ export async function GET(
     // In a real app, you might fetch this from storage or generate a PDF
     const certificate = {
       id: calibration.id,
-      certificateNumber: `CAL-${calibration.id.slice(0, 8).toUpperCase()}`,
+      certificateNumber: `CAL-${String(calibration.id).slice(0, 8).toUpperCase()}`,
       calibrationDate: calibration.calibrationDate,
       validUntil: calibration.validUntil || new Date(new Date(calibration.calibrationDate).getTime() + 365*24*60*60*1000).toISOString(), // Default to 1 year if not set
       item: {
@@ -85,7 +85,7 @@ export async function GET(
         userId: user.id,
         action: 'ACCESSED_CERTIFICATE',
         details: `Certificate for ${calibration.item.name} was accessed`,
-        ...(calibration.itemSerial ? { itemSerial: calibration.itemSerial } : {})
+        itemSerial: calibration.itemSerial
       }
     });
     

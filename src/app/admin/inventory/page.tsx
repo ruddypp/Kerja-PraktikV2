@@ -710,6 +710,246 @@ export default function AdminInventoryPage() {
           </div>
         )}
       </div>
+
+      {/* Modal for creating/editing items */}
+      {modalOpen && (
+        <div className="fixed inset-0 overflow-y-auto z-50">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div className="sm:flex sm:items-start">
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    {isEditMode ? 'Edit Item' : 'Add New Item'}
+                  </h3>
+                  <div className="mt-2">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      {/* Serial Number */}
+                      <div>
+                        <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700">
+                          Serial Number {isEditMode && <span className="text-gray-500">(Read Only)</span>}
+                        </label>
+                        <input
+                          type="text"
+                          name="serialNumber"
+                          id="serialNumber"
+                          value={formData.serialNumber}
+                          onChange={handleFormChange}
+                          disabled={isEditMode}
+                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                            formErrors.serialNumber ? 'border-red-300' : ''
+                          }`}
+                        />
+                        {formErrors.serialNumber && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.serialNumber}</p>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                          Product Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          id="name"
+                          value={formData.name}
+                          onChange={handleFormChange}
+                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                            formErrors.name ? 'border-red-300' : ''
+                          }`}
+                        />
+                        {formErrors.name && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                        )}
+                      </div>
+
+                      {/* Part Number */}
+                      <div>
+                        <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700">
+                          Part Number
+                        </label>
+                        <input
+                          type="text"
+                          name="partNumber"
+                          id="partNumber"
+                          value={formData.partNumber}
+                          onChange={handleFormChange}
+                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                            formErrors.partNumber ? 'border-red-300' : ''
+                          }`}
+                        />
+                        {formErrors.partNumber && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.partNumber}</p>
+                        )}
+                      </div>
+
+                      {/* Sensor */}
+                      <div>
+                        <label htmlFor="sensor" className="block text-sm font-medium text-gray-700">
+                          Sensor Type
+                        </label>
+                        <input
+                          type="text"
+                          name="sensor"
+                          id="sensor"
+                          value={formData.sensor || ''}
+                          onChange={handleFormChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                          Description
+                        </label>
+                        <textarea
+                          name="description"
+                          id="description"
+                          rows={3}
+                          value={formData.description || ''}
+                          onChange={handleFormChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        ></textarea>
+                      </div>
+
+                      {/* Customer */}
+                      <div>
+                        <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">
+                          Customer
+                        </label>
+                        <select
+                          name="customerId"
+                          id="customerId"
+                          value={formData.customerId || ''}
+                          onChange={handleFormChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        >
+                          <option value="">None</option>
+                          {vendors.map((vendor) => (
+                            <option key={vendor.id} value={vendor.id}>
+                              {vendor.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                          Status
+                        </label>
+                        <select
+                          name="status"
+                          id="status"
+                          value={formData.status}
+                          onChange={handleFormChange}
+                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                            formErrors.status ? 'border-red-300' : ''
+                          }`}
+                        >
+                          <option value={ItemStatus.AVAILABLE}>Available</option>
+                          <option value={ItemStatus.IN_CALIBRATION}>In Calibration</option>
+                          <option value={ItemStatus.RENTED}>Rented</option>
+                          <option value={ItemStatus.IN_MAINTENANCE}>In Maintenance</option>
+                        </select>
+                        {formErrors.status && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
+                        )}
+                      </div>
+
+                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                        <button
+                          type="submit"
+                          disabled={formSubmitting}
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
+                        >
+                          {formSubmitting ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </>
+                          ) : isEditMode ? (
+                            'Update'
+                          ) : (
+                            'Create'
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalOpen(false)}
+                          className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:w-auto sm:text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 overflow-y-auto z-50">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">Delete Item</h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-900">
+                        Are you sure you want to delete item <span className="font-semibold">{currentItem?.serialNumber}</span>?
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        This action cannot be undone. This will permanently delete the item and all associated records.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  disabled={formSubmitting}
+                  onClick={handleDelete}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  {formSubmitting ? 'Deleting...' : 'Delete'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteOpen(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 } 

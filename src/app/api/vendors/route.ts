@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 
 // GET all vendors - accessible by all authenticated users

@@ -13,7 +13,6 @@ enum RequestStatus {
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
 }
 
 enum ItemStatus {
@@ -141,7 +140,7 @@ export default function UserCalibrationPage() {
   
   const fetchVendors = async () => {
     try {
-      const response = await fetch('/api/vendors', {
+      const response = await fetch('/api/user/vendors', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -326,8 +325,6 @@ export default function UserCalibrationPage() {
         return 'bg-green-100 text-green-800';
       case RequestStatus.REJECTED:
         return 'bg-red-100 text-red-800';
-      case RequestStatus.CANCELLED:
-        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
