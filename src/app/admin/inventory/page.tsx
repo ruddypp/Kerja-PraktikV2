@@ -386,8 +386,8 @@ export default function AdminInventoryPage() {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
   
-  // Status badge styling
-  const getStatusBadgeClass = (status: ItemStatus) => {
+  // Get status badge color
+  const getStatusBadgeClass = (status: ItemStatus): string => {
     switch (status) {
       case ItemStatus.AVAILABLE:
         return 'bg-green-100 text-green-800';
@@ -424,535 +424,287 @@ export default function AdminInventoryPage() {
   // Calculate total pages
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
+  // Default form data for resetting the form
+  const defaultFormData: ItemFormData = {
+    serialNumber: '',
+    name: '',
+    partNumber: '',
+    sensor: '',
+    description: '',
+    customerId: '',
+    status: ItemStatus.AVAILABLE
+  };
+
+  // Default filters
+  const defaultFilters = {
+    search: '',
+    status: '',
+    category: ''
+  };
+
+  // Count items by status
+  const itemStatusCount = useMemo(() => {
+    const counts: Record<ItemStatus, number> = {
+      [ItemStatus.AVAILABLE]: 0,
+      [ItemStatus.IN_CALIBRATION]: 0,
+      [ItemStatus.RENTED]: 0,
+      [ItemStatus.IN_MAINTENANCE]: 0
+    };
+    
+    items.forEach(item => {
+      counts[item.status]++;
+    });
+    
+    return counts;
+  }, [items]);
+
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="p-6 bg-white rounded shadow">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Inventory Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
           <button
-            onClick={() => openCreateModal()}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center"
+            onClick={() => {
+              setModalOpen(true);
+              setFormData(defaultFormData);
+              setFormErrors({});
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow transition duration-300"
           >
-            <FiPlus className="mr-2" /> Add Item
-            </button>
-      </div>
-
-        {/* Error display */}
-      {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-          <p>{error}</p>
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Add Item
+            </span>
+          </button>
         </div>
-      )}
 
-      {success && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-          <p>{success}</p>
-        </div>
-      )}
-
-        {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <div className="flex flex-col md:flex-row items-end gap-4">
-            <div className="w-full md:w-1/2">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="search"
-                  name="search"
-                  value={filters.search}
-                  onChange={handleFilterChange}
-                  placeholder="Search by name, serial number, part number..."
-                  className="form-input pl-10 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiSearch className="text-gray-400" />
-              </div>
-              </div>
-            </div>
-            
-            <div className="w-full md:w-1/3">
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        {/* Filter Section */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-900 mb-1">Search</label>
+            <input
+              type="text"
+              id="search"
+              name="search"
+              value={filters.search}
+              onChange={handleFilterChange}
+              placeholder="Search by name or serial number"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-900 mb-1">Status</label>
             <select
               id="status"
               name="status"
               value={filters.status}
               onChange={handleFilterChange}
-                className="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
             >
               <option value="">All Statuses</option>
-              {Object.values(ItemStatus).map(status => (
-                  <option key={status} value={status}>{getStatusDisplayName(status)}</option>
-              ))}
+              <option value="AVAILABLE">Available</option>
+              <option value="IN_USE">In Use</option>
+              <option value="MAINTENANCE">Maintenance</option>
+              <option value="REPAIR">Repair</option>
+              <option value="CALIBRATION">Calibration</option>
+              <option value="DISCONTINUED">Discontinued</option>
             </select>
           </div>
-            
+          <div className="flex items-end">
             <button
-              onClick={resetFilters}
-              className="px-4 py-2 flex items-center justify-center text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              onClick={() => setFilters(defaultFilters)}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <FiRefreshCw className="mr-2" /> Reset
+              Reset Filters
             </button>
-        </div>
-      </div>
-
-        {/* Items Table */}
-        <div className="bg-white rounded shadow overflow-hidden">
-      {loading ? (
-            <div className="text-center py-10">
-              <div className="spinner"></div>
-              <p className="mt-2 text-gray-600">Loading items...</p>
-            </div>
-      ) : items.length === 0 ? (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-              <p className="text-yellow-700">No items found. Add some inventory items or adjust your filters.</p>
-        </div>
-      ) : (
-            <div className="overflow-x-auto w-full" style={{ overflowX: 'auto', maxWidth: '100%' }}>
-              <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '150px' }}
-                    >
-                      Nama Produk
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '130px' }}
-                    >
-                      Serial Number
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '130px' }}
-                    >
-                      Part Number
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '120px' }}
-                    >
-                      Sensor
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '150px' }}
-                    >
-                      Description
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '130px' }}
-                    >
-                      Customer
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '120px' }}
-                    >
-                      History
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '120px' }}
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: '100px' }}
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {items
-                    .filter((item) => {
-                      return !filters.status || filters.status === 'all' || item.status === filters.status;
-                    })
-                    .map((item) => (
-                      <tr key={item.serialNumber}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{item.serialNumber}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{item.partNumber}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{item.sensor || '-'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{item.description || '-'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <Link href={`/admin/inventory/history/${item.serialNumber}`} className="text-indigo-600 hover:text-indigo-900">
-                            View History
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
-                            {getStatusDisplayName(item.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="text-indigo-600 hover:text-indigo-900 mr-3"
-                            title="Edit Item"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(item)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete Item"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        
-        {/* Pagination */}
-        <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                currentPage === 1
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                currentPage === totalPages
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, totalItems)}
-                </span>{' '}
-                of <span className="font-medium">{totalItems}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                    currentPage === 1
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="sr-only">Previous</span>
-                  <FiChevronLeft className="h-5 w-5" />
-                </button>
-                
-                {/* Page numbers */}
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Show pages around current page
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        currentPage === pageNum
-                          ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                    currentPage === totalPages
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="sr-only">Next</span>
-                  <FiChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
-            </div>
           </div>
         </div>
 
-        {/* Create/Edit Modal */}
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">{isEditMode ? 'Edit Item' : 'Add New Item'}</h2>
-                <button 
-                  onClick={() => setModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        {/* Status information */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(itemStatusCount).map(([status, count]) => (
+            <div
+              key={status}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex justify-between items-center"
+            >
+              <div className="flex items-center">
+                <div className={`w-3 h-3 rounded-full mr-2 ${getStatusBadgeClass(status as ItemStatus)}`}></div>
+                <span className="text-gray-900 font-medium">{getStatusDisplayName(status as ItemStatus)}</span>
               </div>
-              
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    Serial Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="serialNumber"
-                    name="serialNumber"
-                    value={formData.serialNumber}
-                    onChange={handleFormChange}
-                    className={`form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${formErrors.serialNumber ? 'border-red-500' : ''}`}
-                    disabled={isEditMode}
-                    required
-                  />
-                  {formErrors.serialNumber && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.serialNumber}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleFormChange}
-                    className={`form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${formErrors.name ? 'border-red-500' : ''}`}
-                    required
-                  />
-                  {formErrors.name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    Part Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="partNumber"
-                    name="partNumber"
-                    value={formData.partNumber}
-                    onChange={handleFormChange}
-                    className={`form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${formErrors.partNumber ? 'border-red-500' : ''}`}
-                    required
-                  />
-                  {formErrors.partNumber && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.partNumber}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="sensor" className="block text-sm font-medium text-gray-700 mb-1">
-                    Sensor Type
-                  </label>
-                  <input
-                    type="text"
-                    id="sensor"
-                    name="sensor"
-                    value={formData.sensor || ''}
-                    onChange={handleFormChange}
-                    className="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter sensor type"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description || ''}
-                    onChange={handleFormChange}
-                    className="form-textarea w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    rows={3}
-                    placeholder="Enter item description"
-                  ></textarea>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="customerId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Customer
-                    </label>
-                    <select
-                      id="customerId"
-                      name="customerId"
-                      value={formData.customerId || ''}
-                      onChange={handleFormChange}
-                      className="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    >
-                      <option value="">None</option>
-                      {vendors.map(vendor => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                        </option>
-                      ))}
-                    </select>
-                    {/* Debug information */}
-                    <p className="mt-1 text-xs text-gray-500">
-                      Selected value: {formData.customerId || 'None'}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                      Status <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleFormChange}
-                      className={`form-select w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${formErrors.status ? 'border-red-500' : ''}`}
-                      required
-                    >
-                      {Object.values(ItemStatus).map(status => (
-                        <option key={status} value={status}>{getStatusDisplayName(status)}</option>
-                      ))}
-                    </select>
-                    {formErrors.status && (
-                      <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    disabled={formSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    disabled={formSubmitting}
-                  >
-                    {formSubmitting ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Processing...
-                      </div>
-                    ) : isEditMode ? 'Update Item' : 'Create Item'}
-                  </button>
-                </div>
-              </form>
+              <span className="text-gray-900 font-bold">{count as number}</span>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="bg-red-50 p-4 rounded-md mb-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading inventory</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {confirmDeleteOpen && currentItem && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3">
-                  <svg className="h-5 w-5 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-800">Confirm Deletion</h2>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
+            <p className="text-gray-900">Loading inventory...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto pb-4">
+            <table className="min-w-full bg-white border-collapse">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Product Name</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Serial Number</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Part Number</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Sensor</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Customer</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">History</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-900">
+                      No items found
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item) => (
+                    <tr key={item.serialNumber} className="hover:bg-green-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.serialNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.partNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.sensor || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.customer?.name || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
+                          {getStatusDisplayName(item.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Link 
+                          href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          View History
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="text-green-600 hover:text-green-800 mr-4"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => openDeleteConfirm(item)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        {!loading && !error && totalPages > 0 && (
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                  currentPage === 1 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-900 hover:bg-green-50 border border-gray-300'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                  currentPage === totalPages 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-900 hover:bg-green-50 border border-gray-300'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-900">
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
+                  <span className="font-medium">{totalItems}</span> results
+                </p>
               </div>
-              
-              <p className="mb-6 text-gray-700">
-                Are you sure you want to delete <span className="font-medium">{currentItem.name}</span> ({currentItem.serialNumber})?
-                This action cannot be undone.
-              </p>
-              
-              <div className="flex justify-end space-x-3">
-                <button 
-                  onClick={() => setConfirmDeleteOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  disabled={formSubmitting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? (
-                    <div className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </div>
-                  ) : 'Delete Item'}
-                </button>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 ${
+                      currentPage === 1 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-900 hover:bg-green-50 border border-gray-300'
+                    }`}
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                        currentPage === page
+                          ? 'z-10 bg-green-600 text-white focus:z-20'
+                          : 'bg-white text-gray-900 hover:bg-green-50 border border-gray-300'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 ${
+                      currentPage === totalPages 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-900 hover:bg-green-50 border border-gray-300'
+                    }`}
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
               </div>
             </div>
           </div>
