@@ -113,11 +113,24 @@ export default function UserCalibrationPage() {
       }
       
       const data = await response.json();
-      setCalibrations(data);
+      
+      // Validate that data is an array
+      if (Array.isArray(data)) {
+        setCalibrations(data);
+      } else if (data && typeof data === 'object' && Array.isArray(data.calibrations)) {
+        // Handle if API returns { calibrations: [...] }
+        setCalibrations(data.calibrations);
+      } else {
+        // Set to empty array if format is unknown
+        console.error('Unexpected data format from calibrations API:', data);
+        setCalibrations([]);
+      }
+      
       setError('');
     } catch (err) {
       console.error('Error fetching calibrations:', err);
       setError('Failed to load calibration requests. Please try refreshing the page.');
+      setCalibrations([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -125,16 +138,33 @@ export default function UserCalibrationPage() {
   
   const fetchAvailableItems = async () => {
     try {
-      const res = await fetch('/api/user/items?status=AVAILABLE');
+      const res = await fetch('/api/user/items?status=AVAILABLE', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store'
+      });
       
       if (!res.ok) {
-        throw new Error('Failed to fetch available items');
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch available items: ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ''}`);
       }
       
       const data = await res.json();
-      setItems(data);
+      
+      if (data && Array.isArray(data.items)) {
+        setItems(data.items);
+      } else if (data && typeof data === 'object') {
+        setItems(data.items || []);
+      } else {
+        setItems([]);
+        console.error('Unexpected response format from items API:', data);
+      }
     } catch (err) {
       console.error('Error fetching available items:', err);
+      setItems([]); // Set empty array sebagai fallback
     }
   };
   
@@ -168,11 +198,16 @@ export default function UserCalibrationPage() {
   };
   
   const openCalibrationModal = () => {
+    if (!items || items.length === 0) {
+      fetchAvailableItems();
+    }
+    
     setCalibrationForm({
       itemSerial: '',
       vendorId: '',
       notes: ''
     });
+    
     setShowCalibrationModal(true);
   };
   
@@ -275,38 +310,40 @@ export default function UserCalibrationPage() {
   };
   
   // Apply filters to calibrations
-  const filteredCalibrations = calibrations.filter(calibration => {
-    // Status filter
-    if (filters.status && calibration.status !== filters.status) {
-      return false;
-    }
-    
-    // Item filter
-    if (filters.item && !calibration.item.name.toLowerCase().includes(filters.item.toLowerCase()) &&
-        !calibration.item.serialNumber.toLowerCase().includes(filters.item.toLowerCase())) {
-      return false;
-    }
-    
-    // Date range filter
-    if (filters.dateFrom) {
-      const fromDate = new Date(filters.dateFrom);
-      const calibrationDate = new Date(calibration.calibrationDate);
-      if (calibrationDate < fromDate) {
-        return false;
-      }
-    }
-    
-    if (filters.dateTo) {
-      const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59); // End of the day
-      const calibrationDate = new Date(calibration.calibrationDate);
-      if (calibrationDate > toDate) {
-        return false;
-      }
-    }
-    
-    return true;
-  });
+  const filteredCalibrations = Array.isArray(calibrations) 
+    ? calibrations.filter(calibration => {
+        // Status filter
+        if (filters.status && calibration.status !== filters.status) {
+          return false;
+        }
+        
+        // Item filter
+        if (filters.item && !calibration.item.name.toLowerCase().includes(filters.item.toLowerCase()) &&
+            !calibration.item.serialNumber.toLowerCase().includes(filters.item.toLowerCase())) {
+          return false;
+        }
+        
+        // Date range filter
+        if (filters.dateFrom) {
+          const fromDate = new Date(filters.dateFrom);
+          const calibrationDate = new Date(calibration.calibrationDate);
+          if (calibrationDate < fromDate) {
+            return false;
+          }
+        }
+        
+        if (filters.dateTo) {
+          const toDate = new Date(filters.dateTo);
+          toDate.setHours(23, 59, 59); // End of the day
+          const calibrationDate = new Date(calibration.calibrationDate);
+          if (calibrationDate > toDate) {
+            return false;
+          }
+        }
+        
+        return true;
+      })
+    : [];
   
   // Format date for display
   const formatDate = (dateString: string | null | undefined) => {
@@ -464,7 +501,7 @@ export default function UserCalibrationPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredCalibrations.map((calibration) => (
+                  {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
                       <tr key={calibration.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -540,11 +577,15 @@ export default function UserCalibrationPage() {
                     required
                   >
                     <option value="">Select an item</option>
-                    {items.map((item) => (
-                      <option key={item.serialNumber} value={item.serialNumber}>
-                        {item.name} - {item.serialNumber}
-                      </option>
-                    ))}
+                    {Array.isArray(items) && items.length > 0 ? (
+                      items.map((item) => (
+                        <option key={item.serialNumber} value={item.serialNumber}>
+                          {item.name} - {item.serialNumber}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No available items found</option>
+                    )}
                   </select>
                 </div>
                 
@@ -561,11 +602,15 @@ export default function UserCalibrationPage() {
                     required
                   >
                     <option value="">Select a vendor</option>
-                    {vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                      </option>
-                    ))}
+                    {Array.isArray(vendors) && vendors.length > 0 ? (
+                      vendors.map((vendor) => (
+                        <option key={vendor.id} value={vendor.id}>
+                          {vendor.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No vendors available</option>
+                    )}
                   </select>
                 </div>
                 

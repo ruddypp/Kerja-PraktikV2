@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { ItemStatus } from '@prisma/client';
 import { getUserFromRequest } from '@/lib/auth';
 
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const status = searchParams.get('status') as ItemStatus | null;
     
     // Get pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
@@ -53,6 +54,11 @@ export async function GET(request: NextRequest) {
         { partNumber: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
       ];
+    }
+    
+    // Filter by status if provided
+    if (status) {
+      where.status = status;
     }
     
     // Get total count for pagination

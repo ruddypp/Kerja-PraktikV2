@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { RequestStatus, ItemStatus } from '@prisma/client';
+import { ItemStatus, RequestStatus } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+
+// Nilai-nilai status sebagai string
+const IN_PROGRESS = 'IN_PROGRESS';
+const COMPLETED = 'COMPLETED';
+const CANCELLED = 'CANCELLED';
 
 // Schema for validating calibration approval
 const approveCalibrationSchema = z.object({
@@ -16,7 +21,7 @@ const approveCalibrationSchema = z.object({
 // Schema for updating calibration
 const updateCalibrationSchema = z.object({
   id: z.string().min(1, "Calibration ID is required"),
-  statusId: z.string().or(z.enum([RequestStatus.PENDING, RequestStatus.APPROVED, RequestStatus.REJECTED, RequestStatus.COMPLETED])),
+  statusId: z.string().or(z.enum([IN_PROGRESS, COMPLETED, CANCELLED])),
   validUntil: z.string().refine(val => !isNaN(Date.parse(val)), {
     message: "Valid until must be a valid date"
   }).optional().nullable(),
@@ -24,20 +29,25 @@ const updateCalibrationSchema = z.object({
 });
 
 // Helper function to extract status value from ID
-function extractStatusFromId(statusId: string): RequestStatus {
-  if (typeof statusId !== 'string') return statusId as RequestStatus;
+function extractStatusFromId(statusId: string | RequestStatus): string {
+  if (typeof statusId !== 'string') return statusId as unknown as string;
   
-  // If in format like "calibration_PENDING", extract the part after underscore
+  // If in format like "calibration_IN_PROGRESS", extract the part after underscore
   const parts = statusId.split('_');
   if (parts.length > 1) {
     const statusValue = parts[parts.length - 1];
-    if (Object.values(RequestStatus).includes(statusValue as RequestStatus)) {
-      return statusValue as RequestStatus;
-    }
+    if (statusValue === 'IN_PROGRESS') return IN_PROGRESS;
+    if (statusValue === 'COMPLETED') return COMPLETED;
+    if (statusValue === 'CANCELLED') return CANCELLED;
   }
   
-  // Return as is if no underscore or not a valid enum value
-  return statusId as RequestStatus;
+  // For backward compatibility
+  if (statusId === 'IN_PROGRESS') return IN_PROGRESS;
+  if (statusId === 'COMPLETED') return COMPLETED;
+  if (statusId === 'CANCELLED') return CANCELLED;
+  
+  // Default to IN_PROGRESS if not recognized
+  return IN_PROGRESS;
 }
 
 // GET all calibrations for admin
@@ -59,16 +69,9 @@ export async function GET(request: Request) {
     const where: Record<string, any> = {};
     
     if (statusId) {
-      // Extract status from ID format (e.g., "calibration_PENDING" -> "PENDING")
-      let status = statusId;
-      if (statusId.includes('_')) {
-        const parts = statusId.split('_');
-        status = parts[parts.length - 1];
-      }
-      
-      if (Object.values(RequestStatus).includes(status as RequestStatus)) {
-        where.status = status as RequestStatus;
-      }
+      // Extract status from ID format (e.g., "calibration_IN_PROGRESS" -> "IN_PROGRESS")
+      let status = extractStatusFromId(statusId);
+      where.status = status;
     }
     
     if (vendorId) {
@@ -84,13 +87,13 @@ export async function GET(request: Request) {
       where,
       include: {
         item: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         vendor: true,
         statusLogs: {
           include: {
@@ -159,19 +162,19 @@ export async function POST(request: Request) {
       );
     }
     
-    // Ensure the calibration is in PENDING state
-    if (calibration.status !== RequestStatus.PENDING) {
+    // Ensure the calibration is in IN_PROGRESS state
+    if (String(calibration.status) !== IN_PROGRESS) {
       return NextResponse.json(
         { error: `Cannot approve calibration with status ${calibration.status}` },
         { status: 400 }
       );
     }
     
-    // Update the calibration to APPROVED
+    // Update the calibration to COMPLETED
     const updatedCalibration = await prisma.calibration.update({
       where: { id },
         data: {
-        status: RequestStatus.APPROVED,
+        status: COMPLETED as RequestStatus,
         validUntil: new Date(validUntil)
         },
         include: {
@@ -191,7 +194,7 @@ export async function POST(request: Request) {
     await prisma.calibrationStatusLog.create({
         data: {
         calibrationId: id,
-        status: RequestStatus.APPROVED,
+        status: COMPLETED as RequestStatus,
         notes: notes || 'Calibration approved by admin',
         userId: user.id
       }
@@ -272,6 +275,14 @@ export async function PATCH(request: Request) {
       );
     }
     
+    // Ensure the calibration is not already completed
+    if (String(calibration.status) === COMPLETED) {
+      return NextResponse.json(
+        { error: `Cannot modify a calibration that is already completed` },
+        { status: 400 }
+      );
+    }
+    
     // Prepare update data
     const updateData: Record<string, any> = {
       status
@@ -282,16 +293,8 @@ export async function PATCH(request: Request) {
       updateData.validUntil = new Date(validUntil);
     }
     
-    // If rejecting, update item status back to AVAILABLE
-    if (status === RequestStatus.REJECTED && calibration.status !== RequestStatus.REJECTED) {
-      await prisma.item.update({
-        where: { serialNumber: calibration.itemSerial },
-        data: { status: ItemStatus.AVAILABLE }
-      });
-    }
-    
-    // If completing, update item status back to AVAILABLE (although this should be done by user)
-    if (status === RequestStatus.COMPLETED && calibration.status !== RequestStatus.COMPLETED) {
+    // If completing, update item status back to AVAILABLE
+    if (status === COMPLETED && String(calibration.status) !== COMPLETED) {
       await prisma.item.update({
         where: { serialNumber: calibration.itemSerial },
         data: { status: ItemStatus.AVAILABLE }
@@ -332,7 +335,7 @@ export async function PATCH(request: Request) {
     await prisma.calibrationStatusLog.create({
           data: {
         calibrationId: id,
-        status,
+        status: status as RequestStatus,
         notes: notes || `Calibration status updated to ${status} by admin`,
         userId: user.id
       }
@@ -340,32 +343,30 @@ export async function PATCH(request: Request) {
     
     // Create notification for the user
     const statusMap: Record<string, string> = {
-      [RequestStatus.PENDING]: 'updated to pending',
-      [RequestStatus.APPROVED]: 'approved',
-      [RequestStatus.REJECTED]: 'rejected',
-      [RequestStatus.COMPLETED]: 'completed'
+      [IN_PROGRESS]: 'updated to in progress',
+      [COMPLETED]: 'completed',
+      [CANCELLED]: 'cancelled'
     };
     
-      await prisma.notification.create({
-        data: {
+    await prisma.notification.create({
+      data: {
         userId: calibration.userId,
         type: 'CALIBRATION_STATUS_CHANGE',
         title: `Calibration ${statusMap[status] || 'Updated'}`,
         message: `Your calibration for ${calibration.item.name} has been ${statusMap[status] || 'updated'}`,
-          isRead: false
-        }
-      });
+        isRead: false
+      }
+    });
       
     // Create activity log
     const actionMap: Record<string, string> = {
-      [RequestStatus.PENDING]: 'UPDATED_CALIBRATION',
-      [RequestStatus.APPROVED]: 'APPROVED_CALIBRATION',
-      [RequestStatus.REJECTED]: 'REJECTED_CALIBRATION',
-      [RequestStatus.COMPLETED]: 'COMPLETED_CALIBRATION'
+      [IN_PROGRESS]: 'UPDATED_CALIBRATION',
+      [COMPLETED]: 'COMPLETED_CALIBRATION',
+      [CANCELLED]: 'CANCELLED_CALIBRATION'
     };
     
-      await prisma.activityLog.create({
-        data: {
+    await prisma.activityLog.create({
+      data: {
         userId: user.id,
         action: actionMap[status] || 'UPDATED_CALIBRATION',
         details: `Updated calibration for ${calibration.item.name} to ${status}`,
