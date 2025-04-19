@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ItemStatus, RequestStatus } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+import { format } from 'date-fns';
 
 // Nilai-nilai status sebagai string
 const IN_PROGRESS = 'IN_PROGRESS';
@@ -312,6 +313,47 @@ export async function PATCH(request: Request) {
           endDate: new Date()
         }
       });
+      
+      // Add reminder notification for H-30 before validUntil
+      if (validUntil) {
+        const validUntilDate = new Date(validUntil);
+        const reminderDate = new Date(validUntilDate);
+        reminderDate.setDate(reminderDate.getDate() - 30);
+        
+        // Only create reminder if the date is in the future
+        if (reminderDate > new Date()) {
+          // Get an admin user for notifications
+          const adminUser = await prisma.user.findFirst({
+            where: { role: 'ADMIN' }
+          });
+          
+          if (!adminUser) {
+            console.error('No admin user found for sending notification');
+          } else {
+            // Create reminder notification for the user
+            await prisma.notification.create({
+              data: {
+                userId: calibration.userId,
+                type: 'CALIBRATION_REMINDER',
+                title: 'Calibration Expiring Soon',
+                message: `Your calibration for ${calibration.item.name} will expire in 30 days (on ${format(validUntilDate, 'dd/MM/yyyy')})`,
+                isRead: false
+              }
+            });
+            
+            // Create reminder notification for admin
+            await prisma.notification.create({
+              data: {
+                userId: adminUser.id,
+                type: 'CALIBRATION_REMINDER',
+                title: 'Calibration Expiring Soon',
+                message: `Calibration for ${calibration.item.name} (User: ${calibration.user.name}) will expire in 30 days`,
+                isRead: false
+              }
+            });
+          }
+        }
+      }
     }
     
     // Update the calibration
@@ -348,6 +390,12 @@ export async function PATCH(request: Request) {
       [CANCELLED]: 'cancelled'
     };
     
+    // Get an admin user for notifications
+    const adminUser = await prisma.user.findFirst({
+      where: { role: 'ADMIN' }
+    });
+    
+    // Send notification to user about status change
     await prisma.notification.create({
       data: {
         userId: calibration.userId,
@@ -357,7 +405,39 @@ export async function PATCH(request: Request) {
         isRead: false
       }
     });
+    
+    // Create reminder notification if completing calibration and validUntil is set
+    if (status === COMPLETED && validUntil && adminUser) {
+      const validUntilDate = new Date(validUntil);
+      const reminderDate = new Date(validUntilDate);
+      reminderDate.setDate(reminderDate.getDate() - 30);
       
+      // Only create reminder if the date is in the future
+      if (reminderDate > new Date()) {
+        // Notification for user
+        await prisma.notification.create({
+          data: {
+            userId: calibration.userId,
+            type: 'CALIBRATION_REMINDER',
+            title: 'Calibration Expiring Soon',
+            message: `Your calibration for ${calibration.item.name} will expire in 30 days (on ${format(validUntilDate, 'dd/MM/yyyy')})`,
+            isRead: false
+          }
+        });
+        
+        // Notification for admin
+        await prisma.notification.create({
+          data: {
+            userId: adminUser.id,
+            type: 'CALIBRATION_REMINDER',
+            title: 'Calibration Expiring Soon',
+            message: `Calibration for ${calibration.item.name} (User: ${calibration.user.name}) will expire in 30 days`,
+            isRead: false
+          }
+        });
+      }
+    }
+    
     // Create activity log
     const actionMap: Record<string, string> = {
       [IN_PROGRESS]: 'UPDATED_CALIBRATION',

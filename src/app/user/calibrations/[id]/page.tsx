@@ -295,7 +295,7 @@ export default function CalibrationDetailPage() {
               />
               
               <div className="mt-4 flex flex-wrap gap-3">
-                <button
+                <button 
                   onClick={handleSaveResult}
                   disabled={saving}
                   className="btn btn-primary flex items-center mt-2"

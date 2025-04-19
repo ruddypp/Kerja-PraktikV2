@@ -1,17 +1,66 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { RequestStatus, ItemStatus } from '@prisma/client';
+import { RequestStatus, ItemStatus, NotificationType } from '@prisma/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { z } from 'zod';
 
-// Validation schema for creating calibration
+// Status yang digunakan dalam kalibrasi - mapping ke enum Prisma
+const ITEM_STATUS_IN_CALIBRATION = ItemStatus.IN_CALIBRATION; // Status untuk kalibrasi dan item
+const REQUEST_STATUS_COMPLETED = RequestStatus.COMPLETED; // Status setelah selesai
+const REQUEST_STATUS_CANCELLED = RequestStatus.CANCELLED; // Status jika dibatalkan
+
+// Validation schema untuk memulai kalibrasi
 const createCalibrationSchema = z.object({
-  itemSerial: z.string().min(1, "Item serial number is required"),
-  vendorId: z.string().min(1, "Vendor is required"),
+  itemSerial: z.string().min(1, "Item serial number diperlukan"),
+  vendorId: z.string().min(1, "Vendor diperlukan"),
+  
+  // Data tambahan dari form
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  fax: z.string().optional(),
+  
+  // Detail Alat (dapat diambil dari database)
+  manufacturer: z.string().optional(),
+  instrumentName: z.string().optional(),
+  modelNumber: z.string().optional(),
+  configuration: z.string().optional(),
+  
+  calibrationDate: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: "Tanggal kalibrasi harus berupa tanggal yang valid"
+  }),
+  
   notes: z.string().optional().nullable()
 });
 
-// GET all calibrations for current user
+// Validation schema untuk menyelesaikan kalibrasi
+const completeCalibrationSchema = z.object({
+  // ID kalibrasi
+  id: z.string().min(1, "ID kalibrasi diperlukan"),
+  
+  // Detail Gas Kalibrasi
+  gasType: z.string().min(1, "Jenis gas diperlukan"),
+  gasConcentration: z.string().min(1, "Konsentrasi gas diperlukan"),
+  gasBalance: z.string().min(1, "Balance gas diperlukan"),
+  gasBatchNumber: z.string().min(1, "Batch number gas diperlukan"),
+  
+  // Hasil Test
+  testSensor: z.string().min(1, "Sensor diperlukan"),
+  testSpan: z.string().min(1, "Span diperlukan"),
+  testResult: z.enum(["Pass", "Fail"], { 
+    errorMap: () => ({ message: "Hasil test harus 'Pass' atau 'Fail'" }) 
+  }),
+  
+  // Tanggal dan Approval
+  approvedBy: z.string().min(1, "Nama yang menyetujui diperlukan"),
+  validUntil: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: "Tanggal validitas harus berupa tanggal yang valid"
+  }),
+  
+  // Catatan tambahan
+  notes: z.string().optional().nullable()
+});
+
+// GET semua kalibrasi untuk user saat ini
 export async function GET(request: Request) {
   try {
     // Verifikasi session user
@@ -32,7 +81,7 @@ export async function GET(request: Request) {
     };
     
     if (status) {
-      where.status = status as RequestStatus;
+      where.status = status;
     }
     
     if (itemSerial) {
@@ -68,18 +117,18 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching user calibrations:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch calibrations' },
+      { error: 'Gagal mengambil data kalibrasi' },
       { status: 500 }
     );
   }
 }
 
-// POST create a new calibration directly
+// POST membuat kalibrasi baru
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Validate request body
+    // Validasi request body
     const validation = createCalibrationSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
@@ -88,7 +137,11 @@ export async function POST(request: Request) {
       );
     }
     
-    const { itemSerial, vendorId, notes } = validation.data;
+    const { 
+      itemSerial, 
+      vendorId, 
+      calibrationDate 
+    } = validation.data;
     
     // Verifikasi session user
     const user = await getUserFromRequest(request);
@@ -104,7 +157,7 @@ export async function POST(request: Request) {
     
     if (!item) {
       return NextResponse.json(
-        { error: 'Item not found' },
+        { error: 'Item tidak ditemukan' },
         { status: 404 }
       );
     }
@@ -112,34 +165,34 @@ export async function POST(request: Request) {
     // If item is not available, reject calibration
     if (item.status !== ItemStatus.AVAILABLE) {
       return NextResponse.json(
-        { error: `Item is not available for calibration. Current status: ${item.status}` },
+        { error: `Item tidak tersedia untuk kalibrasi. Status saat ini: ${item.status}` },
         { status: 400 }
       );
     }
     
-    // Create calibration record directly with PENDING status
+    // Create calibration record - hanya gunakan field yang ada dalam database
     const calibration = await prisma.calibration.create({
       data: {
         userId: user.id,
         itemSerial: itemSerial,
         status: RequestStatus.PENDING,
-        calibrationDate: new Date(),
+        calibrationDate: new Date(calibrationDate),
         vendorId
       }
     });
     
-    // Update item status to IN_CALIBRATION
+    // Update item status to IN_CALIBRATION - ini yang dipakai untuk display status
     await prisma.item.update({
       where: { serialNumber: itemSerial },
       data: { status: ItemStatus.IN_CALIBRATION }
     });
     
-    // Create status log with notes if provided
+    // Create status log - gunakan status yang ada di database
     await prisma.calibrationStatusLog.create({
       data: {
         calibrationId: calibration.id,
-        status: RequestStatus.PENDING,
-        notes: notes ? `Calibration initiated: ${notes}` : "Calibration initiated",
+        status: RequestStatus.PENDING, // Tetap pakai PENDING di database
+        notes: "Kalibrasi dimulai",
         userId: user.id
       }
     });
@@ -149,7 +202,7 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         action: 'INITIATED_CALIBRATION',
-        details: `New calibration initiated for item ${item.name}${notes ? `: ${notes}` : ''}`,
+        details: `Kalibrasi baru dimulai untuk item ${item.name}`,
         itemSerial
       }
     });
@@ -159,28 +212,27 @@ export async function POST(request: Request) {
       data: {
         itemSerial,
         action: 'CALIBRATED',
-        details: `Sent for calibration${notes ? `: ${notes}` : ''}`,
+        details: `Dikirim untuk kalibrasi`,
         relatedId: calibration.id,
         startDate: new Date()
       }
     });
     
-    // Get an admin user for notification
+    // Notify admin
     const admin = await prisma.user.findFirst({
       where: { role: 'ADMIN' }
     });
     
-    // Notify admin if found
     if (admin) {
-    await prisma.notification.create({
-      data: {
+      await prisma.notification.create({
+        data: {
           userId: admin.id,
-          type: 'CALIBRATION_STATUS_CHANGE',
-          title: 'New Calibration Initiated',
-          message: `New calibration initiated by ${user.name} for item ${item.name}`,
-        isRead: false
-      }
-    });
+          type: 'CALIBRATION_STATUS_CHANGE' as NotificationType,
+          title: 'Kalibrasi Baru Dimulai',
+          message: `Kalibrasi baru dimulai oleh ${user.name} untuk item ${item.name}`,
+          isRead: false
+        }
+      });
     }
     
     // Return full calibration data
@@ -212,21 +264,43 @@ export async function POST(request: Request) {
       }
     });
     
-    return NextResponse.json(fullCalibration, { status: 201 });
+    return NextResponse.json(fullCalibration);
   } catch (error) {
     console.error('Error creating calibration:', error);
     return NextResponse.json(
-      { error: 'Failed to create calibration' },
+      { error: 'Gagal membuat kalibrasi' },
       { status: 500 }
     );
   }
 }
 
-// PATCH untuk mengupdate status kalibrasi (dari USER)
+// PATCH untuk menyelesaikan kalibrasi
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, completeCalibration } = body;
+    
+    // Validasi request body untuk penyelesaian kalibrasi
+    const validation = completeCalibrationSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.format() },
+        { status: 400 }
+      );
+    }
+    
+    const {
+      id: calibrationId,
+      gasType,
+      gasConcentration,
+      gasBalance,
+      gasBatchNumber,
+      testSensor,
+      testSpan,
+      testResult,
+      approvedBy,
+      validUntil,
+      notes
+    } = validation.data;
     
     // Verifikasi session user
     const user = await getUserFromRequest(request);
@@ -235,110 +309,235 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    if (!id) {
-      return NextResponse.json({ error: 'Calibration ID is required' }, { status: 400 });
-    }
-    
-    // Cek apakah kalibrasi ada
-    const existingCalibration = await prisma.calibration.findUnique({
-      where: { id },
-      include: { item: true }
+    // Ambil data kalibrasi
+    const calibration = await prisma.calibration.findUnique({
+      where: { id: calibrationId },
+      include: {
+        item: true
+      }
     });
     
-    if (!existingCalibration) {
-      return NextResponse.json({ error: 'Calibration not found' }, { status: 404 });
-    }
-    
-    // Verifikasi apakah kalibrasi milik user ini
-    if (existingCalibration.userId !== user.id) {
-      return NextResponse.json({ error: 'You do not have permission to update this calibration' }, { status: 403 });
-    }
-    
-    // Verifikasi status sekarang harus APPROVED
-    if (existingCalibration.status !== RequestStatus.APPROVED) {
+    if (!calibration) {
       return NextResponse.json(
-        { error: `Cannot complete calibration with current status: ${existingCalibration.status}` },
+        { error: 'Kalibrasi tidak ditemukan' },
+        { status: 404 }
+      );
+    }
+    
+    // Verifikasi bahwa kalibrasi milik user ini
+    if (calibration.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki akses ke kalibrasi ini' },
+        { status: 403 }
+      );
+    }
+    
+    // Verifikasi status kalibrasi
+    if (calibration.status !== RequestStatus.PENDING) {
+      return NextResponse.json(
+        { error: `Tidak dapat menyelesaikan kalibrasi dengan status ${calibration.status}` },
         { status: 400 }
       );
     }
     
-    // Update status ke COMPLETED
-    const updatedCalibration = await prisma.calibration.update({
-      where: { id },
-      data: { status: RequestStatus.COMPLETED },
-      include: {
-        item: true,
-        user: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        vendor: true
+    // Buat nomor sertifikat
+    // Format: [Nomor Urut]/CAL-PBI/[Bulan Romawi]/[Tahun]
+    const today = new Date();
+    const month = today.getMonth() + 1; // Januari adalah 0
+    const year = today.getFullYear();
+    
+    // Konversi bulan ke angka Romawi
+    const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    const romanMonth = romanMonths[month - 1];
+    
+    // Hitung jumlah kalibrasi yang sudah selesai tahun ini untuk mendapatkan nomor urut
+    const calibrationCount = await prisma.calibration.count({
+      where: {
+        status: REQUEST_STATUS_COMPLETED,
+        updatedAt: {
+          gte: new Date(year, 0, 1), // Dari 1 Januari tahun ini
+          lt: new Date(year + 1, 0, 1) // Sampai 1 Januari tahun depan
+        }
       }
     });
     
-    // Catat status log
+    const certificateNumber = `${calibrationCount + 1}/CAL-PBI/${romanMonth}/${year}`;
+    
+    // Update kalibrasi dengan Prisma client standard (tanpa SQL mentah)
+    try {
+      console.log('DEBUG - Data yang akan disimpan ke database:', {
+        certificateNumber,
+        gasType,
+        gasConcentration,
+        gasBalance,
+        gasBatchNumber,
+        testSensor,
+        testSpan,
+        testResult,
+        approvedBy,
+        notes,
+        status: REQUEST_STATUS_COMPLETED,
+        validUntil: new Date(validUntil)
+      });
+      
+      // Pertama, update data kalibrasi utama
+      const updatedCalibration = await prisma.calibration.update({
+        where: { id: calibrationId },
+        data: { 
+          status: REQUEST_STATUS_COMPLETED,
+          validUntil: new Date(validUntil),
+          certificateNumber,
+          notes
+        }
+      });
+      
+      // Kemudian, buat atau update sertifikat kalibrasi
+      const certificate = await prisma.calibrationCertificate.upsert({
+        where: { calibrationId },
+        update: {
+          gasType,
+          gasConcentration,
+          gasBalance,
+          gasBatchNumber,
+          testSensor,
+          testSpan,
+          testResult,
+          manufacturer: calibration.manufacturer,
+          instrumentName: calibration.instrumentName,
+          modelNumber: calibration.modelNumber,
+          configuration: calibration.configuration,
+          approvedBy
+        },
+        create: {
+          calibrationId,
+          gasType,
+          gasConcentration,
+          gasBalance,
+          gasBatchNumber,
+          testSensor,
+          testSpan,
+          testResult,
+          manufacturer: calibration.manufacturer,
+          instrumentName: calibration.instrumentName,
+          modelNumber: calibration.modelNumber,
+          configuration: calibration.configuration,
+          approvedBy
+        }
+      });
+      
+      console.log('Calibration update and certificate creation completed successfully');
+      
+      // Verifikasi data dengan query sederhana
+      const verifyCalibration = await prisma.calibration.findUnique({
+        where: { id: calibrationId },
+        include: {
+          certificate: true
+        }
+      });
+      
+      console.log('VERIFICATION - Data yang tersimpan di database:', verifyCalibration);
+      
+    } catch (error) {
+      console.error('Error updating calibration:', error);
+      throw error; // Re-throw for proper error handling
+    }
+
+    // Create status log
     await prisma.calibrationStatusLog.create({
       data: {
-        calibration: { connect: { id } },
-        status: RequestStatus.COMPLETED,
-        notes: "Calibration completed by user",
-        changedBy: { connect: { id: user.id } }
+        calibrationId,
+        status: REQUEST_STATUS_COMPLETED,
+        notes: notes ? `Kalibrasi selesai: ${notes}` : "Kalibrasi selesai",
+        userId: user.id
       }
     });
-    
-    // Update item status kembali menjadi AVAILABLE
+
+    // Update item status back to AVAILABLE
     await prisma.item.update({
-      where: { serialNumber: existingCalibration.itemSerial },
+      where: { serialNumber: calibration.itemSerial },
       data: { status: ItemStatus.AVAILABLE }
     });
-    
+
     // Update item history
     await prisma.itemHistory.updateMany({
       where: {
-        itemSerial: existingCalibration.itemSerial,
-        action: 'CALIBRATED',
-        relatedId: id,
-        endDate: null
+        itemSerial: calibration.itemSerial,
+        relatedId: calibrationId,
+        action: 'CALIBRATED'
       },
       data: {
         endDate: new Date()
       }
     });
-    
-    // Buat log aktivitas
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        action: 'COMPLETED_CALIBRATION',
-        details: `Completed calibration for ${existingCalibration.item.name}`,
-        itemSerial: existingCalibration.itemSerial
-      }
-    });
-    
-    // Notifikasi admin
+
+    // Notifikasi untuk admin tentang kalibrasi selesai
     const admin = await prisma.user.findFirst({
       where: { role: 'ADMIN' }
     });
-    
+
+    // Siapkan tanggal pengingat untuk notifikasi H-30
+    const validUntilDate = new Date(validUntil);
+    const reminderDate = new Date(validUntilDate);
+    reminderDate.setDate(reminderDate.getDate() - 30);
+
     if (admin) {
-      await prisma.notification.create({
-        data: {
+    await prisma.notification.create({
+      data: {
           userId: admin.id,
           type: 'CALIBRATION_STATUS_CHANGE',
-          title: 'Calibration Completed',
-          message: `Calibration for ${existingCalibration.item.name} has been marked as completed by ${user.name}`,
+          title: 'Kalibrasi Selesai',
+          message: `Kalibrasi untuk item ${calibration.item.name} telah selesai oleh ${user.name}`,
+        isRead: false
+      }
+    });
+    
+      // Notifikasi H-30 untuk admin
+      // Hanya buat notifikasi jika tanggal reminder masih di masa depan
+      if (reminderDate > new Date()) {
+        await prisma.notification.create({
+          data: {
+            userId: admin.id,
+            type: 'CALIBRATION_REMINDER',
+            title: 'Pengingat Kalibrasi H-30',
+            message: `Kalibrasi untuk item ${calibration.item.name} akan berakhir dalam 30 hari pada ${new Date(validUntil).toLocaleDateString('id-ID')}`,
+            isRead: false
+          }
+        });
+      }
+    }
+
+    // Notifikasi H-30 untuk user
+    if (reminderDate > new Date()) {
+      await prisma.notification.create({
+        data: {
+          userId: calibration.userId,
+          type: 'CALIBRATION_REMINDER',
+          title: 'Pengingat Kalibrasi H-30',
+          message: `Kalibrasi untuk item ${calibration.item.name} akan berakhir dalam 30 hari pada ${new Date(validUntil).toLocaleDateString('id-ID')}`,
           isRead: false
         }
       });
     }
-    
-    return NextResponse.json(updatedCalibration);
+
+    // Format and return response
+    return NextResponse.json({
+      ...calibration,
+      certificateNumber: certificateNumber,
+      gasType,
+      gasConcentration,
+      gasBalance,
+      gasBatchNumber,
+      testSensor,
+      testSpan,
+      testResult,
+      approvedBy,
+      validUntil: new Date(validUntil),
+      notes
+    });
   } catch (error) {
-    console.error('Error updating calibration status:', error);
+    console.error('Error completing calibration:', error);
     return NextResponse.json(
-      { error: 'Failed to update calibration status' },
+      { error: 'Gagal menyelesaikan kalibrasi' },
       { status: 500 }
     );
   }

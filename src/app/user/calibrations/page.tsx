@@ -9,10 +9,9 @@ import { FiPlus, FiFileText, FiDownload, FiX, FiSearch } from 'react-icons/fi';
 
 // Define Types and Interfaces
 enum RequestStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  PENDING = 'PENDING', // Status di database - akan ditampilkan sebagai IN_CALIBRATION di UI
   COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
 }
 
 enum ItemStatus {
@@ -27,6 +26,7 @@ interface Item {
   name: string;
   partNumber: string;
   status: ItemStatus;
+  sensor?: string;
 }
 
 interface Vendor {
@@ -43,7 +43,7 @@ interface StatusLog {
   createdAt: string;
   changedBy: {
     id: string;
-    name: string;
+  name: string;
   };
 }
 
@@ -51,15 +51,41 @@ interface Calibration {
   id: string;
   itemSerial: string;
   userId: string;
-  status: RequestStatus;
+  status: RequestStatus | string;
   calibrationDate: string;
   validUntil: string | null;
+  
+  // Informasi Sertifikat
+  certificateNumber: string | null;
   certificateUrl: string | null;
+  
+  // Detail Gas Kalibrasi
+  gasType: string | null;
+  gasConcentration: string | null;
+  gasBalance: string | null;
+  gasBatchNumber: string | null;
+  
+  // Hasil Test
+  testSensor: string | null;
+  testSpan: string | null;
+  testResult: string | null;
+  
+  // Detail Alat
+  manufacturer: string | null;
+  instrumentName: string | null;
+  modelNumber: string | null;
+  configuration: string | null;
+  
+  // Approval
+  approvedBy: string | null;
+  
+  // Misc
   createdAt: string;
   updatedAt: string;
   item: Item;
   vendor: Vendor;
   statusLogs: StatusLog[];
+  notes: string | null;
 }
 
 export default function UserCalibrationPage() {
@@ -71,6 +97,7 @@ export default function UserCalibrationPage() {
   const [success, setSuccess] = useState('');
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
   const router = useRouter();
   
@@ -78,6 +105,45 @@ export default function UserCalibrationPage() {
   const [calibrationForm, setCalibrationForm] = useState({
     itemSerial: '',
     vendorId: '',
+    
+    // Form fields tambahan sesuai alur
+    address: '',
+    phone: '',
+    fax: '',
+    
+    // Detail alat (dapat diisi otomatis dari item yang dipilih)
+    manufacturer: '',
+    instrumentName: '',
+    modelNumber: '',
+    configuration: '',
+    
+    // Tanggal kalibrasi
+    calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+    
+    notes: ''
+  });
+  
+  // Complete calibration form
+  const [completeForm, setCompleteForm] = useState({
+    id: '',
+    // Detail Gas Kalibrasi
+    gasType: '',
+    gasConcentration: '',
+    gasBalance: '',
+    gasBatchNumber: '',
+    
+    // Hasil Test
+    testSensor: '',
+    testSpan: '',
+    testResult: 'Pass' as 'Pass' | 'Fail',
+    
+    // Approval
+    approvedBy: '',
+    
+    // Masa berlaku
+    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'), // Default 1 tahun
+    
+    // Notes
     notes: ''
   });
   
@@ -116,7 +182,7 @@ export default function UserCalibrationPage() {
       
       // Validate that data is an array
       if (Array.isArray(data)) {
-        setCalibrations(data);
+      setCalibrations(data);
       } else if (data && typeof data === 'object' && Array.isArray(data.calibrations)) {
         // Handle if API returns { calibrations: [...] }
         setCalibrations(data.calibrations);
@@ -195,6 +261,20 @@ export default function UserCalibrationPage() {
   const handleCalibrationFormChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setCalibrationForm(prev => ({ ...prev, [name]: value }));
+    
+    // Jika memilih item, isi otomatis data item
+    if (name === 'itemSerial') {
+      const selectedItem = items.find(item => item.serialNumber === value);
+      if (selectedItem) {
+        setCalibrationForm(prev => ({
+          ...prev,
+          manufacturer: selectedItem.name || '', // Nama produk sebagai manufacturer
+          instrumentName: selectedItem.partNumber || '', // Part number sebagai instrument name
+          modelNumber: selectedItem.sensor || '', // Sensor sebagai model number
+          configuration: '' // Dibiarkan kosong untuk diisi pengguna
+        }));
+      }
+    }
   };
   
   const openCalibrationModal = () => {
@@ -205,6 +285,14 @@ export default function UserCalibrationPage() {
     setCalibrationForm({
       itemSerial: '',
       vendorId: '',
+      address: '',
+      phone: '',
+      fax: '',
+      manufacturer: '',
+      instrumentName: '',
+      modelNumber: '',
+      configuration: '',
+      calibrationDate: format(new Date(), 'yyyy-MM-dd'),
       notes: ''
     });
     
@@ -227,63 +315,47 @@ export default function UserCalibrationPage() {
   
   const handleCalibrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
-      if (!calibrationForm.itemSerial) {
-        throw new Error('Please select an item for calibration');
-      }
-      
-      if (!calibrationForm.vendorId) {
-        throw new Error('Please select a vendor for calibration');
-      }
-      
-      // Check if selected item is still available
-      const selectedItem = items.find(item => item.serialNumber === calibrationForm.itemSerial);
-      
-      if (!selectedItem) {
-        throw new Error('Selected item not found. Please try again.');
-      }
-      
-      // Check specifically for Available status
-      if (selectedItem.status !== ItemStatus.AVAILABLE) {
-        throw new Error(`Item is not available for calibration. Current status: ${selectedItem.status}`);
-      }
-      
-      const res = await fetch('/api/user/calibrations', {
+      const response = await fetch('/api/user/calibrations', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for authentication
-        body: JSON.stringify(calibrationForm)
+        body: JSON.stringify(calibrationForm),
+        credentials: 'include'
       });
       
-      const responseData = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(responseData.error || 'Failed to submit calibration');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create calibration');
       }
       
-      // Success
-      setSuccess('Calibration submitted successfully!');
+      const data = await response.json();
+      setSuccess('Calibration request created successfully');
+      setCalibrations(prev => [data, ...prev]);
       closeCalibrationModal();
       
-      // Refresh calibrations
+      // Reset form
+      setCalibrationForm({
+        itemSerial: '',
+        vendorId: '',
+        address: '',
+        phone: '',
+        fax: '',
+        manufacturer: '',
+        instrumentName: '',
+        modelNumber: '',
+        configuration: '',
+        calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+        notes: ''
+      });
+      
+      // Refresh data
       fetchCalibrations();
       fetchAvailableItems();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
     } catch (err: any) {
-      console.error('Error submitting calibration:', err);
-      setError(err.message || 'Failed to submit calibration');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => {
-        setError('');
-      }, 3000);
+      console.error('Error creating calibration:', err);
+      setError(err.message || 'Failed to create calibration request');
     }
   };
   
@@ -351,19 +423,122 @@ export default function UserCalibrationPage() {
     return format(new Date(dateString), 'dd MMM yyyy');
   };
   
+  // Konversi status dari database ke tampilan UI
+  const getDisplayStatus = (status: RequestStatus | string): string => {
+    if (status === RequestStatus.PENDING || status === 'PENDING') {
+      return 'IN_CALIBRATION'; // PENDING ditampilkan sebagai IN_CALIBRATION
+    }
+    return status.toString();
+  };
+  
   // Get status badge style based on status
-  const getStatusBadgeStyle = (status: RequestStatus) => {
+  const getStatusBadgeStyle = (status: RequestStatus | string) => {
     switch (status) {
       case RequestStatus.PENDING:
-        return 'bg-yellow-100 text-yellow-800';
-      case RequestStatus.APPROVED:
-        return 'bg-blue-100 text-blue-800';
+      case 'PENDING':
+        return 'bg-purple-100 text-purple-800'; // PENDING ditampilkan dengan warna IN_CALIBRATION
       case RequestStatus.COMPLETED:
+      case 'COMPLETED':
         return 'bg-green-100 text-green-800';
-      case RequestStatus.REJECTED:
-        return 'bg-red-100 text-red-800';
+      case RequestStatus.CANCELLED:
+      case 'CANCELLED':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  // Function to open the complete calibration modal
+  const openCompleteModal = (calibration: Calibration) => {
+    if (!calibration) return;
+    
+    setSelectedCalibration(calibration);
+    setCompleteForm({
+      id: calibration.id,
+      
+      // Detail Gas Kalibrasi
+      gasType: calibration.gasType || '',
+      gasConcentration: calibration.gasConcentration || '',
+      gasBalance: calibration.gasBalance || '',
+      gasBatchNumber: calibration.gasBatchNumber || '',
+      
+      // Hasil Test
+      testSensor: calibration.testSensor || '',
+      testSpan: calibration.testSpan || '',
+      testResult: (calibration.testResult as 'Pass' | 'Fail') || 'Pass',
+      
+      // Approval
+      approvedBy: calibration.approvedBy || '',
+      
+      // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
+      validUntil: calibration.validUntil ? 
+        format(new Date(calibration.validUntil), 'yyyy-MM-dd') : 
+        format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+      
+      // Notes
+      notes: calibration.notes || ''
+    });
+    
+    setShowCompleteModal(true);
+  };
+  
+  // Function to close the complete calibration modal
+  const closeCompleteModal = () => {
+    setShowCompleteModal(false);
+    setSelectedCalibration(null);
+  };
+  
+  // Handle changes in the complete form
+  const handleCompleteFormChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCompleteForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle the submission of the complete calibration form
+  const handleCompleteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    console.log('Submitting calibration completion form:', completeForm);
+    
+    try {
+      const response = await fetch(`/api/user/calibrations`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(completeForm),
+        credentials: 'include'
+      });
+      
+      // Get response details for debugging
+      console.log('Response status:', response.status);
+      
+      // Try to get text first to debug any issues
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
+      let data;
+      try {
+        // Parse the text response as JSON
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error('Server returned invalid response format');
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete calibration');
+      }
+      
+      setSuccess('Calibration completed successfully. Certificate has been generated.');
+      setCalibrations(prev => prev.map(c => c.id === data.id ? data : c));
+      closeCompleteModal();
+      
+      // Refresh data
+      fetchCalibrations();
+    } catch (err: any) {
+      console.error('Error completing calibration:', err);
+      setError(err.message || 'Failed to complete calibration');
     }
   };
   
@@ -452,7 +627,7 @@ export default function UserCalibrationPage() {
                 onChange={handleFilterChange}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
-            </div>
+              </div>
             
             <button
               onClick={resetFilters}
@@ -460,7 +635,7 @@ export default function UserCalibrationPage() {
             >
               Reset Filters
             </button>
-          </div>
+            </div>
         </div>
         
         {/* All Calibrations Section */}
@@ -520,7 +695,7 @@ export default function UserCalibrationPage() {
                         </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
-                          {calibration.status}
+                          {getDisplayStatus(calibration.status)}
                         </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -538,8 +713,16 @@ export default function UserCalibrationPage() {
                               <FiFileText className="mr-1" />
                               Certificate
                             </button>
+                          ) : isStatusMatching(calibration.status, RequestStatus.PENDING) ? (
+                            <button
+                              onClick={() => openCompleteModal(calibration)}
+                              className="text-green-600 hover:text-green-900 inline-flex items-center"
+                            >
+                              <FiFileText className="mr-1" />
+                              Complete
+                            </button>
                           ) : (
-                            <span className="text-gray-400">Pending</span>
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                       </tr>
@@ -552,96 +735,183 @@ export default function UserCalibrationPage() {
         
         {/* Calibration Modal */}
         {showCalibrationModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">New Calibration</h3>
-                <button onClick={closeCalibrationModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl overflow-hidden">
+              <div className="flex justify-between items-center bg-blue-600 text-white px-6 py-4">
+                <h2 className="text-xl font-bold">New Calibration</h2>
+                <button onClick={closeCalibrationModal} className="text-white">
+                  <FiX size={24} />
                 </button>
               </div>
               
-              <form onSubmit={handleCalibrationSubmit}>
-                <div className="mb-4">
-                  <label htmlFor="itemSerial" className="block text-sm font-medium text-gray-700 mb-1">
-                    Item <span className="text-red-500">*</span>
-                  </label>
+              <form onSubmit={handleCalibrationSubmit} className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-gray-700 mb-2">Item Details</h3>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Item</label>
                   <select
-                    id="itemSerial"
-                    name="itemSerial"
-                    value={calibrationForm.itemSerial}
-                    onChange={handleCalibrationFormChange}
-                    className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        name="itemSerial"
+                        value={calibrationForm.itemSerial}
+                        onChange={handleCalibrationFormChange}
                     required
-                  >
-                    <option value="">Select an item</option>
-                    {Array.isArray(items) && items.length > 0 ? (
-                      items.map((item) => (
-                        <option key={item.serialNumber} value={item.serialNumber}>
-                          {item.name} - {item.serialNumber}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No available items found</option>
-                    )}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                      >
+                        <option value="">Select Item</option>
+                        {items.map((item) => (
+                          <option key={item.serialNumber} value={item.serialNumber}>
+                            {item.name} - {item.serialNumber}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">
-                    Vendor <span className="text-red-500">*</span>
-                  </label>
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Nama Produk</label>
+                      <input
+                        type="text"
+                        name="manufacturer"
+                        value={calibrationForm.manufacturer}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Nama produk (contoh: RAE Systems)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Part Number</label>
+                      <input
+                        type="text"
+                        name="instrumentName"
+                        value={calibrationForm.instrumentName}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Part number (contoh: MeshGuard H2S)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Sensor</label>
+                      <input
+                        type="text"
+                        name="modelNumber"
+                        value={calibrationForm.modelNumber}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Sensor (contoh: FTD 2000 S)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Configuration</label>
+                      <input
+                        type="text"
+                        name="configuration"
+                        value={calibrationForm.configuration}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Jenis gas (contoh: H2S, O2, CO, dll)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Calibration Date</label>
+                      <input
+                        type="date"
+                        name="calibrationDate"
+                        value={calibrationForm.calibrationDate}
+                        onChange={handleCalibrationFormChange}
+                        required
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-gray-700 mb-2">Vendor Details</h3>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Vendor</label>
                   <select
-                    id="vendorId"
                     name="vendorId"
-                    value={calibrationForm.vendorId}
-                    onChange={handleCalibrationFormChange}
-                    className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    required
-                  >
-                    <option value="">Select a vendor</option>
-                    {Array.isArray(vendors) && vendors.length > 0 ? (
-                      vendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No vendors available</option>
-                    )}
+                        value={calibrationForm.vendorId}
+                        onChange={handleCalibrationFormChange}
+                        required
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                      >
+                        <option value="">Select Vendor</option>
+                        {vendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                            {vendor.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                  </label>
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Address</label>
+                      <input
+                        type="text"
+                        name="address"
+                        value={calibrationForm.address}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Vendor address"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Phone</label>
+                      <input
+                        type="text"
+                        name="phone"
+                        value={calibrationForm.phone}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Phone number"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Fax</label>
+                      <input
+                        type="text"
+                        name="fax"
+                        value={calibrationForm.fax}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Fax number"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Notes</label>
                   <textarea
-                    id="notes"
-                    name="notes"
+                        name="notes"
+                        value={calibrationForm.notes}
+                        onChange={handleCalibrationFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Additional notes"
                     rows={3}
-                    value={calibrationForm.notes}
-                    onChange={handleCalibrationFormChange}
-                    className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Any special instructions or notes for this calibration"
-                  />
+                      ></textarea>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="flex justify-end">
+                <div className="mt-6 flex justify-end space-x-3">
                   <button 
                     type="button" 
                     onClick={closeCalibrationModal}
-                    className="btn btn-secondary mr-2"
+                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
-                    className="btn btn-primary"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Submit Calibration
+                    Start Calibration
                   </button>
                 </div>
               </form>
@@ -684,26 +954,36 @@ export default function UserCalibrationPage() {
                     <p className="text-sm text-gray-500">Vendor</p>
                     <p className="font-medium">{selectedCalibration.vendor.name}</p>
                   </div>
+                  {selectedCalibration.certificateNumber && (
+                    <div>
+                      <p className="text-sm text-gray-500">Certificate Number</p>
+                      <p className="font-medium">{selectedCalibration.certificateNumber}</p>
+                    </div>
+                  )}
                 </div>
                 
-                {/* Download button */}
-                {selectedCalibration.certificateUrl ? (
+                <div className="flex flex-col space-y-2">
+                  {/* View certificate button */}
                   <a
-                    href={selectedCalibration.certificateUrl}
-                    download={`Calibration_Certificate_${selectedCalibration.item.serialNumber}.pdf`}
-                    className="btn btn-primary w-full flex justify-center items-center"
+                    href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="btn btn-primary w-full flex justify-center items-center"
+                  >
+                    <FiFileText className="mr-2" /> View Certificate
+                  </a>
+                  
+                  {/* Download button */}
+                  <a
+                    href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
+                    download={`Calibration_Certificate_${selectedCalibration.item.serialNumber}.pdf`}
+                    className="btn btn-secondary w-full flex justify-center items-center"
                   >
                     <FiDownload className="mr-2" /> Download Certificate
                   </a>
-                ) : (
-                  <p className="text-center text-gray-500 py-2">
-                    Certificate is being processed and will be available soon.
-                  </p>
-                )}
-              </div>
-              
+                </div>
+                </div>
+                
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -712,7 +992,205 @@ export default function UserCalibrationPage() {
                 >
                   Close
                 </button>
+                </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Complete Modal */}
+        {showCompleteModal && selectedCalibration && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl overflow-hidden">
+              <div className="flex justify-between items-center bg-green-600 text-white px-6 py-4">
+                <h2 className="text-xl font-bold">Complete Calibration</h2>
+                <button onClick={closeCompleteModal} className="text-white">
+                  <FiX size={24} />
+                </button>
+                </div>
+                
+              <form onSubmit={handleCompleteSubmit} className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-gray-700 mb-2">Calibration Gases</h3>
+                    
+                    <div className="border rounded-lg p-4">
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Gas Type</label>
+                        <input
+                          type="text"
+                          name="gasType"
+                          value={completeForm.gasType}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: Hydrogen Sulphide (H2S)"
+                        />
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Concentration</label>
+                        <input
+                          type="text"
+                          name="gasConcentration"
+                          value={completeForm.gasConcentration}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: 25 ppm"
+                        />
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Balance</label>
+                        <input
+                          type="text"
+                          name="gasBalance"
+                          value={completeForm.gasBalance}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: Nitrogen"
+                        />
+                      </div>
+                      
+                  <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Batch/Lot No.</label>
+                        <input
+                          type="text"
+                          name="gasBatchNumber"
+                          value={completeForm.gasBatchNumber}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: WO261451-1"
+                        />
+                  </div>
+                </div>
+                    
+                    <h3 className="font-bold text-gray-700 mb-2">Test Results</h3>
+                    
+                    <div className="border rounded-lg p-4">
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Sensor</label>
+                        <input
+                          type="text"
+                          name="testSensor"
+                          value={completeForm.testSensor}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: Hydrogen Sulphide (H2S)"
+                        />
               </div>
+              
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Span</label>
+                        <input
+                          type="text"
+                          name="testSpan"
+                          value={completeForm.testSpan}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: 25 ppm"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Test Result</label>
+                        <div className="flex space-x-4">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name="testResult"
+                              value="Pass"
+                              checked={completeForm.testResult === 'Pass'}
+                              onChange={handleCompleteFormChange}
+                              className="form-radio h-4 w-4 text-blue-600"
+                            />
+                            <span className="ml-2">Pass</span>
+                          </label>
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name="testResult"
+                              value="Fail"
+                              checked={completeForm.testResult === 'Fail'}
+                              onChange={handleCompleteFormChange}
+                              className="form-radio h-4 w-4 text-red-600"
+                            />
+                            <span className="ml-2">Fail</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-gray-700 mb-2">Certificate Information</h3>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Approved By</label>
+                      <input
+                        type="text"
+                        name="approvedBy"
+                        value={completeForm.approvedBy}
+                        onChange={handleCompleteFormChange}
+                        required
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="Contoh: Fachmi R.F"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Valid Until</label>
+                      <input
+                        type="date"
+                        name="validUntil"
+                        value={completeForm.validUntil}
+                        onChange={handleCompleteFormChange}
+                        required
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-900">Notes</label>
+                      <textarea
+                        name="notes"
+                        value={completeForm.notes}
+                        onChange={handleCompleteFormChange}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                        placeholder="This instrument has been calibrated using valid calibration gases and instrument manual operation procedure."
+                        rows={5}
+                      ></textarea>
+                    </div>
+                    
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+                      <p className="text-sm text-yellow-700">
+                        <strong>Note:</strong> Once you complete this calibration, a certificate will be generated automatically. 
+                        You will be able to download it after completion.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end space-x-3">
+                <button
+                    type="button"
+                    onClick={closeCompleteModal}
+                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Complete Calibration & Generate Certificate
+                </button>
+              </div>
+              </form>
             </div>
           </div>
         )}

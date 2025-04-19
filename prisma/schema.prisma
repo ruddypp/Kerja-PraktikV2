@@ -107,12 +107,58 @@ model Calibration {
   status          RequestStatus @default(PENDING)
   calibrationDate DateTime
   validUntil      DateTime?
-  certificateUrl  String?
+  
+  // Informasi Sertifikat
+  certificateNumber String?     // Format: [Nomor Urut]/CAL-PBI/[Bulan Romawi]/[Tahun]
+  certificateUrl  String?       // URL ke file PDF sertifikat
+  
+  // Relasi
   statusLogs      CalibrationStatusLog[]
   vendor          Vendor        @relation(fields: [vendorId], references: [id])
   vendorId        String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  
+  // Catatan tambahan
+  notes           String?
+  
+  // Relasi ke sertifikat
+  certificate     CalibrationCertificate?
+}
+
+// Model baru untuk detail sertifikat kalibrasi
+model CalibrationCertificate {
+  id                String     @id @default(uuid())
+  calibration       Calibration @relation(fields: [calibrationId], references: [id], onDelete: Cascade)
+  calibrationId     String     @unique // One-to-one relationship
+  
+  // Detail Vendor untuk Kalibrasi
+  vendorAddress     String?    // Alamat vendor kalibrasi
+  vendorPhone       String?    // Nomor telepon vendor
+  vendorFax         String?    // Nomor fax vendor
+  
+  // Detail Gas Kalibrasi
+  gasType           String?    // Jenis gas (contoh: Hydrogen Sulphide (H2S))
+  gasConcentration  String?    // Konsentrasi gas (contoh: 25 ppm)
+  gasBalance        String?    // Balance gas (contoh: Nitrogen)
+  gasBatchNumber    String?    // Batch/Lot No (contoh: WO261451-1)
+  
+  // Hasil Test
+  testSensor        String?    // Sensor yang diuji (contoh: Hydrogen Sulphide (H2S))
+  testSpan          String?    // Span pengujian (contoh: 25 ppm)
+  testResult        String?    // Pass atau Fail
+  
+  // Detail Alat
+  manufacturer      String?    // Pembuat alat (contoh: RAE Systems)
+  instrumentName    String?    // Nama instrumen (contoh: MeshGuard H2S)
+  modelNumber       String?    // Model (contoh: FTD 2000 S)
+  configuration     String?    // Konfigurasi (contoh: H2S)
+  
+  // Approval
+  approvedBy        String?    // Nama yang menyetujui kalibrasi
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model Maintenance {

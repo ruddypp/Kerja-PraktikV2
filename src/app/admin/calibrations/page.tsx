@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiCheckCircle, FiUpload, FiEdit2, FiInfo, FiFileText } from 'react-icons/fi';
+import { FiCheckCircle, FiUpload, FiEdit2, FiInfo, FiFileText, FiDownload } from 'react-icons/fi';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
@@ -557,13 +557,13 @@ export default function CalibrationPage() {
                           </button>
                           {typeof calibration.status === 'object' ? 
                             (calibration.status.name !== 'COMPLETED' && (
-                              <button
+                            <button
                                 onClick={() => openCompleteModal(calibration)}
                                 className="text-green-600 hover:text-green-900 mr-2"
-                                title="Mark as Completed"
-                              >
-                                <FiCheckCircle className="inline-block" />
-                              </button>
+                              title="Mark as Completed"
+                            >
+                              <FiCheckCircle className="inline-block" />
+                            </button>
                             ))
                           :
                             (calibration.status !== 'COMPLETED' && (
@@ -783,6 +783,7 @@ export default function CalibrationPage() {
                 {selectedCalibration.certificateUrl && (
                   <div className="mt-4">
                     <div className="font-semibold text-gray-500 mb-1">Certificate:</div>
+                    <div className="flex flex-col space-y-2">
                     <a 
                       href={selectedCalibration.certificateUrl} 
                       target="_blank" 
@@ -791,6 +792,20 @@ export default function CalibrationPage() {
                     >
                       <FiFileText className="mr-1" /> View Certificate
                     </a>
+                      {/* Tombol Download Sertifikat PDF */}
+                      {(selectedCalibration.status === 'COMPLETED' || 
+                        (typeof selectedCalibration.status === 'object' && 
+                          selectedCalibration.status.name === 'COMPLETED')) && (
+                        <a 
+                          href={`/api/admin/calibrations/${selectedCalibration.id}/certificate`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-800 flex items-center"
+                        >
+                          <FiDownload className="mr-1" /> Download Certificate PDF
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

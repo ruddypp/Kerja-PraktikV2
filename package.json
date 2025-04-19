@@ -28,6 +28,8 @@
     "lucide-react": "^0.488.0",
     "next": "15.3.0",
     "next-auth": "^4.24.11",
+    "pdf-lib": "^1.17.1",
+    "pdfjs": "^2.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",

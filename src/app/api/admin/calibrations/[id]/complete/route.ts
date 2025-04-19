@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ItemStatus } from '@prisma/client';
+import { ItemStatus, RequestStatus } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
@@ -78,13 +78,16 @@ export async function PATCH(
     }
 
     // Update status kalibrasi menjadi COMPLETED
+    // Gunakan type assertion untuk mengatasi masalah TypeScript
     const updatedCalibration = await prisma.calibration.update({
       where: { id },
       data: {
-        status: 'COMPLETED',
-        certificateUrl: certificateNumber, // Simpan nomor sertifikat sebagai URL
-        validUntil: new Date(nextCalibrationDate), // Tanggal kalibrasi berikutnya sebagai validUntil
-        calibrationDate: new Date(calibrationDate), // Update tanggal kalibrasi
+        status: 'COMPLETED' as RequestStatus,
+        // @ts-ignore - TypeScript dan Prisma Schema mungkin tidak sinkron
+        certificateNumber: certificateNumber,
+        validUntil: new Date(nextCalibrationDate),
+        calibrationDate: new Date(calibrationDate),
+        testResult: result
       },
       include: {
         item: true,
@@ -109,7 +112,7 @@ export async function PATCH(
     await prisma.calibrationStatusLog.create({
       data: {
         calibrationId: id,
-        status: 'COMPLETED',
+        status: 'COMPLETED' as RequestStatus,
         notes: `Calibration completed with result: ${result}. Certificate number: ${certificateNumber}`,
         userId: user.id
       }
@@ -124,7 +127,8 @@ export async function PATCH(
         endDate: null
       },
       data: {
-        endDate: new Date()
+        endDate: new Date(),
+        details: `Kalibrasi selesai dengan hasil: ${result}. Nomor sertifikat: ${certificateNumber}`
       }
     });
 
@@ -138,6 +142,23 @@ export async function PATCH(
         isRead: false
       }
     });
+
+    // Buat notifikasi pengingat untuk kalibrasi berikutnya (H-30)
+    const reminderDate = new Date(nextCalibrationDate);
+    reminderDate.setDate(reminderDate.getDate() - 30); // H-30 sebelum tanggal kadaluarsa
+    
+    // Jika reminderDate masih di masa depan, buat notifikasi pengingat
+    if (reminderDate > new Date()) {
+      await prisma.notification.create({
+        data: {
+          userId: calibration.userId,
+          type: 'CALIBRATION_REMINDER',
+          title: 'Calibration Reminder',
+          message: `Calibration for ${calibration.item.name} will expire on ${new Date(nextCalibrationDate).toLocaleDateString()}`,
+          isRead: false
+        }
+      });
+    }
 
     // Buat activity log
     await prisma.activityLog.create({

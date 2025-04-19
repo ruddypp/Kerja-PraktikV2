@@ -477,8 +477,8 @@ export default function AdminInventoryPage() {
               </svg>
               Add Item
             </span>
-          </button>
-        </div>
+            </button>
+      </div>
 
         {/* Filter Section */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -534,7 +534,7 @@ export default function AdminInventoryPage() {
                 <span className="text-gray-900 font-medium">{getStatusDisplayName(status as ItemStatus)}</span>
               </div>
               <span className="text-gray-900 font-bold">{count as number}</span>
-            </div>
+      </div>
           ))}
         </div>
 
@@ -554,16 +554,16 @@ export default function AdminInventoryPage() {
           </div>
         )}
 
-        {loading ? (
+      {loading ? (
           <div className="flex flex-col items-center justify-center p-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
             <p className="text-gray-900">Loading inventory...</p>
-          </div>
-        ) : (
+        </div>
+      ) : (
           <div className="overflow-x-auto pb-4">
             <table className="min-w-full bg-white border-collapse">
-              <thead className="bg-gray-50">
-                <tr>
+            <thead className="bg-gray-50">
+              <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Product Name</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Serial Number</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Part Number</th>
@@ -572,14 +572,14 @@ export default function AdminInventoryPage() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Status</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">History</th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
+              </tr>
+            </thead>
               <tbody className="divide-y divide-gray-200">
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-900">
                       No items found
-                    </td>
+                  </td>
                   </tr>
                 ) : (
                   items.map((item) => (
@@ -589,11 +589,11 @@ export default function AdminInventoryPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.partNumber}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.sensor || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.customer?.name || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
-                      </td>
+                  </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link 
                           href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
@@ -601,29 +601,29 @@ export default function AdminInventoryPage() {
                         >
                           View History
                         </Link>
-                      </td>
+                  </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
+                      <button
                           onClick={() => openEditModal(item)}
                           className="text-green-600 hover:text-green-800 mr-4"
-                        >
+                      >
                           Edit
-                        </button>
-                        <button
+                      </button>
+                      <button
                           onClick={() => openDeleteConfirm(item)}
                           className="text-red-600 hover:text-red-800"
-                        >
+                      >
                           Delete
-                        </button>
-                      </td>
-                    </tr>
+                      </button>
+                  </td>
+                </tr>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
+            </tbody>
+          </table>
+        </div>
+      )}
+
         {/* Pagination Controls */}
         {!loading && !error && totalPages > 0 && (
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
@@ -652,13 +652,13 @@ export default function AdminInventoryPage() {
               </button>
             </div>
             <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
+                <div>
                 <p className="text-sm text-gray-900">
                   Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
                   <span className="font-medium">{totalItems}</span> results
                 </p>
-              </div>
+                </div>
               <div>
                 <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                   <button
@@ -766,8 +766,8 @@ export default function AdminInventoryPage() {
                         {formErrors.name && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                         )}
-                      </div>
-
+              </div>
+              
                       {/* Part Number */}
                       <div>
                         <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700">
@@ -840,7 +840,7 @@ export default function AdminInventoryPage() {
                       </div>
 
                       {/* Status */}
-                      <div>
+                <div>
                         <label htmlFor="status" className="block text-sm font-medium text-gray-700">
                           Status
                         </label>
