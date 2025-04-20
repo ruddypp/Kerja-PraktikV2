@@ -88,13 +88,13 @@ export async function GET(request: Request) {
       where,
       include: {
         item: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
         vendor: true,
         statusLogs: {
           include: {
@@ -415,27 +415,27 @@ export async function PATCH(request: Request) {
       // Only create reminder if the date is in the future
       if (reminderDate > new Date()) {
         // Notification for user
-        await prisma.notification.create({
-          data: {
+      await prisma.notification.create({
+        data: {
             userId: calibration.userId,
             type: 'CALIBRATION_REMINDER',
             title: 'Calibration Expiring Soon',
             message: `Your calibration for ${calibration.item.name} will expire in 30 days (on ${format(validUntilDate, 'dd/MM/yyyy')})`,
-            isRead: false
-          }
-        });
-        
+          isRead: false
+        }
+      });
+      
         // Notification for admin
         await prisma.notification.create({
-          data: {
+        data: {
             userId: adminUser.id,
             type: 'CALIBRATION_REMINDER',
             title: 'Calibration Expiring Soon',
             message: `Calibration for ${calibration.item.name} (User: ${calibration.user.name}) will expire in 30 days`,
             isRead: false
-          }
-        });
-      }
+        }
+      });
+    }
     }
     
     // Create activity log

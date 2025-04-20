@@ -5,14 +5,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 
 interface Vendor {
-  id: number;
+  id: string;
   name: string;
   address: string | null;
-  contactPerson: string | null;
+  contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
-  services: string | null;
-  rating: number | null;
+  service: string | null;
 }
 
 export default function VendorsPage() {
@@ -31,11 +30,10 @@ export default function VendorsPage() {
   const [vendorForm, setVendorForm] = useState({
     name: '',
     address: '',
-    contactPerson: '',
+    contactName: '',
     contactEmail: '',
     contactPhone: '',
-    services: '',
-    rating: ''
+    service: ''
   });
   
   // Search state
@@ -48,7 +46,7 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/vendors', {
+      const res = await fetch(`/api/admin/vendors${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -82,11 +80,10 @@ export default function VendorsPage() {
     setVendorForm({
       name: '',
       address: '',
-      contactPerson: '',
+      contactName: '',
       contactEmail: '',
       contactPhone: '',
-      services: '',
-      rating: ''
+      service: ''
     });
     setShowAddModal(true);
   };
@@ -100,11 +97,10 @@ export default function VendorsPage() {
     setVendorForm({
       name: vendor.name,
       address: vendor.address || '',
-      contactPerson: vendor.contactPerson || '',
+      contactName: vendor.contactName || '',
       contactEmail: vendor.contactEmail || '',
       contactPhone: vendor.contactPhone || '',
-      services: vendor.services || '',
-      rating: vendor.rating ? vendor.rating.toString() : ''
+      service: vendor.service || ''
     });
     setShowEditModal(true);
   };
@@ -134,7 +130,14 @@ export default function VendorsPage() {
           'Content-Type': 'application/json'
         },
         credentials: 'include', // Include cookies for authentication
-        body: JSON.stringify(vendorForm)
+        body: JSON.stringify({
+          name: vendorForm.name,
+          address: vendorForm.address || null,
+          contactName: vendorForm.contactName || null,
+          contactEmail: vendorForm.contactEmail || null,
+          contactPhone: vendorForm.contactPhone || null,
+          service: vendorForm.service || null
+        })
       });
       
       if (!res.ok) {
@@ -167,13 +170,21 @@ export default function VendorsPage() {
     if (!selectedVendor) return;
     
     try {
+      // Use the correct URL with ID for the PATCH request
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include', // Include cookies for authentication
-        body: JSON.stringify(vendorForm)
+        body: JSON.stringify({
+          name: vendorForm.name,
+          address: vendorForm.address || null,
+          contactName: vendorForm.contactName || null,
+          contactEmail: vendorForm.contactEmail || null,
+          contactPhone: vendorForm.contactPhone || null,
+          service: vendorForm.service || null
+        })
       });
       
       if (!res.ok) {
@@ -204,6 +215,7 @@ export default function VendorsPage() {
     if (!selectedVendor) return;
     
     try {
+      // Use the correct URL with ID for the DELETE request
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
         method: 'DELETE',
         headers: {
@@ -328,7 +340,6 @@ export default function VendorsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -340,17 +351,14 @@ export default function VendorsPage() {
                         <div className="text-xs text-gray-500">{vendor.address || '-'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vendor.contactPerson || '-'}
+                        {vendor.contactName || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{vendor.contactEmail || '-'}</div>
                         <div className="text-xs text-gray-500">{vendor.contactPhone || '-'}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        <div className="max-w-xs truncate">{vendor.services || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
-                        {vendor.rating ? `${vendor.rating}/5` : '-'}
+                        <div className="max-w-xs truncate">{vendor.service || '-'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -404,24 +412,24 @@ export default function VendorsPage() {
                 
                 <div className="mb-4">
                   <label htmlFor="address" className="form-label">Address</label>
-                  <input
+                  <textarea
                     id="address"
                     name="address"
-                    type="text"
                     value={vendorForm.address}
                     onChange={handleFormChange}
                     className="form-input"
                     placeholder="Enter vendor address"
+                    rows={2}
                   />
                 </div>
                 
                 <div className="mb-4">
-                  <label htmlFor="contactPerson" className="form-label">Contact Person</label>
+                  <label htmlFor="contactName" className="form-label">Contact Person</label>
                   <input
-                    id="contactPerson"
-                    name="contactPerson"
+                    id="contactName"
+                    name="contactName"
                     type="text"
-                    value={vendorForm.contactPerson}
+                    value={vendorForm.contactName}
                     onChange={handleFormChange}
                     className="form-input"
                     placeholder="Enter contact person name"
@@ -450,49 +458,33 @@ export default function VendorsPage() {
                     value={vendorForm.contactPhone}
                     onChange={handleFormChange}
                     className="form-input"
-                    placeholder="Enter contact phone"
+                    placeholder="Enter contact phone number"
                   />
                 </div>
                 
                 <div className="mb-4">
-                  <label htmlFor="services" className="form-label">Services</label>
+                  <label htmlFor="service" className="form-label">Services</label>
                   <textarea
-                    id="services"
-                    name="services"
-                    value={vendorForm.services}
+                    id="service"
+                    name="service"
+                    value={vendorForm.service}
                     onChange={handleFormChange}
                     className="form-input"
-                    placeholder="Describe services offered by this vendor"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="rating" className="form-label">Rating (1-5)</label>
-                  <input
-                    id="rating"
-                    name="rating"
-                    type="number"
-                    min="1"
-                    max="5"
-                    step="0.1"
-                    value={vendorForm.rating}
-                    onChange={handleFormChange}
-                    className="form-input"
-                    placeholder="Enter rating (1-5)"
+                    placeholder="Enter services provided by this vendor"
+                    rows={2}
                   />
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={closeAddModal}
-                    className="btn btn-secondary order-2 sm:order-1"
+                    className="btn btn-outlined order-2 sm:order-1"
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn btn-primary order-1 sm:order-2"
                   >
                     Add Vendor
@@ -533,24 +525,24 @@ export default function VendorsPage() {
                 
                 <div className="mb-4">
                   <label htmlFor="edit-address" className="form-label">Address</label>
-                  <input
+                  <textarea
                     id="edit-address"
                     name="address"
-                    type="text"
                     value={vendorForm.address}
                     onChange={handleFormChange}
                     className="form-input"
                     placeholder="Enter vendor address"
+                    rows={2}
                   />
                 </div>
                 
                 <div className="mb-4">
-                  <label htmlFor="edit-contactPerson" className="form-label">Contact Person</label>
+                  <label htmlFor="edit-contactName" className="form-label">Contact Person</label>
                   <input
-                    id="edit-contactPerson"
-                    name="contactPerson"
+                    id="edit-contactName"
+                    name="contactName"
                     type="text"
-                    value={vendorForm.contactPerson}
+                    value={vendorForm.contactName}
                     onChange={handleFormChange}
                     className="form-input"
                     placeholder="Enter contact person name"
@@ -579,49 +571,33 @@ export default function VendorsPage() {
                     value={vendorForm.contactPhone}
                     onChange={handleFormChange}
                     className="form-input"
-                    placeholder="Enter contact phone"
+                    placeholder="Enter contact phone number"
                   />
                 </div>
                 
                 <div className="mb-4">
-                  <label htmlFor="edit-services" className="form-label">Services</label>
+                  <label htmlFor="edit-service" className="form-label">Services</label>
                   <textarea
-                    id="edit-services"
-                    name="services"
-                    value={vendorForm.services}
+                    id="edit-service"
+                    name="service"
+                    value={vendorForm.service}
                     onChange={handleFormChange}
                     className="form-input"
-                    placeholder="Describe services offered by this vendor"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="edit-rating" className="form-label">Rating (1-5)</label>
-                  <input
-                    id="edit-rating"
-                    name="rating"
-                    type="number"
-                    min="1"
-                    max="5"
-                    step="0.1"
-                    value={vendorForm.rating}
-                    onChange={handleFormChange}
-                    className="form-input"
-                    placeholder="Enter rating (1-5)"
+                    placeholder="Enter services provided by this vendor"
+                    rows={2}
                   />
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={closeEditModal}
-                    className="btn btn-secondary order-2 sm:order-1"
+                    className="btn btn-outlined order-2 sm:order-1"
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn btn-primary order-1 sm:order-2"
                   >
                     Update Vendor
@@ -632,43 +608,38 @@ export default function VendorsPage() {
           </div>
         )}
         
-        {/* Delete Vendor Modal */}
+        {/* Delete Confirmation Modal */}
         {showDeleteModal && selectedVendor && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Delete Vendor</h3>
-                <button onClick={closeDeleteModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-gray-700 mb-4">
-                  Are you sure you want to delete vendor <span className="font-semibold">{selectedVendor.name}</span>?
-                </p>
-                <p className="text-sm text-red-600 mb-4">
-                  This action cannot be undone. Vendors associated with calibrations cannot be deleted.
-                </p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row justify-end gap-2">
-                <button 
-                  type="button" 
-                  onClick={closeDeleteModal}
-                  className="btn btn-secondary order-2 sm:order-1"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleDeleteSubmit}
-                  className="btn btn-danger order-1 sm:order-2"
-                >
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <FiTrash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-title text-lg leading-6 font-medium text-gray-900 mt-4">
                   Delete Vendor
-                </button>
+                </h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500">
+                    Are you sure you want to delete the vendor &quot;{selectedVendor.name}&quot;? This action cannot be undone.
+                  </p>
+                </div>
+                <div className="flex justify-center mt-5 gap-3">
+                  <button
+                    type="button"
+                    className="btn btn-outlined"
+                    onClick={closeDeleteModal}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleDeleteSubmit}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>

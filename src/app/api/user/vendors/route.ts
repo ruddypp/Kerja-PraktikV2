@@ -36,6 +36,7 @@ export async function GET(request: Request) {
         address: true,
         contactName: true,
         contactPhone: true,
+        contactEmail: true,
         service: true
       },
       orderBy: { name: 'asc' }

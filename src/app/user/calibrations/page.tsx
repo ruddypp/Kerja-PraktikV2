@@ -137,11 +137,16 @@ export default function UserCalibrationPage() {
     testSpan: '',
     testResult: 'Pass' as 'Pass' | 'Fail',
     
+    // Detail Alat - tambahkan fields baru
+    instrumentName: '',
+    modelNumber: '',
+    configuration: '',
+    
     // Approval
     approvedBy: '',
     
-    // Masa berlaku
-    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'), // Default 1 tahun
+    // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
+    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
     
     // Notes
     notes: ''
@@ -466,6 +471,11 @@ export default function UserCalibrationPage() {
       testSensor: calibration.testSensor || '',
       testSpan: calibration.testSpan || '',
       testResult: (calibration.testResult as 'Pass' | 'Fail') || 'Pass',
+      
+      // Detail Alat - tambahkan fields baru
+      instrumentName: calibration.instrumentName || 'Digital Multimeter', // Default examples
+      modelNumber: calibration.modelNumber || 'DMM-X500',
+      configuration: calibration.configuration || 'Electronic',
       
       // Approval
       approvedBy: calibration.approvedBy || '',
@@ -1067,6 +1077,51 @@ export default function UserCalibrationPage() {
                   </div>
                 </div>
                     
+                    <h3 className="font-bold text-gray-700 mb-2">Instrument Details</h3>
+                    
+                    <div className="border rounded-lg p-4">
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Instrument Name</label>
+                        <input
+                          type="text"
+                          name="instrumentName"
+                          value={completeForm.instrumentName}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: Digital Multimeter"
+                        />
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Model Number</label>
+                        <input
+                          type="text"
+                          name="modelNumber"
+                          value={completeForm.modelNumber}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: DMM-X500"
+                        />
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="block mb-2 text-sm font-medium text-gray-900">Configuration</label>
+                        <input
+                          type="text"
+                          name="configuration"
+                          value={completeForm.configuration}
+                          onChange={handleCompleteFormChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          placeholder="Contoh: Electronic"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
                     <h3 className="font-bold text-gray-700 mb-2">Test Results</h3>
                     
                     <div className="border rounded-lg p-4">

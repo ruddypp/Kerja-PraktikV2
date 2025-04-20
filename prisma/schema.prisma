@@ -209,9 +209,8 @@ model Vendor {
   address      String?
   contactName  String?
   contactPhone String?
+  contactEmail String?
   service      String?
-  rating       Float?
-  performanceNotes String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   

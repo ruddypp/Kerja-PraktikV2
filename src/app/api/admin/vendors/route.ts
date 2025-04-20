@@ -62,12 +62,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { 
       name, 
-      address, 
-      contactPerson, 
-      contactEmail, 
-      contactPhone, 
-      services, 
-      rating
+      address,
+      contactName,
+      contactPhone,
+      contactEmail,
+      service
     } = body;
     
     if (!name) {
@@ -81,10 +80,10 @@ export async function POST(request: Request) {
       data: {
         name,
         address: address || null,
-        contactName: contactPerson || null,
+        contactName: contactName || null,
         contactPhone: contactPhone || null,
-        service: services || null,
-        rating: rating ? parseFloat(rating) : null
+        contactEmail: contactEmail || null,
+        service: service || null
       }
     });
     
@@ -144,11 +143,11 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { 
       name, 
-      address, 
-      contactPerson, 
-      contactPhone, 
-      services, 
-      rating
+      address,
+      contactName,
+      contactPhone,
+      contactEmail,
+      service
     } = body;
     
     // Check if vendor exists
@@ -169,10 +168,10 @@ export async function PATCH(request: Request) {
       data: {
         name: name || undefined,
         address: address !== undefined ? address : undefined,
-        contactName: contactPerson !== undefined ? contactPerson : undefined,
+        contactName: contactName !== undefined ? contactName : undefined,
         contactPhone: contactPhone !== undefined ? contactPhone : undefined,
-        service: services !== undefined ? services : undefined,
-        rating: rating !== undefined ? (rating ? parseFloat(rating) : null) : undefined
+        contactEmail: contactEmail !== undefined ? contactEmail : undefined,
+        service: service !== undefined ? service : undefined,
       }
     });
     

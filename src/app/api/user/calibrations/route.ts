@@ -50,6 +50,11 @@ const completeCalibrationSchema = z.object({
     errorMap: () => ({ message: "Hasil test harus 'Pass' atau 'Fail'" }) 
   }),
   
+  // Detail Alat
+  instrumentName: z.string().min(1, "Nama instrumen diperlukan"),
+  modelNumber: z.string().min(1, "Model number diperlukan"),
+  configuration: z.string().min(1, "Konfigurasi diperlukan"),
+  
   // Tanggal dan Approval
   approvedBy: z.string().min(1, "Nama yang menyetujui diperlukan"),
   validUntil: z.string().refine(val => !isNaN(Date.parse(val)), {
@@ -297,6 +302,9 @@ export async function PATCH(request: Request) {
       testSensor,
       testSpan,
       testResult,
+      instrumentName,
+      modelNumber,
+      configuration,
       approvedBy,
       validUntil,
       notes
@@ -383,13 +391,21 @@ export async function PATCH(request: Request) {
       // Pertama, update data kalibrasi utama
       const updatedCalibration = await prisma.calibration.update({
         where: { id: calibrationId },
-        data: { 
+        data: {
           status: REQUEST_STATUS_COMPLETED,
           validUntil: new Date(validUntil),
           certificateNumber,
           notes
         }
       });
+      
+      // Mengambil nama manufacturer dari Item
+      const itemDetails = await prisma.item.findUnique({
+        where: { serialNumber: calibration.itemSerial },
+        select: { name: true }
+      });
+
+      const itemManufacturer = itemDetails ? itemDetails.name : "Unknown Manufacturer";
       
       // Kemudian, buat atau update sertifikat kalibrasi
       const certificate = await prisma.calibrationCertificate.upsert({
@@ -402,10 +418,12 @@ export async function PATCH(request: Request) {
           testSensor,
           testSpan,
           testResult,
-          manufacturer: calibration.manufacturer,
-          instrumentName: calibration.instrumentName,
-          modelNumber: calibration.modelNumber,
-          configuration: calibration.configuration,
+          // Gunakan manufacturer dari Item
+          manufacturer: itemManufacturer,
+          // Gunakan input form untuk detail instrumen lainnya
+          instrumentName,
+          modelNumber,
+          configuration,
           approvedBy
         },
         create: {
@@ -417,10 +435,12 @@ export async function PATCH(request: Request) {
           testSensor,
           testSpan,
           testResult,
-          manufacturer: calibration.manufacturer,
-          instrumentName: calibration.instrumentName,
-          modelNumber: calibration.modelNumber,
-          configuration: calibration.configuration,
+          // Gunakan manufacturer dari Item
+          manufacturer: itemManufacturer,
+          // Gunakan input form untuk detail instrumen lainnya
+          instrumentName,
+          modelNumber,
+          configuration,
           approvedBy
         }
       });
@@ -481,15 +501,15 @@ export async function PATCH(request: Request) {
     reminderDate.setDate(reminderDate.getDate() - 30);
 
     if (admin) {
-    await prisma.notification.create({
-      data: {
+      await prisma.notification.create({
+        data: {
           userId: admin.id,
           type: 'CALIBRATION_STATUS_CHANGE',
           title: 'Kalibrasi Selesai',
           message: `Kalibrasi untuk item ${calibration.item.name} telah selesai oleh ${user.name}`,
-        isRead: false
-      }
-    });
+          isRead: false
+        }
+      });
     
       // Notifikasi H-30 untuk admin
       // Hanya buat notifikasi jika tanggal reminder masih di masa depan

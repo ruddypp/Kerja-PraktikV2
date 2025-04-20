@@ -1,72 +1,26 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
-// Helper function to get admin status
-async function isAdminUser(request: Request): Promise<boolean> {
-  try {
-    // Get token from cookies manually
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
-    
-    const token = cookies['auth_token'];
-    
-    if (token) {
-      const userData = decodeToken(token);
-      if (userData?.role === 'Admin') {
-        return true;
-      }
-    }
-  } catch (authError) {
-    console.error('Error getting user from token:', authError);
-  }
-  
-  return false;
-}
-
-// GET a single vendor by ID
+// GET single vendor by ID
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
+    // Verify the user is an admin
+    const user = await getUserFromRequest(request);
+    
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: vendorIdString } = context.params;
-    const id = parseInt(vendorIdString);
+    // Await params to avoid Next.js warning
+    const { id } = await Promise.resolve(params);
     
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'Invalid vendor ID' },
-        { status: 400 }
-      );
-    }
-    
+    // Check if vendor exists
     const vendor = await prisma.vendor.findUnique({
-      where: { id },
-      include: {
-        calibrations: {
-          include: {
-            request: {
-              include: {
-                item: true,
-                status: true
-              }
-            },
-            status: true
-          }
-        }
-      }
+      where: { id }
     });
     
     if (!vendor) {
@@ -86,33 +40,23 @@ export async function GET(
   }
 }
 
-// PATCH update a vendor
+// PATCH update vendor
 export async function PATCH(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
+    // Verify the user is an admin
+    const user = await getUserFromRequest(request);
+    
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: vendorIdString } = context.params;
-    const id = parseInt(vendorIdString);
+    // Await params to avoid Next.js warning
+    const { id } = await Promise.resolve(params);
     
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'Invalid vendor ID' },
-        { status: 400 }
-      );
-    }
-    
-    const body = await request.json();
-    const { name, address, contactPerson, contactEmail, contactPhone, services, rating } = body;
-    
-    // Verify vendor exists
+    // Check if vendor exists
     const existingVendor = await prisma.vendor.findUnique({
       where: { id }
     });
@@ -124,31 +68,46 @@ export async function PATCH(
       );
     }
     
+    const body = await request.json();
+    const { 
+      name, 
+      address,
+      contactName,
+      contactPhone,
+      contactEmail,
+      service
+    } = body;
+    
     // Update vendor
     const updatedVendor = await prisma.vendor.update({
       where: { id },
       data: {
-        name,
-        address,
-        contactPerson,
-        contactEmail,
-        contactPhone,
-        services,
-        rating: rating ? parseFloat(rating) : undefined
+        name: name || undefined,
+        address: address !== undefined ? address : undefined,
+        contactName: contactName !== undefined ? contactName : undefined,
+        contactPhone: contactPhone !== undefined ? contactPhone : undefined,
+        contactEmail: contactEmail !== undefined ? contactEmail : undefined,
+        service: service !== undefined ? service : undefined,
       }
     });
+    
+    // Log activity
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: 'UPDATE_VENDOR',
+          details: `Updated vendor: ${name}`
+        }
+      });
+    } catch (logError) {
+      console.error('Error logging activity:', logError);
+      // Continue even if logging fails
+    }
     
     return NextResponse.json(updatedVendor);
   } catch (error) {
     console.error('Error updating vendor:', error);
-    
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'A vendor with this name already exists' },
-        { status: 409 }
-      );
-    }
-    
     return NextResponse.json(
       { error: 'Failed to update vendor' },
       { status: 500 }
@@ -156,26 +115,31 @@ export async function PATCH(
   }
 }
 
-// DELETE a vendor
+// DELETE vendor
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Check if user is admin
-    const isAdmin = await isAdminUser(request);
-    if (!isAdmin) {
+    // Verify the user is an admin
+    const user = await getUserFromRequest(request);
+    
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: vendorIdString } = context.params;
-    const id = parseInt(vendorIdString);
+    // Await params to avoid Next.js warning
+    const { id } = await Promise.resolve(params);
     
-    if (isNaN(id)) {
+    // Check if vendor exists
+    const existingVendor = await prisma.vendor.findUnique({
+      where: { id }
+    });
+    
+    if (!existingVendor) {
       return NextResponse.json(
-        { error: 'Invalid vendor ID' },
-        { status: 400 }
+        { error: 'Vendor not found' },
+        { status: 404 }
       );
     }
     
@@ -186,7 +150,7 @@ export async function DELETE(
     
     if (calibrationCount > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete vendor that is associated with calibrations' },
+        { error: 'Cannot delete vendor with associated calibrations' },
         { status: 400 }
       );
     }
@@ -196,10 +160,21 @@ export async function DELETE(
       where: { id }
     });
     
-    return NextResponse.json(
-      { message: 'Vendor deleted successfully' },
-      { status: 200 }
-    );
+    // Log activity
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: 'DELETE_VENDOR',
+          details: `Deleted vendor: ${existingVendor.name}`
+        }
+      });
+    } catch (logError) {
+      console.error('Error logging activity:', logError);
+      // Continue even if logging fails
+    }
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting vendor:', error);
     return NextResponse.json(

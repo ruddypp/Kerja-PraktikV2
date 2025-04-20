@@ -34,9 +34,11 @@ export async function GET(request: Request) {
       // Only return essential fields for user display
       select: {
         id: true,
-        name: true,
+        name: true, 
+        address: true,
         contactName: true,
         contactPhone: true,
+        contactEmail: true,
         service: true
       }
     });

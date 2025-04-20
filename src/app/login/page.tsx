@@ -60,7 +60,7 @@ export default function Login() {
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Paramata Inventory System</h2>
-          <p className="mt-2 text-sm text-gray-600">Log in to access your account</p>
+          <p className="mt-2 text-sm text-gray-600">Log in to your account</p>
         </div>
         
         {error && (
@@ -73,7 +73,7 @@ export default function Login() {
           <div className="rounded-md shadow-sm -space-y-px">
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
+                Email
               </label>
               <input
                 id="email"
