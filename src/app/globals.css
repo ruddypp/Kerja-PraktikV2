@@ -7,7 +7,7 @@
   --primary-dark: #065f46;
   --primary-light: #d1fae5;
   --secondary: #4b5563;
-  --secondary-light: #f3f4f6;
+  --secondary-light: #1f2937;
   --accent: #0ea5e9;
   --accent-dark: #0284c7;
   --accent-light: #e0f2fe;
@@ -28,20 +28,6 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --primary-light: #064e3b;
-    --secondary-light: #1f2937;
-    --accent-light: #075985;
-    --danger-light: #991b1b;
-    --success-light: #166534;
-    --warning-light: #854d0e;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);

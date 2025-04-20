@@ -505,11 +505,9 @@ export default function AdminInventoryPage() {
             >
               <option value="">All Statuses</option>
               <option value="AVAILABLE">Available</option>
-              <option value="IN_USE">In Use</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="REPAIR">Repair</option>
-              <option value="CALIBRATION">Calibration</option>
-              <option value="DISCONTINUED">Discontinued</option>
+              <option value="IN_CALIBRATION">In Calibration</option>
+              <option value="RENTED">Rented</option>
+              <option value="IN_MAINTENANCE">In Maintenance</option>
             </select>
           </div>
           <div className="flex items-end">
