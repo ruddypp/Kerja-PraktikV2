@@ -584,69 +584,78 @@ export default function UserCalibrationPage() {
         )}
         
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="w-full md:w-1/4">
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                id="status"
-                name="status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="">All Statuses</option>
-                {Object.values(RequestStatus).map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="w-full md:w-1/4">
-              <label htmlFor="item" className="block text-sm font-medium text-gray-700 mb-1">Item</label>
-              <input
-                type="text"
-                id="item"
-                name="item"
-                placeholder="Search by name or serial"
-                value={filters.item}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="w-full md:w-1/4">
-              <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-              <input
-                type="date"
-                id="dateFrom"
-                name="dateFrom"
-                value={filters.dateFrom}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="w-full md:w-1/4">
-              <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-              <input
-                type="date"
-                id="dateTo"
-                name="dateTo"
-                value={filters.dateTo}
-                onChange={handleFilterChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              </div>
-            
-            <button
-              onClick={resetFilters}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-md transition-colors duration-150 ease-in-out whitespace-nowrap"
-            >
-              Reset Filters
-            </button>
-            </div>
-        </div>
+<div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+    {/* Status */}
+    <div>
+      <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+      <select
+        id="status"
+        name="status"
+        value={filters.status}
+        onChange={handleFilterChange}
+        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+      >
+        <option value="">All Statuses</option>
+        {Object.values(RequestStatus).map(status => (
+          <option key={status} value={status}>{status}</option>
+        ))}
+      </select>
+    </div>
+
+    {/* Item */}
+    <div>
+      <label htmlFor="item" className="block text-sm font-medium text-gray-700 mb-1">Item</label>
+      <input
+        type="text"
+        id="item"
+        name="item"
+        placeholder="Search by name or serial"
+        value={filters.item}
+        onChange={handleFilterChange}
+        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+      />
+    </div>
+
+    {/* From Date */}
+    <div>
+      <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+      <input
+        type="date"
+        id="dateFrom"
+        name="dateFrom"
+        value={filters.dateFrom}
+        onChange={handleFilterChange}
+        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+      />
+    </div>
+
+    {/* To Date */}
+    <div>
+      <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+      <input
+        type="date"
+        id="dateTo"
+        name="dateTo"
+        value={filters.dateTo}
+        onChange={handleFilterChange}
+        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+      />
+    </div>
+
+    {/* Reset Button */}
+    <div className="flex items-end">
+      <button
+        type="button"
+        onClick={resetFilters}
+        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+      >
+        Reset Filters
+      </button>
+    </div>
+  </div>
+</div>
+
         
         {/* All Calibrations Section */}
         <div className="mb-8">
@@ -743,191 +752,155 @@ export default function UserCalibrationPage() {
           )}
         </div>
         
-        {/* Calibration Modal */}
-        {showCalibrationModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl overflow-hidden">
-              <div className="flex justify-between items-center bg-blue-600 text-white px-6 py-4">
-                <h2 className="text-xl font-bold">New Calibration</h2>
-                <button onClick={closeCalibrationModal} className="text-white">
-                  <FiX size={24} />
-                </button>
+{/* Calibration Modal */}
+{showCalibrationModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden">
+      {/* Header */}
+      <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 rounded-t-lg">
+        <h2 className="text-lg font-semibold">New Calibration</h2>
+        <button onClick={closeCalibrationModal} className="text-white hover:text-gray-200">
+          <FiX size={20} />
+        </button>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleCalibrationSubmit} className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left: Item Details */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-gray-700">Item Details</h3>
+
+            {/* Item Select */}
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Item</label>
+              <select
+                name="itemSerial"
+                value={calibrationForm.itemSerial}
+                onChange={handleCalibrationFormChange}
+                required
+                className="form-select w-full text-sm"
+              >
+                <option value="">Select Item</option>
+                {items.map((item) => (
+                  <option key={item.serialNumber} value={item.serialNumber}>
+                    {item.name} - {item.serialNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Other Inputs */}
+            {[
+              { name: 'manufacturer', placeholder: 'RAE Systems', label: 'Nama Produk' },
+              { name: 'instrumentName', placeholder: 'MeshGuard H2S', label: 'Part Number' },
+              { name: 'modelNumber', placeholder: 'FTD 2000 S', label: 'Sensor' },
+              { name: 'configuration', placeholder: 'H2S, O2, CO, dll', label: 'Configuration' },
+            ].map(({ name, label, placeholder }) => (
+              <div key={name}>
+                <label className="block mb-1 text-sm font-medium text-gray-700">{label}</label>
+                <input
+                  type="text"
+                  name={name}
+                  value={calibrationForm[name]}
+                  onChange={handleCalibrationFormChange}
+                  placeholder={placeholder}
+                  className="form-input w-full text-sm"
+                />
               </div>
-              
-              <form onSubmit={handleCalibrationSubmit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-gray-700 mb-2">Item Details</h3>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Item</label>
-                  <select
-                        name="itemSerial"
-                        value={calibrationForm.itemSerial}
-                        onChange={handleCalibrationFormChange}
-                    required
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                      >
-                        <option value="">Select Item</option>
-                        {items.map((item) => (
-                          <option key={item.serialNumber} value={item.serialNumber}>
-                            {item.name} - {item.serialNumber}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Nama Produk</label>
-                      <input
-                        type="text"
-                        name="manufacturer"
-                        value={calibrationForm.manufacturer}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Nama produk (contoh: RAE Systems)"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Part Number</label>
-                      <input
-                        type="text"
-                        name="instrumentName"
-                        value={calibrationForm.instrumentName}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Part number (contoh: MeshGuard H2S)"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Sensor</label>
-                      <input
-                        type="text"
-                        name="modelNumber"
-                        value={calibrationForm.modelNumber}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Sensor (contoh: FTD 2000 S)"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Configuration</label>
-                      <input
-                        type="text"
-                        name="configuration"
-                        value={calibrationForm.configuration}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Jenis gas (contoh: H2S, O2, CO, dll)"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Calibration Date</label>
-                      <input
-                        type="date"
-                        name="calibrationDate"
-                        value={calibrationForm.calibrationDate}
-                        onChange={handleCalibrationFormChange}
-                        required
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-gray-700 mb-2">Vendor Details</h3>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Vendor</label>
-                  <select
-                    name="vendorId"
-                        value={calibrationForm.vendorId}
-                        onChange={handleCalibrationFormChange}
-                        required
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                      >
-                        <option value="">Select Vendor</option>
-                        {vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                            {vendor.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Address</label>
-                      <input
-                        type="text"
-                        name="address"
-                        value={calibrationForm.address}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Vendor address"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Phone</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        value={calibrationForm.phone}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Phone number"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Fax</label>
-                      <input
-                        type="text"
-                        name="fax"
-                        value={calibrationForm.fax}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Fax number"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Notes</label>
-                  <textarea
-                        name="notes"
-                        value={calibrationForm.notes}
-                        onChange={handleCalibrationFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Additional notes"
-                    rows={3}
-                      ></textarea>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button 
-                    type="button" 
-                    onClick={closeCalibrationModal}
-                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Start Calibration
-                  </button>
-                </div>
-              </form>
+            ))}
+
+            {/* Date */}
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Calibration Date</label>
+              <input
+                type="date"
+                name="calibrationDate"
+                value={calibrationForm.calibrationDate}
+                onChange={handleCalibrationFormChange}
+                required
+                className="form-input w-full text-sm"
+              />
             </div>
           </div>
-        )}
+
+          {/* Right: Vendor Details */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-gray-700">Vendor Details</h3>
+
+            {/* Vendor */}
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Vendor</label>
+              <select
+                name="vendorId"
+                value={calibrationForm.vendorId}
+                onChange={handleCalibrationFormChange}
+                required
+                className="form-select w-full text-sm"
+              >
+                <option value="">Select Vendor</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Other Inputs */}
+            {[
+              { name: 'address', label: 'Address', placeholder: 'Vendor address' },
+              { name: 'phone', label: 'Phone', placeholder: 'Phone number' },
+              { name: 'fax', label: 'Fax', placeholder: 'Fax number' },
+            ].map(({ name, label, placeholder }) => (
+              <div key={name}>
+                <label className="block mb-1 text-sm font-medium text-gray-700">{label}</label>
+                <input
+                  type="text"
+                  name={name}
+                  value={calibrationForm[name]}
+                  onChange={handleCalibrationFormChange}
+                  placeholder={placeholder}
+                  className="form-input w-full text-sm"
+                />
+              </div>
+            ))}
+
+            {/* Notes */}
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Notes</label>
+              <textarea
+                name="notes"
+                value={calibrationForm.notes}
+                onChange={handleCalibrationFormChange}
+                placeholder="Additional notes"
+                rows={2}
+                className="form-input w-full text-sm"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeCalibrationModal}
+            className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
+          >
+            Start Calibration
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
         
         {/* Certificate Modal */}
         {showCertificateModal && selectedCalibration && (
@@ -1007,248 +980,248 @@ export default function UserCalibrationPage() {
           </div>
         )}
         
-        {/* Complete Modal */}
-        {showCompleteModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl overflow-hidden">
-              <div className="flex justify-between items-center bg-green-600 text-white px-6 py-4">
-                <h2 className="text-xl font-bold">Complete Calibration</h2>
-                <button onClick={closeCompleteModal} className="text-white">
-                  <FiX size={24} />
-                </button>
+{/* Complete Modal */}
+{showCompleteModal && selectedCalibration && (
+  <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-2">
+    <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl h-5/6 flex flex-col overflow-hidden">
+      <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3">
+        <h2 className="text-lg font-semibold">Complete Calibration</h2>
+        <button onClick={closeCompleteModal} className="text-white">
+          <FiX size={20} />
+        </button>
+      </div>
+      
+      <div className="overflow-y-auto flex-grow">
+        <form onSubmit={handleCompleteSubmit} className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-700">Calibration Gases</h3>
+              
+              <div className="border rounded-lg p-3">
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Gas Type</label>
+                  <input
+                    type="text"
+                    name="gasType"
+                    value={completeForm.gasType}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: Hydrogen Sulphide (H2S)"
+                  />
                 </div>
                 
-              <form onSubmit={handleCompleteSubmit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-gray-700 mb-2">Calibration Gases</h3>
-                    
-                    <div className="border rounded-lg p-4">
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Gas Type</label>
-                        <input
-                          type="text"
-                          name="gasType"
-                          value={completeForm.gasType}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: Hydrogen Sulphide (H2S)"
-                        />
-                      </div>
-                      
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Concentration</label>
-                        <input
-                          type="text"
-                          name="gasConcentration"
-                          value={completeForm.gasConcentration}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: 25 ppm"
-                        />
-                      </div>
-                      
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Balance</label>
-                        <input
-                          type="text"
-                          name="gasBalance"
-                          value={completeForm.gasBalance}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: Nitrogen"
-                        />
-                      </div>
-                      
-                  <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Batch/Lot No.</label>
-                        <input
-                          type="text"
-                          name="gasBatchNumber"
-                          value={completeForm.gasBatchNumber}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: WO261451-1"
-                        />
-                  </div>
-                </div>
-                    
-                    <h3 className="font-bold text-gray-700 mb-2">Instrument Details</h3>
-                    
-                    <div className="border rounded-lg p-4">
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Instrument Name</label>
-                        <input
-                          type="text"
-                          name="instrumentName"
-                          value={completeForm.instrumentName}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: Digital Multimeter"
-                        />
-              </div>
-              
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Model Number</label>
-                        <input
-                          type="text"
-                          name="modelNumber"
-                          value={completeForm.modelNumber}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: DMM-X500"
-                        />
-                      </div>
-                      
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Configuration</label>
-                        <input
-                          type="text"
-                          name="configuration"
-                          value={completeForm.configuration}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: Electronic"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-gray-700 mb-2">Test Results</h3>
-                    
-                    <div className="border rounded-lg p-4">
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Sensor</label>
-                        <input
-                          type="text"
-                          name="testSensor"
-                          value={completeForm.testSensor}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: Hydrogen Sulphide (H2S)"
-                        />
-              </div>
-              
-                      <div className="mb-3">
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Span</label>
-                        <input
-                          type="text"
-                          name="testSpan"
-                          value={completeForm.testSpan}
-                          onChange={handleCompleteFormChange}
-                          required
-                          className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Contoh: 25 ppm"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-900">Test Result</label>
-                        <div className="flex space-x-4">
-                          <label className="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name="testResult"
-                              value="Pass"
-                              checked={completeForm.testResult === 'Pass'}
-                              onChange={handleCompleteFormChange}
-                              className="form-radio h-4 w-4 text-blue-600"
-                            />
-                            <span className="ml-2">Pass</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name="testResult"
-                              value="Fail"
-                              checked={completeForm.testResult === 'Fail'}
-                              onChange={handleCompleteFormChange}
-                              className="form-radio h-4 w-4 text-red-600"
-                            />
-                            <span className="ml-2">Fail</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-gray-700 mb-2">Certificate Information</h3>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Approved By</label>
-                      <input
-                        type="text"
-                        name="approvedBy"
-                        value={completeForm.approvedBy}
-                        onChange={handleCompleteFormChange}
-                        required
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="Contoh: Fachmi R.F"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Valid Until</label>
-                      <input
-                        type="date"
-                        name="validUntil"
-                        value={completeForm.validUntil}
-                        onChange={handleCompleteFormChange}
-                        required
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-900">Notes</label>
-                      <textarea
-                        name="notes"
-                        value={completeForm.notes}
-                        onChange={handleCompleteFormChange}
-                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                        placeholder="This instrument has been calibrated using valid calibration gases and instrument manual operation procedure."
-                        rows={5}
-                      ></textarea>
-                    </div>
-                    
-                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-                      <p className="text-sm text-yellow-700">
-                        <strong>Note:</strong> Once you complete this calibration, a certificate will be generated automatically. 
-                        You will be able to download it after completion.
-                      </p>
-                    </div>
-                  </div>
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Concentration</label>
+                  <input
+                    type="text"
+                    name="gasConcentration"
+                    value={completeForm.gasConcentration}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: 25 ppm"
+                  />
                 </div>
                 
-                <div className="mt-6 flex justify-end space-x-3">
-                <button
-                    type="button"
-                    onClick={closeCompleteModal}
-                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Complete Calibration & Generate Certificate
-                </button>
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Balance</label>
+                  <input
+                    type="text"
+                    name="gasBalance"
+                    value={completeForm.gasBalance}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: Nitrogen"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Batch/Lot No.</label>
+                  <input
+                    type="text"
+                    name="gasBatchNumber"
+                    value={completeForm.gasBatchNumber}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: WO261451-1"
+                  />
+                </div>
               </div>
-              </form>
+              
+              <h3 className="font-medium text-gray-700">Instrument Details</h3>
+              
+              <div className="border rounded-lg p-3">
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Instrument Name</label>
+                  <input
+                    type="text"
+                    name="instrumentName"
+                    value={completeForm.instrumentName}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: Digital Multimeter"
+                  />
+                </div>
+                
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Model Number</label>
+                  <input
+                    type="text"
+                    name="modelNumber"
+                    value={completeForm.modelNumber}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: DMM-X500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Configuration</label>
+                  <input
+                    type="text"
+                    name="configuration"
+                    value={completeForm.configuration}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: Electronic"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-700">Test Results</h3>
+              
+              <div className="border rounded-lg p-3">
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Sensor</label>
+                  <input
+                    type="text"
+                    name="testSensor"
+                    value={completeForm.testSensor}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: Hydrogen Sulphide (H2S)"
+                  />
+                </div>
+                
+                <div className="mb-2">
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Span</label>
+                  <input
+                    type="text"
+                    name="testSpan"
+                    value={completeForm.testSpan}
+                    onChange={handleCompleteFormChange}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                    placeholder="Contoh: 25 ppm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block mb-1 text-sm font-medium text-gray-900">Test Result</label>
+                  <div className="flex space-x-4">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        name="testResult"
+                        value="Pass"
+                        checked={completeForm.testResult === 'Pass'}
+                        onChange={handleCompleteFormChange}
+                        className="form-radio h-4 w-4 text-blue-600"
+                      />
+                      <span className="ml-2 text-sm">Pass</span>
+                    </label>
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        name="testResult"
+                        value="Fail"
+                        checked={completeForm.testResult === 'Fail'}
+                        onChange={handleCompleteFormChange}
+                        className="form-radio h-4 w-4 text-red-600"
+                      />
+                      <span className="ml-2 text-sm">Fail</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            
+              <h3 className="font-medium text-gray-700">Certificate Information</h3>
+              
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-900">Approved By</label>
+                <input
+                  type="text"
+                  name="approvedBy"
+                  value={completeForm.approvedBy}
+                  onChange={handleCompleteFormChange}
+                  required
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                  placeholder="Contoh: Fachmi R.F"
+                />
+              </div>
+              
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-900">Valid Until</label>
+                <input
+                  type="date"
+                  name="validUntil"
+                  value={completeForm.validUntil}
+                  onChange={handleCompleteFormChange}
+                  required
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                />
+              </div>
+              
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-900">Notes</label>
+                <textarea
+                  name="notes"
+                  value={completeForm.notes}
+                  onChange={handleCompleteFormChange}
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                  placeholder="This instrument has been calibrated using valid calibration gases and instrument manual operation procedure."
+                  rows={3}
+                ></textarea>
+              </div>
+              
+              <div className="p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+                <p className="text-xs text-yellow-700">
+                  <strong>Note:</strong> Once you complete this calibration, a certificate will be generated automatically. 
+                  You will be able to download it after completion.
+                </p>
+              </div>
             </div>
           </div>
-        )}
+          
+          <div className="mt-4 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={closeCompleteModal}
+              className="px-3 py-1.5 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+            >
+              Complete Calibration & Generate Certificate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </DashboardLayout>
   );

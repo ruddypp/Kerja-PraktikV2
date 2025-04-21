@@ -749,10 +749,6 @@ export default function CalibrationPage() {
                   <div>{selectedCalibration.item && selectedCalibration.item.serialNumber ? selectedCalibration.item.serialNumber : '-'}</div>
                 </div>
                 <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Category:</div>
-                  <div>{selectedCalibration.item && selectedCalibration.item.category ? selectedCalibration.item.category.name : '-'}</div>
-                </div>
-                <div className="flex justify-between mb-2">
                   <div className="font-semibold text-gray-500">Requestor:</div>
                   <div>{selectedCalibration.user ? selectedCalibration.user.name : 'Unknown'}</div>
                 </div>
@@ -779,7 +775,6 @@ export default function CalibrationPage() {
                     {selectedCalibration.result || 'No results recorded'}
                   </div>
                 </div>
-                
                 {selectedCalibration.certificateUrl && (
                   <div className="mt-4">
                     <div className="font-semibold text-gray-500 mb-1">Certificate:</div>

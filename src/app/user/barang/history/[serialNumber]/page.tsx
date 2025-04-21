@@ -134,7 +134,7 @@ export default function UserItemHistoryPage() {
         <div className="flex items-center mb-6">
           <Link 
             href="/user/barang" 
-            className="flex items-center text-indigo-600 hover:text-indigo-800"
+            className="flex items-center text-green-600 hover:text-green-800"
           >
             <FiArrowLeft className="mr-2" />
             Back to Products
@@ -222,7 +222,7 @@ export default function UserItemHistoryPage() {
                     onClick={() => setActiveTab('history')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'history'
-                        ? 'border-indigo-500 text-indigo-600'
+                        ? 'border-green-500 text-green-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -233,7 +233,7 @@ export default function UserItemHistoryPage() {
                     onClick={() => setActiveTab('calibrations')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'calibrations'
-                        ? 'border-indigo-500 text-indigo-600'
+                        ? 'border-green-500 text-green-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -244,7 +244,7 @@ export default function UserItemHistoryPage() {
                     onClick={() => setActiveTab('maintenances')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'maintenances'
-                        ? 'border-indigo-500 text-indigo-600'
+                        ? 'border-green-500 text-green-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >

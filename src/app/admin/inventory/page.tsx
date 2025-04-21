@@ -709,8 +709,8 @@ export default function AdminInventoryPage() {
         )}
       </div>
 
-      {/* Modal for creating/editing items */}
-      {modalOpen && (
+{/* Modal for creating/editing items */}
+{modalOpen && (
         <div className="fixed inset-0 overflow-y-auto z-50">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
@@ -726,10 +726,7 @@ export default function AdminInventoryPage() {
                   <div className="mt-2">
                     <form onSubmit={handleSubmit} className="space-y-4">
                       {/* Serial Number */}
-                      <div>
-                        <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700">
-                          Serial Number {isEditMode && <span className="text-gray-500">(Read Only)</span>}
-                        </label>
+                      <div className="relative">
                         <input
                           type="text"
                           name="serialNumber"
@@ -737,96 +734,116 @@ export default function AdminInventoryPage() {
                           value={formData.serialNumber}
                           onChange={handleFormChange}
                           disabled={isEditMode}
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                          placeholder=" "
+                          className={`mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 peer ${
                             formErrors.serialNumber ? 'border-red-300' : ''
                           }`}
                         />
+                        <label 
+                          htmlFor="serialNumber" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
+                        >
+                          Serial Number {isEditMode && <span className="text-green-400">(Read Only)</span>}
+                        </label>
                         {formErrors.serialNumber && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.serialNumber}</p>
                         )}
                       </div>
 
                       {/* Name */}
-                      <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                          Product Name
-                        </label>
+                      <div className="relative">
                         <input
                           type="text"
                           name="name"
                           id="name"
                           value={formData.name}
                           onChange={handleFormChange}
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                          placeholder=" "
+                          className={`mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 peer ${
                             formErrors.name ? 'border-red-300' : ''
                           }`}
                         />
+                        <label 
+                          htmlFor="name" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
+                        >
+                          Product Name
+                        </label>
                         {formErrors.name && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                         )}
-              </div>
+                      </div>
               
                       {/* Part Number */}
-                      <div>
-                        <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700">
-                          Part Number
-                        </label>
+                      <div className="relative">
                         <input
                           type="text"
                           name="partNumber"
                           id="partNumber"
                           value={formData.partNumber}
                           onChange={handleFormChange}
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                          placeholder=" "
+                          className={`mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 peer ${
                             formErrors.partNumber ? 'border-red-300' : ''
                           }`}
                         />
+                        <label 
+                          htmlFor="partNumber" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
+                        >
+                          Part Number
+                        </label>
                         {formErrors.partNumber && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.partNumber}</p>
                         )}
                       </div>
 
                       {/* Sensor */}
-                      <div>
-                        <label htmlFor="sensor" className="block text-sm font-medium text-gray-700">
-                          Sensor Type
-                        </label>
+                      <div className="relative">
                         <input
                           type="text"
                           name="sensor"
                           id="sensor"
                           value={formData.sensor || ''}
                           onChange={handleFormChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                          placeholder=" "
+                          className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 peer"
                         />
+                        <label 
+                          htmlFor="sensor" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
+                        >
+                          Sensor Type
+                        </label>
                       </div>
 
                       {/* Description */}
-                      <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                          Description
-                        </label>
+                      <div className="relative">
                         <textarea
                           name="description"
                           id="description"
                           rows={3}
                           value={formData.description || ''}
                           onChange={handleFormChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                          placeholder=" "
+                          className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 peer"
                         ></textarea>
+                        <label 
+                          htmlFor="description" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
+                        >
+                          Description
+                        </label>
                       </div>
 
                       {/* Customer */}
-                      <div>
-                        <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">
-                          Customer
-                        </label>
+                      <div className="relative">
                         <select
                           name="customerId"
                           id="customerId"
                           value={formData.customerId || ''}
                           onChange={handleFormChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                          className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 appearance-none peer"
                         >
                           <option value="">None</option>
                           {vendors.map((vendor) => (
@@ -835,19 +852,27 @@ export default function AdminInventoryPage() {
                             </option>
                           ))}
                         </select>
+                        <label 
+                          htmlFor="customerId" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-focus:text-green-600"
+                        >
+                          Customer
+                        </label>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                          </svg>
+                        </div>
                       </div>
 
                       {/* Status */}
-                <div>
-                        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                          Status
-                        </label>
+                      <div className="relative">
                         <select
                           name="status"
                           id="status"
                           value={formData.status}
                           onChange={handleFormChange}
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 ${
+                          className={`mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 appearance-none peer ${
                             formErrors.status ? 'border-red-300' : ''
                           }`}
                         >
@@ -856,6 +881,17 @@ export default function AdminInventoryPage() {
                           <option value={ItemStatus.RENTED}>Rented</option>
                           <option value={ItemStatus.IN_MAINTENANCE}>In Maintenance</option>
                         </select>
+                        <label 
+                          htmlFor="status" 
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-focus:text-green-600"
+                        >
+                          Status
+                        </label>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                          </svg>
+                        </div>
                         {formErrors.status && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
                         )}
