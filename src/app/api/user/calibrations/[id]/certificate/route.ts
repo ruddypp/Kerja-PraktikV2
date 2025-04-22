@@ -4,8 +4,8 @@ import { getUserFromRequest } from '@/lib/auth';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import path from 'path';
 import fs from 'fs';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+// import { getServerSession } from 'next-auth/next';
+// import { authOptions } from '@/lib/auth';
 
 // Format tanggal Indonesia dengan error handling
 function formatDateID(date: Date | string | null | undefined): string {
@@ -147,20 +147,30 @@ export async function GET(
       borderColor: darkGreen,
       borderWidth: 2,
     });
+
+  // --- Add border around entire page ---
+  page.drawRectangle({
+    x: 20,
+    y: 20,
+    width: width - 40,
+    height: height - 40,
+    borderColor: darkGreen,
+    borderWidth: 1.5,
+    });  
     
-    // --- Logo Perusahaan ---
-    // Catatan: Dalam implementasi nyata, Anda perlu menyertakan gambar logo
-    // Di sini kita hanya simulasikan dengan lingkaran hijau 
-    const centerLogoX = 70;
-    const centerLogoY = height - 85;
-    const logoSize = 30;
-    page.drawEllipse({
-      x: centerLogoX,
-      y: centerLogoY,
-      xScale: logoSize,
-      yScale: logoSize,
-      color: darkGreen
-    });
+// --- Logo Perusahaan (PNG dari public/logo1.png) ---
+const logoPath = path.join(process.cwd(), 'public', 'logo1.png');
+const logoImageBytes = fs.readFileSync(logoPath);
+const logoImage = await pdfDoc.embedPng(logoImageBytes); // gunakan embedJpg jika file .jpg
+const logoDims = logoImage.scale(1.2); // Sesuaikan skala sesuai ukuran logo
+
+page.drawImage(logoImage, {
+  x: 25,
+  y: height - 125, // Sesuaikan posisi Y agar sejajar dengan teks header
+  width: logoDims.width,
+  height: logoDims.height
+});
+
     
     // --- Informasi Perusahaan ---
     page.drawText('PT. PARAMATA BARAYA INTERNATIONAL', {
@@ -203,15 +213,24 @@ export async function GET(
       color: black
     });
     
-    // --- Judul Sertifikat ---
-    page.drawText('CALIBRATION AND TEST CERTIFICATE', {
-      x: centerX - 150,
-      y: height - 180,
-      size: 16,
-      font: helveticaBold,
-      color: black
-    });
-    
+  // --- Judul Sertifikat ---
+page.drawText('CALIBRATION AND TEST CERTIFICATE', {
+  x: centerX - 150,
+  y: height - 180,
+  size: 16,
+  font: helveticaBold,
+  color: black
+});
+
+// Add the underline
+const textWidth = helveticaBold.widthOfTextAtSize('CALIBRATION AND TEST CERTIFICATE', 16);
+page.drawLine({
+  start: { x: centerX - 150, y: height - 185 }, // Position slightly below the text
+  end: { x: centerX - 150 + textWidth, y: height - 185 },
+  thickness: 1.5,
+  color: black
+});
+
     // --- Informasi Sertifikat dan Pelanggan ---
     const certNumber = (calibration.certificateNumber || '').toString() !== '' ? 
       calibration.certificateNumber as string : '-';
@@ -716,39 +735,24 @@ export async function GET(
     // --- Approval ---
     page.drawText(`Approved By : ${approvedBy}`, {
       x: 40,
-      y: testDataRow1 - 120,
+      y: testDataRow1 - 210,
       size: 12,
       font: helveticaBold,
       color: black
     });
-    
-    // --- Logo Vendor (Simulasi) ---
-    page.drawText('Honeywell', {
-      x: 430,
-      y: testDataRow1 - 120,
-      size: 18,
-      font: helveticaBold,
-      color: rgb(0.8, 0, 0) // Merah untuk Honeywell
-    });
-    
-    // --- Logo RAE (Simulasi) ---
-    const raeLogoX = 500;
-    const raeLogoY = testDataRow1 - 120;
-    const raeLogoSize = 15;
-    page.drawEllipse({
-      x: raeLogoX,
-      y: raeLogoY,
-      xScale: raeLogoSize,
-      yScale: raeLogoSize,
-      color: rgb(0, 0, 0.7)
-    });
-    page.drawText('RAE', {
-      x: 485,
-      y: testDataRow1 - 115,
-      size: 10,
-      font: helveticaBold,
-      color: rgb(1, 1, 1)
-    });
+
+    // --- Honeywell-RAE Logo ---
+const honeywellLogoPath = 'public/Honeywell-RAE.png';
+const honeywellLogoImage = await pdfDoc.embedPng(fs.readFileSync(honeywellLogoPath));
+const honeywellLogoWidth = 110; // Adjust based on your logo size
+const honeywellLogoDims = honeywellLogoImage.scale(honeywellLogoWidth / honeywellLogoImage.width);
+
+page.drawImage(honeywellLogoImage, {
+  x: 450, // Position it where the current "Honeywell" text is
+  y: testDataRow1 - 210, // Adjust this position as needed
+  width: honeywellLogoDims.width,
+  height: honeywellLogoDims.height
+});
     
     // Simpan PDF ke buffer
     const pdfBytes = await pdfDoc.save();
