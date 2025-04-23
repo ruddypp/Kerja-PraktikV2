@@ -226,11 +226,11 @@ export default function VendorsPage() {
       
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to delete vendor');
+        throw new Error(errorData.error || 'Gagal menghapus vendor');
       }
       
       // Success
-      setSuccess('Vendor deleted successfully!');
+      setSuccess('Vendor berhasil dihapus!');
       closeDeleteModal();
       fetchVendors();
       
@@ -238,13 +238,16 @@ export default function VendorsPage() {
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete vendor');
+    } catch (err: Error | unknown) {
+      console.error('Error deleting vendor:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menghapus vendor';
+      setError(errorMessage);
+      closeDeleteModal(); // Menutup modal konfirmasi delete ketika terjadi error
       
-      // Clear error message after 3 seconds
+      // Clear error message after 5 seconds
       setTimeout(() => {
         setError('');
-      }, 3000);
+      }, 5000);
     }
   };
   
@@ -621,7 +624,10 @@ export default function VendorsPage() {
                 </h3>
                 <div className="mt-2 px-7 py-3">
                   <p className="text-sm text-gray-500">
-                    Are you sure you want to delete the vendor &quot;{selectedVendor.name}&quot;? This action cannot be undone.
+                    Apakah Anda yakin ingin menghapus vendor &quot;{selectedVendor.name}&quot;? Tindakan ini tidak dapat dibatalkan.
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    <span className="font-medium">Catatan:</span> Vendor dengan kalibrasi aktif (status In Calibration) tidak dapat dihapus. Vendor dengan kalibrasi yang sudah selesai (COMPLETED) masih dapat dihapus.
                   </p>
                 </div>
                 <div className="flex justify-center mt-5 gap-3">

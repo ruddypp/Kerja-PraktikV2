@@ -151,8 +151,8 @@ export default function UserItemsPage() {
 <div className="bg-white p-6 rounded-2xl shadow-md mb-6">
   <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-4">
     <div className="relative w-full md:w-2/3">
-      <input
-        type="text"
+              <input
+                type="text"
         value={searchQuery}
         onChange={handleSearchChange}
         placeholder="Search products by name, serial number, or part number..."
@@ -161,7 +161,7 @@ export default function UserItemsPage() {
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <FiSearch className="text-gray-400 text-lg" />
       </div>
-    </div>
+            </div>
     <button 
       type="submit"
       className={`w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition ${

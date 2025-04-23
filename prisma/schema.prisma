@@ -114,8 +114,8 @@ model Calibration {
   
   // Relasi
   statusLogs      CalibrationStatusLog[]
-  vendor          Vendor        @relation(fields: [vendorId], references: [id])
-  vendorId        String
+  vendor          Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  vendorId        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
@@ -136,6 +136,7 @@ model CalibrationCertificate {
   vendorAddress     String?    // Alamat vendor kalibrasi
   vendorPhone       String?    // Nomor telepon vendor
   vendorFax         String?    // Nomor fax vendor
+  vendorName        String?    // Nama vendor untuk historis
   
   // Detail Gas Kalibrasi
   gasType           String?    // Jenis gas (contoh: Hydrogen Sulphide (H2S))
@@ -211,6 +212,7 @@ model Vendor {
   contactPhone String?
   contactEmail String?
   service      String?
+   isDeleted    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   

@@ -407,6 +407,28 @@ export async function PATCH(request: Request) {
 
       const itemManufacturer = itemDetails ? itemDetails.name : "Unknown Manufacturer";
       
+      // Dapatkan informasi vendor untuk disimpan dalam sertifikat (jika ada)
+      let vendorName = "Unknown Vendor";
+      let vendorAddress = null;
+      let vendorPhone = null;
+      
+      if (calibration.vendorId) {
+        const vendor = await prisma.vendor.findUnique({
+          where: { id: calibration.vendorId },
+          select: { 
+            name: true,
+            address: true,
+            contactPhone: true 
+          }
+        });
+        
+        if (vendor) {
+          vendorName = vendor.name;
+          vendorAddress = vendor.address;
+          vendorPhone = vendor.contactPhone;
+        }
+      }
+      
       // Kemudian, buat atau update sertifikat kalibrasi
       const certificate = await prisma.calibrationCertificate.upsert({
         where: { calibrationId },
@@ -424,7 +446,11 @@ export async function PATCH(request: Request) {
           instrumentName,
           modelNumber,
           configuration,
-          approvedBy
+          approvedBy,
+          // Simpan informasi vendor untuk keperluan historis
+          vendorName,
+          vendorAddress,
+          vendorPhone
         },
         create: {
           calibrationId,
@@ -441,7 +467,11 @@ export async function PATCH(request: Request) {
           instrumentName,
           modelNumber,
           configuration,
-          approvedBy
+          approvedBy,
+          // Simpan informasi vendor untuk keperluan historis
+          vendorName,
+          vendorAddress,
+          vendorPhone
         }
       });
       
@@ -501,15 +531,15 @@ export async function PATCH(request: Request) {
     reminderDate.setDate(reminderDate.getDate() - 30);
 
     if (admin) {
-      await prisma.notification.create({
-        data: {
+    await prisma.notification.create({
+      data: {
           userId: admin.id,
           type: 'CALIBRATION_STATUS_CHANGE',
           title: 'Kalibrasi Selesai',
           message: `Kalibrasi untuk item ${calibration.item.name} telah selesai oleh ${user.name}`,
-          isRead: false
-        }
-      });
+        isRead: false
+      }
+    });
     
       // Notifikasi H-30 untuk admin
       // Hanya buat notifikasi jika tanggal reminder masih di masa depan

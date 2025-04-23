@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { ItemStatus, RequestStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 // GET a single calibration by ID
 export async function GET(
@@ -36,6 +37,7 @@ export async function GET(
           }
         },
         vendor: true,
+        certificate: true,
         statusLogs: {
           include: {
             changedBy: {
@@ -109,9 +111,9 @@ export async function PATCH(
     }
     
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Prisma.CalibrationUpdateInput = {};
     
-    if (vendorId) updateData.vendorId = vendorId;
+    if (vendorId) updateData.vendor = { connect: { id: vendorId } };
     if (status) updateData.status = status as RequestStatus;
     if (notes) updateData.notes = notes;
     if (validUntil) updateData.validUntil = new Date(validUntil);
@@ -150,7 +152,8 @@ export async function PATCH(
             email: true
           }
         },
-        vendor: true
+        vendor: true,
+        certificate: true
       }
     });
     
@@ -236,7 +239,31 @@ export async function DELETE(
       });
     }
     
-    // Delete calibration
+    // Delete related records first in the correct order to avoid foreign key violations
+    
+    // 1. Delete certificate first (if exists)
+    await prisma.calibrationCertificate.deleteMany({
+      where: { calibrationId: id }
+    });
+    
+    // 2. Delete status logs
+    await prisma.calibrationStatusLog.deleteMany({
+      where: { calibrationId: id }
+    });
+    
+    // 3. Update item history entries instead of deleting them
+    await prisma.itemHistory.updateMany({
+      where: { 
+        relatedId: id,
+        action: 'CALIBRATED'
+      },
+      data: {
+        details: `Calibration record deleted by admin (${user.name})`,
+        endDate: new Date()
+      }
+    });
+    
+    // 4. Now delete the calibration itself
     await prisma.calibration.delete({
       where: { id }
     });

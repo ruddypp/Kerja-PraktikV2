@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { RequestStatus } from '@prisma/client';
 
 // GET single vendor by ID
 export async function GET(
@@ -143,21 +144,27 @@ export async function DELETE(
       );
     }
     
-    // Check if vendor is associated with any calibrations
-    const calibrationCount = await prisma.calibration.count({
-      where: { vendorId: id }
+    // Check if vendor is associated with any active calibrations
+    const activeCalibrationCount = await prisma.calibration.count({
+      where: { 
+        vendorId: id,
+        status: {
+          in: [RequestStatus.PENDING, RequestStatus.APPROVED] // Hanya cek kalibrasi aktif
+        }
+      }
     });
     
-    if (calibrationCount > 0) {
+    if (activeCalibrationCount > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete vendor with associated calibrations' },
+        { error: `Tidak dapat menghapus vendor karena masih memiliki ${activeCalibrationCount} kalibrasi aktif` },
         { status: 400 }
       );
     }
     
-    // Delete vendor
-    await prisma.vendor.delete({
-      where: { id }
+    // Soft delete vendor (mengubah status isDeleted menjadi true)
+    await prisma.vendor.update({
+      where: { id },
+      data: { isDeleted: true }
     });
     
     // Log activity

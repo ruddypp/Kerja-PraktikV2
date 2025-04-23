@@ -54,7 +54,7 @@ export async function GET(
         item: true,
         vendor: true,
         user: true,
-        certificate: true as any  // Type casting untuk mengatasi error TypeScript
+        certificate: true
       }
     });
     
@@ -65,34 +65,63 @@ export async function GET(
       );
     }
     
-    // Gunakan type casting untuk akses properti certificate
-    const calibrationWithCert = calibrationData as any;
+    // Definisikan interface untuk data sertifikat
+    interface CertificateData {
+      id: string;
+      calibrationId: string;
+      createdAt: Date;
+      updatedAt: Date;
+      // Informasi vendor
+      vendorAddress: string | null;
+      vendorPhone: string | null;
+      vendorFax: string | null;
+      // Data gas
+      gasType: string | null;
+      gasConcentration: string | null;
+      gasBalance: string | null;
+      gasBatchNumber: string | null;
+      // Data test
+      testSensor: string | null;
+      testSpan: string | null;
+      testResult: string | null;
+      // Data alat
+      manufacturer: string | null;
+      instrumentName: string | null;
+      modelNumber: string | null;
+      configuration: string | null;
+      approvedBy: string | null;
+      // Field opsional
+      vendorName?: string | null;
+    }
+    
+    // Gunakan type assertion dengan interface yang spesifik
+    const calibration = calibrationData;
     
     // Debugging - log data kalibrasi untuk memastikan field terisi
     console.log('Certificate Data Debug:', {
-      id: calibrationWithCert.id,
-      certificateNumber: calibrationWithCert.certificateNumber,
+      id: calibration.id,
+      certificateNumber: calibration.certificateNumber,
       // Ambil data dari certificate jika ada
-      certificate: calibrationWithCert.certificate ? {
-        gasType: calibrationWithCert.certificate.gasType,
-        gasConcentration: calibrationWithCert.certificate.gasConcentration,
-        gasBalance: calibrationWithCert.certificate.gasBalance,
-        gasBatchNumber: calibrationWithCert.certificate.gasBatchNumber,
-        testSensor: calibrationWithCert.certificate.testSensor,
-        testSpan: calibrationWithCert.certificate.testSpan,
-        testResult: calibrationWithCert.certificate.testResult,
-        manufacturer: calibrationWithCert.certificate.manufacturer,
-        instrumentName: calibrationWithCert.certificate.instrumentName,
-        modelNumber: calibrationWithCert.certificate.modelNumber,
-        configuration: calibrationWithCert.certificate.configuration,
-        approvedBy: calibrationWithCert.certificate.approvedBy
+      certificate: calibration.certificate ? {
+        gasType: calibration.certificate.gasType,
+        gasConcentration: calibration.certificate.gasConcentration,
+        gasBalance: calibration.certificate.gasBalance,
+        gasBatchNumber: calibration.certificate.gasBatchNumber,
+        testSensor: calibration.certificate.testSensor,
+        testSpan: calibration.certificate.testSpan,
+        testResult: calibration.certificate.testResult,
+        manufacturer: calibration.certificate.manufacturer,
+        instrumentName: calibration.certificate.instrumentName,
+        modelNumber: calibration.certificate.modelNumber,
+        configuration: calibration.certificate.configuration,
+        approvedBy: calibration.certificate.approvedBy
       } : "No certificate data"
     });
     
     // Verifikasi bahwa kalibrasi milik user ini atau user adalah admin
     const isAdminAccess = user.role === 'ADMIN' || request.headers.get('x-admin-access') === 'true';
-    if (calibrationWithCert.userId !== user.id && !isAdminAccess) {
-      console.error('Access denied. User ID:', user.id, 'Calibration user ID:', calibrationWithCert.userId, 'Is admin:', isAdminAccess);
+    if (calibration.userId !== user.id && !isAdminAccess) {
+      console.error('Access denied. User ID:', user.id, 'Calibration user ID:', calibration.userId, 'Is admin:', isAdminAccess);
       return NextResponse.json(
         { error: 'Anda tidak memiliki akses ke sertifikat ini' },
         { status: 403 }
@@ -100,24 +129,33 @@ export async function GET(
     }
     
     // Verifikasi status kalibrasi harus COMPLETED
-    if (calibrationWithCert.status !== 'COMPLETED') {
+    if (calibration.status !== 'COMPLETED') {
       return NextResponse.json(
         { error: 'Sertifikat hanya tersedia untuk kalibrasi yang sudah selesai' },
         { status: 400 }
       );
     }
     
-    // Verifikasi data sertifikat tersedia
-    if (!calibrationWithCert.certificate) {
+    // Verifikasi data sertifikat tersedia - tambahkan debugging info
+    if (!calibration.certificate) {
+      console.log('ERROR: Certificate missing for calibration ID:', calibrationId, 'Status:', calibration.status);
+      
+      // Log tambahan untuk membantu diagnosis
+      const userCalibrations = await prisma.calibration.findMany({
+        where: { userId: user.id },
+        select: { id: true, status: true, certificate: { select: { id: true } } }
+      });
+      
+      console.log('All user calibrations:', userCalibrations);
+      
       return NextResponse.json(
-        { error: 'Data sertifikat belum tersedia' },
+        { error: 'Data sertifikat belum tersedia. Coba periksa apakah Anda sudah mengisi form penyelesaian kalibrasi.' },
         { status: 400 }
       );
     }
     
-    // Gunakan data dari calibrationData langsung, dengan type casting
-    const calibration = calibrationWithCert;
-    const certificateData = calibrationWithCert.certificate;
+    // Gunakan data dari calibrationData langsung
+    const certificateData = calibration.certificate as CertificateData;
     
     // Buat PDF baru
     const pdfDoc = await PDFDocument.create();

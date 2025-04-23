@@ -18,22 +18,30 @@ export async function GET(request: Request) {
     
     console.log('GET vendors API called');
     
-    let whereClause = {};
+    // Build where conditions
+    const whereCondition: {
+      isDeleted: boolean;
+      OR?: Array<
+        { name: { contains: string; mode: 'insensitive' } } | 
+        { service: { contains: string; mode: 'insensitive' } } |
+        { contactName: { contains: string; mode: 'insensitive' } }
+      >;
+    } = {
+      isDeleted: false // Hanya tampilkan vendor yang belum dihapus
+    };
     
     if (search) {
-      whereClause = {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { service: { contains: search, mode: 'insensitive' } },
-          { contactName: { contains: search, mode: 'insensitive' } }
-        ]
-      };
+      whereCondition.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { service: { contains: search, mode: 'insensitive' } },
+        { contactName: { contains: search, mode: 'insensitive' } }
+      ];
     }
     
-    console.log('Fetching vendors with where clause:', whereClause);
+    console.log('Fetching vendors with where clause:', whereCondition);
     
     const vendors = await prisma.vendor.findMany({
-      where: whereClause,
+      where: whereCondition,
       orderBy: { name: 'asc' }
     });
     

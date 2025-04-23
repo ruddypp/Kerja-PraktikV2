@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiCheckCircle, FiUpload, FiEdit2, FiInfo, FiFileText, FiDownload } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiFileText, FiDownload, FiX } from 'react-icons/fi';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
@@ -66,7 +66,16 @@ interface Calibration {
   item: Item;
   user: User;
   vendor: Vendor | null;
-  statusLogs?: Array<any>;
+  statusLogs?: Array<{
+    id: string;
+    status: string;
+    notes: string | null;
+    createdAt: string;
+    changedBy?: {
+      id: string;
+      name: string;
+    }
+  }>;
 }
 
 export default function CalibrationPage() {
@@ -79,9 +88,7 @@ export default function CalibrationPage() {
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [completeModal, setCompleteModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   
@@ -105,6 +112,29 @@ export default function CalibrationPage() {
   const [filter, setFilter] = useState({
     statusId: '',
     vendorId: ''
+  });
+  
+  // Menambahkan state untuk konfirmasi hapus
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Tambahkan state untuk modal edit sertifikat
+  const [showEditCertificateModal, setShowEditCertificateModal] = useState(false);
+  const [certificateData, setCertificateData] = useState({
+    gasType: '',
+    gasConcentration: '',
+    gasBalance: '',
+    gasBatchNumber: '',
+    testSensor: '',
+    testSpan: '',
+    testResult: '',
+    manufacturer: '',
+    instrumentName: '',
+    modelNumber: '',
+    configuration: '',
+    approvedBy: '',
+    vendorName: '',
+    vendorAddress: '',
+    vendorPhone: ''
   });
   
   // Reset complete form
@@ -254,16 +284,6 @@ export default function CalibrationPage() {
     setSelectedCalibration(null);
   };
   
-  const openDetailsModal = (calibration: Calibration) => {
-    setSelectedCalibration(calibration);
-    setShowDetailsModal(true);
-  };
-  
-  const closeDetailsModal = () => {
-    setShowDetailsModal(false);
-    setSelectedCalibration(null);
-  };
-  
   const openCompleteModal = (calibration: Calibration) => {
     setSelectedCalibration(calibration);
     setCalibrationDate(calibration.calibrationDate.split('T')[0]);
@@ -290,7 +310,16 @@ export default function CalibrationPage() {
     if (!selectedCalibration) return;
     
     try {
-      const body: any = {
+      // Memperbaiki tipe data dengan interface
+      interface UpdateCalibrationBody {
+        vendorId: number | null;
+        calibrationDate: string;
+        result: string | null;
+        statusId?: string | number;
+        certificateUrl?: string;
+      }
+      
+      const body: UpdateCalibrationBody = {
         vendorId: editForm.vendorId ? parseInt(editForm.vendorId) : null,
         calibrationDate: editForm.calibrationDate,
         result: editForm.result.trim() || null
@@ -314,7 +343,7 @@ export default function CalibrationPage() {
       
       const res = await fetch(`/api/admin/calibrations/${selectedCalibration.id}`, {
         method: 'PATCH',
-        headers: {
+            headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include', // Add this to include auth cookies
@@ -330,23 +359,23 @@ export default function CalibrationPage() {
       setSuccess(`Calibration #${selectedCalibration.id} was updated successfully`);
       
       // Refresh data
-      fetchCalibrations();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-      
+          fetchCalibrations();
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => {
+            setSuccess('');
+          }, 3000);
+          
       // Close modal
       closeEditModal();
-    } catch (err: any) {
-      console.error('Error updating calibration:', err);
-      setError(err.message || 'Failed to update calibration');
+        } catch (error: Error | unknown) {
+      console.error('Error updating calibration:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update calibration');
       
       // Clear error message after 3 seconds
-      setTimeout(() => {
-        setError('');
-      }, 3000);
+          setTimeout(() => {
+            setError('');
+          }, 3000);
     }
   };
   
@@ -377,11 +406,11 @@ export default function CalibrationPage() {
       setActionInProgress(true);
       const response = await fetch(`/api/admin/calibrations/${id}/complete`, {
         method: 'PATCH',
-          headers: {
+        headers: {
           'Content-Type': 'application/json',
-          },
+        },
         credentials: 'include', // Include cookies for authentication
-          body: JSON.stringify({
+        body: JSON.stringify({
           status: 'COMPLETED',
           certificateNumber: certificateNumber,
           calibrationDate: calibrationDate,
@@ -399,9 +428,183 @@ export default function CalibrationPage() {
       setCompleteModal(false);
       resetCompleteForm();
       toast.success('Calibration request marked as completed successfully');
-    } catch (err: any) {
-      console.error('Error completing calibration request:', err);
-      toast.error(err.message || 'Failed to complete calibration request');
+    } catch (error: Error | unknown) {
+      console.error('Error completing calibration request:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to complete calibration request');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+  
+  // Tambahkan fungsi untuk mengelola modal hapus
+  const openDeleteModal = (calibration: Calibration) => {
+    setSelectedCalibration(calibration);
+    setShowDeleteModal(true);
+  };
+  
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedCalibration(null);
+  };
+  
+  // Tambahkan fungsi untuk menghapus kalibrasi
+  const handleDeleteCalibration = async () => {
+    if (!selectedCalibration) return;
+    
+    try {
+      setActionInProgress(true);
+      
+      const response = await fetch(`/api/admin/calibrations/${selectedCalibration.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal menghapus kalibrasi');
+      }
+      
+      // Success
+      toast.success('Kalibrasi berhasil dihapus');
+      closeDeleteModal();
+      fetchCalibrations(); // Refresh data
+    } catch (error: Error | unknown) {
+      console.error('Error deleting calibration:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus kalibrasi');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+  
+  // Fungsi untuk mengambil dan menampilkan data sertifikat
+  const openEditCertificateModal = async (calibration: Calibration) => {
+    try {
+      setActionInProgress(true);
+      setSelectedCalibration(calibration);
+      
+      // Periksa status kalibrasi terlebih dahulu
+      const statusName = typeof calibration.status === 'object' 
+        ? calibration.status.name 
+        : calibration.status;
+      
+      if (statusName !== 'COMPLETED') {
+        toast.error('Sertifikat hanya tersedia untuk kalibrasi yang sudah selesai');
+        setActionInProgress(false);
+        return;
+      }
+      
+      // Ambil data sertifikat dari API
+      const response = await fetch(`/api/admin/calibrations/${calibration.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal mengambil data sertifikat');
+      }
+      
+      const data = await response.json();
+      
+      console.log('Data kalibrasi:', data); // Debugging
+
+      // Periksa apakah data sertifikat tersedia
+      if (!data.certificate) {
+        // Untuk kalibrasi yang sudah selesai tapi tidak ada sertifikat
+        toast.error('Sertifikat belum dibuat. Pengguna perlu membuat sertifikat terlebih dahulu melalui halaman user.');
+        setActionInProgress(false);
+        return;
+      }
+      
+      // Set data sertifikat ke state
+      setCertificateData({
+        gasType: data.certificate.gasType || '',
+        gasConcentration: data.certificate.gasConcentration || '',
+        gasBalance: data.certificate.gasBalance || '',
+        gasBatchNumber: data.certificate.gasBatchNumber || '',
+        testSensor: data.certificate.testSensor || '',
+        testSpan: data.certificate.testSpan || '',
+        testResult: data.certificate.testResult || '',
+        manufacturer: data.certificate.manufacturer || '',
+        instrumentName: data.certificate.instrumentName || '',
+        modelNumber: data.certificate.modelNumber || '',
+        configuration: data.certificate.configuration || '',
+        approvedBy: data.certificate.approvedBy || '',
+        vendorName: data.certificate.vendorName || '',
+        vendorAddress: data.certificate.vendorAddress || '',
+        vendorPhone: data.certificate.vendorPhone || ''
+      });
+      
+      setShowEditCertificateModal(true);
+    } catch (error: Error | unknown) {
+      console.error('Error fetching certificate:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal mengambil data sertifikat');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+  
+  const closeEditCertificateModal = () => {
+    setShowEditCertificateModal(false);
+    setSelectedCalibration(null);
+  };
+  
+  // Fungsi untuk handle perubahan form edit sertifikat
+  const handleCertificateFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setCertificateData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Fungsi untuk menyimpan perubahan sertifikat
+  const handleUpdateCertificate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedCalibration) return;
+    
+    try {
+      setActionInProgress(true);
+      
+      // Hanya kirim data gas kalibrasi dan hasil test ke API
+      const certificateDataToSend = {
+        gasType: certificateData.gasType,
+        gasConcentration: certificateData.gasConcentration,
+        gasBalance: certificateData.gasBalance,
+        gasBatchNumber: certificateData.gasBatchNumber,
+        testSensor: certificateData.testSensor,
+        testSpan: certificateData.testSpan,
+        testResult: certificateData.testResult
+      };
+      
+      const response = await fetch(`/api/admin/calibrations/${selectedCalibration.id}/certificate`, {
+        method: 'PATCH',
+          headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(certificateDataToSend)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal mengupdate sertifikat');
+      }
+      
+      // Success
+      toast.success('Sertifikat berhasil diperbarui');
+      closeEditCertificateModal();
+      fetchCalibrations(); // Refresh data
+    } catch (error: Error | unknown) {
+      console.error('Error updating certificate:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal mengupdate sertifikat');
     } finally {
       setActionInProgress(false);
     }
@@ -541,41 +744,61 @@ export default function CalibrationPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          {(typeof calibration.status === 'object' && calibration.status.name === 'COMPLETED') || 
+                           calibration.status === 'COMPLETED' ? (
+                            <>
+                              {/* Download sertifikat */}
+                              <a 
+                                href={`/api/admin/calibrations/${calibration.id}/certificate`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                title="Download Certificate"
+                              >
+                                <FiDownload className="inline-block" />
+                              </a>
+                              
+                              {/* Edit sertifikat */}
                           <button
-                            onClick={() => openDetailsModal(calibration)}
-                            className="text-blue-600 hover:text-blue-900 mr-2"
-                            title="View Details"
-                          >
-                            <FiInfo className="inline-block" />
+                                onClick={() => openEditCertificateModal(calibration)}
+                                className="text-green-600 hover:text-green-900 mr-3"
+                                title="Edit Certificate"
+                              >
+                                <FiEdit2 className="inline-block" />
                           </button>
-                          <button
-                            onClick={() => openEditModal(calibration)}
-                            className="text-green-600 hover:text-green-900 mr-2"
-                            title="Edit Calibration"
-                          >
-                            <FiEdit2 className="inline-block" />
-                          </button>
-                          {typeof calibration.status === 'object' ? 
-                            (calibration.status.name !== 'COMPLETED' && (
-                            <button
-                                onClick={() => openCompleteModal(calibration)}
-                                className="text-green-600 hover:text-green-900 mr-2"
-                              title="Mark as Completed"
-                            >
-                              <FiCheckCircle className="inline-block" />
-                            </button>
-                            ))
-                          :
-                            (calibration.status !== 'COMPLETED' && (
+                            </>
+                          ) : (
+                            <>
+                              {/* Tombol untuk mengubah status menjadi completed */}
                               <button
                                 onClick={() => openCompleteModal(calibration)}
-                                className="text-green-600 hover:text-green-900 mr-2"
+                                className="text-green-600 hover:text-green-900 mr-3"
                                 title="Mark as Completed"
                               >
                                 <FiCheckCircle className="inline-block" />
                               </button>
-                            ))
-                          }
+                              
+                              {/* Edit kalibrasi */}
+                          <button
+                            onClick={() => openEditModal(calibration)}
+                                className="text-green-600 hover:text-green-900 mr-3"
+                            title="Edit Calibration"
+                          >
+                            <FiEdit2 className="inline-block" />
+                          </button>
+                            </>
+                          )}
+                          
+                          {/* Tombol hapus untuk semua kalibrasi */}
+                            <button
+                            onClick={() => openDeleteModal(calibration)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete Calibration"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            </button>
                         </td>
                       </tr>
                     ))}
@@ -722,102 +945,6 @@ export default function CalibrationPage() {
           </div>
         )}
         
-        {/* Details Modal */}
-        {showDetailsModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Calibration Details</h3>
-                <button onClick={closeDetailsModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mb-6">
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Calibration ID:</div>
-                  <div>{selectedCalibration.id}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Item:</div>
-                  <div>{selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Serial Number:</div>
-                  <div>{selectedCalibration.item && selectedCalibration.item.serialNumber ? selectedCalibration.item.serialNumber : '-'}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Requestor:</div>
-                  <div>{selectedCalibration.user ? selectedCalibration.user.name : 'Unknown'}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Vendor:</div>
-                  <div>{selectedCalibration.vendor?.name || 'Not assigned'}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Date:</div>
-                  <div>{formatDate(selectedCalibration.calibrationDate)}</div>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <div className="font-semibold text-gray-500">Status:</div>
-                  <div>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(typeof selectedCalibration.status === 'object' ? selectedCalibration.status.name : selectedCalibration.status)}`}>
-                      {typeof selectedCalibration.status === 'object' ? selectedCalibration.status.name.toLowerCase() : selectedCalibration.status.toLowerCase()}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="mt-4">
-                  <div className="font-semibold text-gray-500 mb-1">Results / Notes:</div>
-                  <div className="bg-gray-50 p-3 rounded border border-gray-200 text-sm">
-                    {selectedCalibration.result || 'No results recorded'}
-                  </div>
-                </div>
-                {selectedCalibration.certificateUrl && (
-                  <div className="mt-4">
-                    <div className="font-semibold text-gray-500 mb-1">Certificate:</div>
-                    <div className="flex flex-col space-y-2">
-                    <a 
-                      href={selectedCalibration.certificateUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 flex items-center"
-                    >
-                      <FiFileText className="mr-1" /> View Certificate
-                    </a>
-                      {/* Tombol Download Sertifikat PDF */}
-                      {(selectedCalibration.status === 'COMPLETED' || 
-                        (typeof selectedCalibration.status === 'object' && 
-                          selectedCalibration.status.name === 'COMPLETED')) && (
-                        <a 
-                          href={`/api/admin/calibrations/${selectedCalibration.id}/certificate`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-800 flex items-center"
-                        >
-                          <FiDownload className="mr-1" /> Download Certificate PDF
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end">
-                <button 
-                  type="button" 
-                  onClick={closeDetailsModal}
-                  className="btn btn-secondary"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Complete Modal */}
         {completeModal && selectedCalibration && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -833,7 +960,7 @@ export default function CalibrationPage() {
               
               <div className="mb-4">
                 <p className="text-gray-700">Please enter the details to complete the calibration for: <strong>{selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</strong></p>
-              </div>
+                </div>
               
               <form onSubmit={(e) => { e.preventDefault(); handleComplete(selectedCalibration.id.toString()); }}>
                 <div className="mb-4">
@@ -906,6 +1033,327 @@ export default function CalibrationPage() {
                       </>
                     ) : (
                       'Complete Calibration'
+                    )}
+                  </button>
+                </div>
+              </form>
+                </div>
+                  </div>
+        )}
+        
+        {/* Tambahkan Delete Confirmation Modal */}
+        {showDeleteModal && selectedCalibration && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Hapus Kalibrasi</h3>
+                <button onClick={closeDeleteModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                </div>
+                
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  </div>
+                <h3 className="text-title text-lg leading-6 font-medium text-gray-900 mt-4">
+                  Hapus Kalibrasi
+                </h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500">
+                    Apakah Anda yakin ingin menghapus kalibrasi untuk {selectedCalibration.item?.name || "item ini"}? 
+                    Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait termasuk sertifikat.
+                  </p>
+              </div>
+                <div className="flex justify-center mt-5 gap-3">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                    onClick={closeDeleteModal}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleDeleteCalibration}
+                    disabled={actionInProgress}
+                  >
+                    {actionInProgress ? (
+                      <>
+                        <span className="animate-spin mr-2">⟳</span>
+                        Menghapus...
+                      </>
+                    ) : (
+                      'Hapus'
+                    )}
+                </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Modal Edit Sertifikat */}
+        {showEditCertificateModal && selectedCalibration && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-title text-lg">Edit Sertifikat Kalibrasi</h3>
+                <button onClick={closeEditCertificateModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-subtitle mb-1">Item:</p>
+                <p className="text-body font-medium">{selectedCalibration.item?.name || 'Unknown Item'}</p>
+                <p className="text-xs text-gray-500">{selectedCalibration.item?.serialNumber || 'No S/N'}</p>
+              </div>
+              
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                <p className="text-blue-700 text-sm">
+                  <strong>Catatan:</strong> Hanya informasi Gas Kalibrasi dan Hasil Test yang dapat diedit. Informasi lainnya hanya dapat dilihat.
+                </p>
+              </div>
+              
+              <form onSubmit={handleUpdateCertificate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Informasi Vendor */}
+                <div className="md:col-span-2 mb-2">
+                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Vendor</h4>
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="vendorName" className="form-label">Nama Vendor</label>
+                  <input
+                    type="text"
+                    id="vendorName"
+                    name="vendorName"
+                    value={certificateData.vendorName}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="vendorAddress" className="form-label">Alamat Vendor</label>
+                  <input
+                    type="text"
+                    id="vendorAddress"
+                    name="vendorAddress"
+                    value={certificateData.vendorAddress}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="vendorPhone" className="form-label">Telepon Vendor</label>
+                  <input
+                    type="text"
+                    id="vendorPhone"
+                    name="vendorPhone"
+                    value={certificateData.vendorPhone}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                {/* Informasi Alat */}
+                <div className="md:col-span-2 mb-2 mt-3">
+                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Alat</h4>
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="manufacturer" className="form-label">Pembuat Alat</label>
+                  <input
+                    type="text"
+                    id="manufacturer"
+                    name="manufacturer"
+                    value={certificateData.manufacturer}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="instrumentName" className="form-label">Nama Instrumen</label>
+                  <input
+                    type="text"
+                    id="instrumentName"
+                    name="instrumentName"
+                    value={certificateData.instrumentName}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="modelNumber" className="form-label">Nomor Model</label>
+                  <input
+                    type="text"
+                    id="modelNumber"
+                    name="modelNumber"
+                    value={certificateData.modelNumber}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="configuration" className="form-label">Konfigurasi</label>
+                  <input
+                    type="text"
+                    id="configuration"
+                    name="configuration"
+                    value={certificateData.configuration}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                {/* Informasi Gas Kalibrasi - Bagian yang bisa diedit */}
+                <div className="md:col-span-2 mb-2 mt-3">
+                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Gas Kalibrasi</h4>
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="gasType" className="form-label">Jenis Gas</label>
+                  <input
+                    type="text"
+                    id="gasType"
+                    name="gasType"
+                    value={certificateData.gasType}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="gasConcentration" className="form-label">Konsentrasi Gas</label>
+                  <input
+                    type="text"
+                    id="gasConcentration"
+                    name="gasConcentration"
+                    value={certificateData.gasConcentration}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="gasBalance" className="form-label">Balance Gas</label>
+                  <input
+                    type="text"
+                    id="gasBalance"
+                    name="gasBalance"
+                    value={certificateData.gasBalance}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="gasBatchNumber" className="form-label">Batch/Lot Gas</label>
+                  <input
+                    type="text"
+                    id="gasBatchNumber"
+                    name="gasBatchNumber"
+                    value={certificateData.gasBatchNumber}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                {/* Hasil Test - Bagian yang bisa diedit */}
+                <div className="md:col-span-2 mb-2 mt-3">
+                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Hasil Test</h4>
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="testSensor" className="form-label">Sensor</label>
+                  <input
+                    type="text"
+                    id="testSensor"
+                    name="testSensor"
+                    value={certificateData.testSensor}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="testSpan" className="form-label">Span</label>
+                  <input
+                    type="text"
+                    id="testSpan"
+                    name="testSpan"
+                    value={certificateData.testSpan}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="testResult" className="form-label">Hasil</label>
+                  <select
+                    id="testResult"
+                    name="testResult"
+                    value={certificateData.testResult}
+                    onChange={handleCertificateFormChange}
+                    className="form-input"
+                  >
+                    <option value="Pass">Pass</option>
+                    <option value="Fail">Fail</option>
+                  </select>
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="approvedBy" className="form-label">Disetujui Oleh</label>
+                  <input
+                    type="text"
+                    id="approvedBy"
+                    name="approvedBy"
+                    value={certificateData.approvedBy}
+                    onChange={handleCertificateFormChange}
+                    className="form-input bg-gray-100"
+                    disabled
+                  />
+                </div>
+                
+                <div className="md:col-span-2 flex justify-end mt-6 space-x-3">
+                  <button
+                    type="button"
+                    onClick={closeEditCertificateModal}
+                    className="btn btn-secondary"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={actionInProgress}
+                  >
+                    {actionInProgress ? (
+                      <>
+                        <span className="animate-spin mr-2">⟳</span>
+                        Menyimpan...
+                      </>
+                    ) : (
+                      'Simpan Perubahan'
                     )}
                   </button>
                 </div>

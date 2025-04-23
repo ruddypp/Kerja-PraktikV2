@@ -463,7 +463,7 @@ export default function AdminInventoryPage() {
       <div className="p-6 bg-white rounded shadow">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-          <button
+            <button
             onClick={() => {
               setModalOpen(true);
               setFormData(defaultFormData);
@@ -482,7 +482,7 @@ export default function AdminInventoryPage() {
 
         {/* Filter Section */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
+              <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-900 mb-1">Search</label>
             <input
               type="text"
@@ -534,7 +534,7 @@ export default function AdminInventoryPage() {
               <span className="text-gray-900 font-bold">{count as number}</span>
       </div>
           ))}
-        </div>
+      </div>
 
         {error && (
           <div className="bg-red-50 p-4 rounded-md mb-4">
@@ -648,7 +648,7 @@ export default function AdminInventoryPage() {
               >
                 Next
               </button>
-            </div>
+                </div>
             <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                 <div>
                 <p className="text-sm text-gray-900">
@@ -657,9 +657,9 @@ export default function AdminInventoryPage() {
                   <span className="font-medium">{totalItems}</span> results
                 </p>
                 </div>
-              <div>
+                <div>
                 <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button
+                <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     className={`relative inline-flex items-center rounded-l-md px-2 py-2 ${
@@ -671,11 +671,11 @@ export default function AdminInventoryPage() {
                     <span className="sr-only">Previous</span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  </svg>
+                </button>
                   
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
+                <button
                       key={page}
                       onClick={() => handlePageChange(page)}
                       className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
@@ -700,13 +700,13 @@ export default function AdminInventoryPage() {
                     <span className="sr-only">Next</span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  </svg>
+                </button>
                 </nav>
               </div>
             </div>
-          </div>
-        )}
+        </div>
+      )}
       </div>
 
 {/* Modal for creating/editing items */}
@@ -752,7 +752,7 @@ export default function AdminInventoryPage() {
 
                       {/* Name */}
                       <div className="relative">
-                        <input
+                <input 
                           type="text"
                           name="name"
                           id="name"
@@ -768,12 +768,12 @@ export default function AdminInventoryPage() {
                           className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
                         >
                           Product Name
-                        </label>
+              </label>
                         {formErrors.name && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                         )}
-                      </div>
-              
+            </div>
+            
                       {/* Part Number */}
                       <div className="relative">
                         <input
@@ -898,7 +898,7 @@ export default function AdminInventoryPage() {
                       </div>
 
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <button
+              <button 
                           type="submit"
                           disabled={formSubmitting}
                           className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
@@ -921,9 +921,9 @@ export default function AdminInventoryPage() {
                           type="button"
                           onClick={() => setModalOpen(false)}
                           className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:w-auto sm:text-sm"
-                        >
-                          Cancel
-                        </button>
+              >
+                Cancel
+              </button>
                       </div>
                     </form>
                   </div>
@@ -964,10 +964,10 @@ export default function AdminInventoryPage() {
                 </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
+              <button 
                   type="button"
                   disabled={formSubmitting}
-                  onClick={handleDelete}
+                onClick={handleDelete}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   {formSubmitting ? 'Deleting...' : 'Delete'}
@@ -978,7 +978,7 @@ export default function AdminInventoryPage() {
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancel
-                </button>
+              </button>
               </div>
             </div>
           </div>

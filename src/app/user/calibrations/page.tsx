@@ -615,7 +615,7 @@ export default function UserCalibrationPage() {
         onChange={handleFilterChange}
         className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
       />
-    </div>
+            </div>
 
     {/* From Date */}
     <div>
@@ -628,7 +628,7 @@ export default function UserCalibrationPage() {
         onChange={handleFilterChange}
         className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
       />
-    </div>
+            </div>
 
     {/* To Date */}
     <div>
@@ -641,7 +641,7 @@ export default function UserCalibrationPage() {
         onChange={handleFilterChange}
         className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
       />
-    </div>
+              </div>
 
     {/* Reset Button */}
     <div className="flex items-end">
@@ -652,10 +652,10 @@ export default function UserCalibrationPage() {
       >
         Reset Filters
       </button>
-    </div>
+            </div>
   </div>
-</div>
-
+        </div>
+        
         
         {/* All Calibrations Section */}
         <div className="mb-8">
@@ -761,9 +761,9 @@ export default function UserCalibrationPage() {
         <h2 className="text-lg font-semibold">New Calibration</h2>
         <button onClick={closeCalibrationModal} className="text-white hover:text-gray-200">
           <FiX size={20} />
-        </button>
-      </div>
-
+                </button>
+              </div>
+              
       {/* Form */}
       <form onSubmit={handleCalibrationSubmit} className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -774,22 +774,22 @@ export default function UserCalibrationPage() {
             {/* Item Select */}
             <div>
               <label className="block mb-1 text-sm font-medium text-gray-700">Item</label>
-              <select
+                  <select
                 name="itemSerial"
                 value={calibrationForm.itemSerial}
                 onChange={handleCalibrationFormChange}
-                required
+                    required
                 className="form-select w-full text-sm"
               >
                 <option value="">Select Item</option>
                 {items.map((item) => (
                   <option key={item.serialNumber} value={item.serialNumber}>
                     {item.name} - {item.serialNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
             {/* Other Inputs */}
             {[
               { name: 'manufacturer', placeholder: 'RAE Systems', label: 'Nama Produk' },
@@ -831,8 +831,8 @@ export default function UserCalibrationPage() {
             {/* Vendor */}
             <div>
               <label className="block mb-1 text-sm font-medium text-gray-700">Vendor</label>
-              <select
-                name="vendorId"
+                  <select
+                    name="vendorId"
                 value={calibrationForm.vendorId}
                 onChange={handleCalibrationFormChange}
                 required
@@ -840,13 +840,13 @@ export default function UserCalibrationPage() {
               >
                 <option value="">Select Vendor</option>
                 {vendors.map((vendor) => (
-                  <option key={vendor.id} value={vendor.id}>
+                      <option key={vendor.id} value={vendor.id}>
                     {vendor.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
             {/* Other Inputs */}
             {[
               { name: 'address', label: 'Address', placeholder: 'Vendor address' },
@@ -862,8 +862,8 @@ export default function UserCalibrationPage() {
                   onChange={handleCalibrationFormChange}
                   placeholder={placeholder}
                   className="form-input w-full text-sm"
-                />
-              </div>
+                  />
+                </div>
             ))}
 
             {/* Notes */}
@@ -883,24 +883,24 @@ export default function UserCalibrationPage() {
 
         {/* Buttons */}
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
+                  <button 
+                    type="button" 
             onClick={closeCalibrationModal}
             className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
             className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
-          >
+                  >
             Start Calibration
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
         
         {/* Certificate Modal */}
         {showCertificateModal && selectedCalibration && (
@@ -989,8 +989,8 @@ export default function UserCalibrationPage() {
         <button onClick={closeCompleteModal} className="text-white">
           <FiX size={20} />
         </button>
-      </div>
-      
+                </div>
+                
       <div className="overflow-y-auto flex-grow">
         <form onSubmit={handleCompleteSubmit} className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1037,7 +1037,7 @@ export default function UserCalibrationPage() {
                   />
                 </div>
                 
-                <div>
+                  <div>
                   <label className="block mb-1 text-sm font-medium text-gray-900">Batch/Lot No.</label>
                   <input
                     type="text"
@@ -1048,8 +1048,8 @@ export default function UserCalibrationPage() {
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
                     placeholder="Contoh: WO261451-1"
                   />
+                  </div>
                 </div>
-              </div>
               
               <h3 className="font-medium text-gray-700">Instrument Details</h3>
               
@@ -1065,8 +1065,8 @@ export default function UserCalibrationPage() {
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
                     placeholder="Contoh: Digital Multimeter"
                   />
-                </div>
-                
+              </div>
+              
                 <div className="mb-2">
                   <label className="block mb-1 text-sm font-medium text-gray-900">Model Number</label>
                   <input
@@ -1203,7 +1203,7 @@ export default function UserCalibrationPage() {
           </div>
           
           <div className="mt-4 flex justify-end space-x-2">
-            <button
+                <button
               type="button"
               onClick={closeCompleteModal}
               className="px-3 py-1.5 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 text-sm"
@@ -1215,13 +1215,13 @@ export default function UserCalibrationPage() {
               className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
             >
               Complete Calibration & Generate Certificate
-            </button>
+                </button>
           </div>
         </form>
-      </div>
-    </div>
-  </div>
-)}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
