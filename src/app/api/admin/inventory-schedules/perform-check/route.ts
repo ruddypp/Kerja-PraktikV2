@@ -79,10 +79,10 @@ export async function POST(request: Request) {
         }
       });
     }
-    
-    // Create activity log
+      
+      // Create activity log
     await prisma.activityLog.create({
-      data: {
+        data: {
           userId: user.id,
         action: 'INVENTORY_CHECK',
         details: `Performed scheduled inventory check`

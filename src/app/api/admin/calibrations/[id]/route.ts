@@ -29,13 +29,13 @@ export async function GET(
       where: { id },
       include: {
         item: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
         vendor: true,
         certificate: true,
         statusLogs: {
@@ -97,9 +97,9 @@ export async function PATCH(
     // Verifikasi kalibrasi ada
     const calibration = await prisma.calibration.findUnique({
       where: { id },
-      include: {
-        item: true,
-        user: true
+          include: {
+            item: true,
+            user: true
       }
     });
     
@@ -143,13 +143,13 @@ export async function PATCH(
     const updatedCalibration = await prisma.calibration.update({
       where: { id },
       data: updateData,
-      include: {
-        item: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+          include: {
+            item: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
           }
         },
         vendor: true,
@@ -215,7 +215,7 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    
+
     // Verify calibration exists
     const calibration = await prisma.calibration.findUnique({
       where: { id },
@@ -223,14 +223,14 @@ export async function DELETE(
         item: true
       }
     });
-    
+
     if (!calibration) {
       return NextResponse.json(
         { error: 'Calibration not found' },
         { status: 404 }
       );
     }
-    
+
     // If item is in calibration, set it back to available
     if (calibration.item.status === ItemStatus.IN_CALIBRATION) {
       await prisma.item.update({
@@ -267,7 +267,7 @@ export async function DELETE(
     await prisma.calibration.delete({
       where: { id }
     });
-    
+
     // Create activity log
     await prisma.activityLog.create({
       data: {

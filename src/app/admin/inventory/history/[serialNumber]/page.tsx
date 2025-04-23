@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiArrowLeft, FiFileText, FiActivity, FiTool, FiCalendar } from 'react-icons/fi';
+import { FiArrowLeft, FiFileText, FiActivity, FiTool, FiCalendar, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 // Types
 interface Item {
@@ -78,12 +78,21 @@ interface Maintenance {
   createdAt: string;
 }
 
+interface Pagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalItems: number;
+  type: string;
+}
+
 interface HistoryData {
   item: Item;
   itemHistory: ItemHistory[];
   activityLogs: ActivityLog[];
   calibrations: Calibration[];
   maintenances: Maintenance[];
+  pagination: Pagination;
 }
 
 export default function ItemHistoryPage() {
@@ -94,12 +103,20 @@ export default function ItemHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   useEffect(() => {
     const fetchItemHistory = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/items/history?serialNumber=${encodeURIComponent(serialNumber)}`);
+        const type = activeTab === 'all' ? 'all' : 
+                   activeTab === 'history' ? 'history' : 
+                   activeTab === 'calibrations' ? 'calibration' : 
+                   activeTab === 'maintenances' ? 'maintenance' : 'activity';
+        
+        const url = `/api/admin/items/history?serialNumber=${encodeURIComponent(serialNumber)}&page=${currentPage}&limit=${itemsPerPage}&type=${type}`;
+        const res = await fetch(url);
         
         if (!res.ok) {
           const errorData = await res.json();
@@ -121,7 +138,16 @@ export default function ItemHistoryPage() {
     if (serialNumber) {
       fetchItemHistory();
     }
-  }, [serialNumber]);
+  }, [serialNumber, activeTab, currentPage, itemsPerPage]);
+  
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setCurrentPage(1); // Reset to first page when changing tabs
+  };
+  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
   
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -134,7 +160,7 @@ export default function ItemHistoryPage() {
         <div className="flex items-center mb-6">
           <Link 
             href="/admin/inventory" 
-            className="flex items-center text-green-600 hover:text-green-800"
+            className="flex items-center text-green-600 hover:text-green-800 transition-colors duration-200 bg-green-50 hover:bg-green-100 px-4 py-2 rounded-md"
           >
             <FiArrowLeft className="mr-2" />
             Back to Inventory
@@ -150,9 +176,9 @@ export default function ItemHistoryPage() {
           )}
         </h1>
         
-        {loading ? (
+        {loading && !historyData ? (
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
           </div>
         ) : error ? (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
@@ -190,7 +216,21 @@ export default function ItemHistoryPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Status</p>
-                  <p className="font-medium">{historyData.item.status}</p>
+                  <p className="font-medium">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      historyData.item.status === 'AVAILABLE' 
+                        ? 'bg-green-100 text-green-800'
+                        : historyData.item.status === 'IN_USE'
+                        ? 'bg-blue-100 text-blue-800'
+                        : historyData.item.status === 'IN_CALIBRATION'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : historyData.item.status === 'IN_MAINTENANCE'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {historyData.item.status}
+                    </span>
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Last Verified</p>
@@ -208,7 +248,7 @@ export default function ItemHistoryPage() {
               <div className="border-b border-gray-200">
                 <nav className="flex -mb-px">
                   <button
-                    onClick={() => setActiveTab('all')}
+                    onClick={() => handleTabChange('all')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'all'
                         ? 'border-green-500 text-green-600'
@@ -219,7 +259,7 @@ export default function ItemHistoryPage() {
                     All Activities
                   </button>
                   <button
-                    onClick={() => setActiveTab('history')}
+                    onClick={() => handleTabChange('history')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'history'
                         ? 'border-green-500 text-green-600'
@@ -230,7 +270,7 @@ export default function ItemHistoryPage() {
                     Item History
                   </button>
                   <button
-                    onClick={() => setActiveTab('calibrations')}
+                    onClick={() => handleTabChange('calibrations')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'calibrations'
                         ? 'border-green-500 text-green-600'
@@ -241,7 +281,7 @@ export default function ItemHistoryPage() {
                     Calibrations
                   </button>
                   <button
-                    onClick={() => setActiveTab('maintenances')}
+                    onClick={() => handleTabChange('maintenances')}
                     className={`px-6 py-3 border-b-2 text-sm font-medium ${
                       activeTab === 'maintenances'
                         ? 'border-green-500 text-green-600'
@@ -255,275 +295,385 @@ export default function ItemHistoryPage() {
               </div>
               
               <div className="p-6">
-                {/* All Activities */}
-                {activeTab === 'all' && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">All Activities</h3>
-                    {historyData.activityLogs.length === 0 && 
-                     historyData.itemHistory.length === 0 && 
-                     historyData.calibrations.length === 0 && 
-                     historyData.maintenances.length === 0 ? (
-                      <p className="text-gray-500">No activity records found for this item.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Activity Type
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Details
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                User
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {/* ActivityLogs */}
-                            {historyData.activityLogs.map(log => (
-                              <tr key={`activity-${log.id}`}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(log.createdAt)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {log.action}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {log.details || 'N/A'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {log.user.name}
-                                </td>
-                              </tr>
-                            ))}
-                            
-                            {/* ItemHistory */}
-                            {historyData.itemHistory.map(history => (
-                              <tr key={`history-${history.id}`}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(history.startDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {history.action}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {history.details || 'N/A'}
-                                  {history.endDate && (
-                                    <span className="ml-2 text-green-600">
-                                      (Completed: {formatDate(history.endDate)})
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  System
-                                </td>
-                              </tr>
-                            ))}
-                            
-                            {/* Calibrations */}
-                            {historyData.calibrations.map(cal => (
-                              <tr key={`calibration-${cal.id}`}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(cal.createdAt)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  CALIBRATION ({cal.status})
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  Vendor: {cal.vendor.name} {cal.notes ? `- ${cal.notes}` : ''}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {cal.user.name}
-                                </td>
-                              </tr>
-                            ))}
-                            
-                            {/* Maintenances */}
-                            {historyData.maintenances.map(maintenance => (
-                              <tr key={`maintenance-${maintenance.id}`}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(maintenance.startDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  MAINTENANCE ({maintenance.status})
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {maintenance.issue}
-                                  {maintenance.endDate && (
-                                    <span className="ml-2 text-green-600">
-                                      (Completed: {formatDate(maintenance.endDate)})
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  System
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                {loading && historyData && (
+                  <div className="flex justify-center items-center py-10">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
                   </div>
                 )}
                 
-                {/* Item History */}
-                {activeTab === 'history' && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Item History</h3>
-                    {historyData.itemHistory.length === 0 ? (
-                      <p className="text-gray-500">No history records found for this item.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Action
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Details
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {historyData.itemHistory.map(history => (
-                              <tr key={history.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(history.startDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {history.action}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {history.details || 'N/A'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {history.endDate ? 'Completed' : 'Active'}
-                                  {history.endDate && <span className="ml-2">({formatDate(history.endDate)})</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                {!loading && (
+                  <>
+                    {/* All Activities */}
+                    {activeTab === 'all' && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">All Activities</h3>
+                        {historyData.activityLogs.length === 0 && 
+                         historyData.itemHistory.length === 0 && 
+                         historyData.calibrations.length === 0 && 
+                         historyData.maintenances.length === 0 ? (
+                          <p className="text-gray-500">No activity records found for this item.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Activity Type
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Details
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    User
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {/* ActivityLogs */}
+                                {historyData.activityLogs.map(log => (
+                                  <tr key={`activity-${log.id}`} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(log.createdAt)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        {log.action}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {log.details || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {log.user.name}
+                                    </td>
+                                  </tr>
+                                ))}
+                                
+                                {/* ItemHistory */}
+                                {historyData.itemHistory.map(history => (
+                                  <tr key={`history-${history.id}`} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(history.startDate)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        {history.action}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {history.details || 'N/A'}
+                                      {history.endDate && (
+                                        <span className="ml-2 text-green-600">
+                                          (Completed: {formatDate(history.endDate)})
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      System
+                                    </td>
+                                  </tr>
+                                ))}
+                                
+                                {/* Calibrations */}
+                                {historyData.calibrations.map(cal => (
+                                  <tr key={`calibration-${cal.id}`} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(cal.createdAt)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        CALIBRATION ({cal.status})
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {cal.user.name}
+                                    </td>
+                                  </tr>
+                                ))}
+                                
+                                {/* Maintenances */}
+                                {historyData.maintenances.map(maintenance => (
+                                  <tr key={`maintenance-${maintenance.id}`} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(maintenance.startDate)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                        MAINTENANCE ({maintenance.status})
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {maintenance.issue}
+                                      {maintenance.endDate && (
+                                        <span className="ml-2 text-green-600">
+                                          (Completed: {formatDate(maintenance.endDate)})
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      System
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
-                
-                {/* Calibrations */}
-                {activeTab === 'calibrations' && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Calibrations</h3>
-                    {historyData.calibrations.length === 0 ? (
-                      <p className="text-gray-500">No calibration records found for this item.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Vendor
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Requested By
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Notes
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {historyData.calibrations.map(cal => (
-                              <tr key={cal.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(cal.createdAt)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {cal.status}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {cal.vendor.name}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {cal.user.name}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {cal.notes || 'N/A'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    
+                    {/* Item History */}
+                    {activeTab === 'history' && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Item History</h3>
+                        {historyData.itemHistory.length === 0 ? (
+                          <p className="text-gray-500">No history records found for this item.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Action
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Details
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {historyData.itemHistory.map(history => (
+                                  <tr key={history.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(history.startDate)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        {history.action}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {history.details || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        history.endDate 
+                                          ? 'bg-green-100 text-green-800' 
+                                          : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {history.endDate ? 'Completed' : 'Active'}
+                                      </span>
+                                      {history.endDate && <span className="ml-2">({formatDate(history.endDate)})</span>}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
-                
-                {/* Maintenances */}
-                {activeTab === 'maintenances' && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Maintenances</h3>
-                    {historyData.maintenances.length === 0 ? (
-                      <p className="text-gray-500">No maintenance records found for this item.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Start Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                End Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Issue
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {historyData.maintenances.map(maintenance => (
-                              <tr key={maintenance.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(maintenance.startDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {maintenance.endDate ? formatDate(maintenance.endDate) : 'Ongoing'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {maintenance.status}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                  {maintenance.issue}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    
+                    {/* Calibrations */}
+                    {activeTab === 'calibrations' && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Calibrations</h3>
+                        {historyData.calibrations.length === 0 ? (
+                          <p className="text-gray-500">No calibration records found for this item.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Vendor
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Requested By
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Notes
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {historyData.calibrations.map(cal => (
+                                  <tr key={cal.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(cal.createdAt)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        cal.status === 'COMPLETED' 
+                                          ? 'bg-green-100 text-green-800' 
+                                          : cal.status === 'CANCELLED'
+                                          ? 'bg-red-100 text-red-800'
+                                          : cal.status === 'IN_PROGRESS'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {cal.status}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {cal.vendor?.name || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {cal.user.name}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {cal.notes || 'N/A'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                    
+                    {/* Maintenances */}
+                    {activeTab === 'maintenances' && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Maintenances</h3>
+                        {historyData.maintenances.length === 0 ? (
+                          <p className="text-gray-500">No maintenance records found for this item.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Start Date
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    End Date
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Issue
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {historyData.maintenances.map(maintenance => (
+                                  <tr key={maintenance.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(maintenance.startDate)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {maintenance.endDate ? formatDate(maintenance.endDate) : 'Ongoing'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        maintenance.status === 'COMPLETED' 
+                                          ? 'bg-green-100 text-green-800' 
+                                          : maintenance.status === 'CANCELLED'
+                                          ? 'bg-red-100 text-red-800'
+                                          : maintenance.status === 'IN_PROGRESS'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {maintenance.status}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                      {maintenance.issue}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Pagination Controls */}
+                    {historyData.pagination && historyData.pagination.totalPages > 1 && (
+                      <div className="mt-6 flex justify-between items-center">
+                        <div className="text-sm text-gray-500">
+                          Showing {historyData.pagination.page} of {historyData.pagination.totalPages} pages
+                          ({historyData.pagination.totalItems} items total)
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-2 rounded-md ${
+                              currentPage === 1
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-green-500 text-white hover:bg-green-600'
+                            }`}
+                          >
+                            <FiChevronLeft />
+                          </button>
+                          
+                          {/* Page Numbers */}
+                          {Array.from({ length: Math.min(5, historyData.pagination.totalPages) }, (_, i) => {
+                            // Calculate page numbers to show (centered around current page if possible)
+                            let pageNum;
+                            if (historyData.pagination.totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= historyData.pagination.totalPages - 2) {
+                              pageNum = historyData.pagination.totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handlePageChange(pageNum)}
+                                className={`px-3 py-2 rounded-md ${
+                                  currentPage === pageNum
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                          
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === historyData.pagination.totalPages}
+                            className={`px-3 py-2 rounded-md ${
+                              currentPage === historyData.pagination.totalPages
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-green-500 text-white hover:bg-green-600'
+                            }`}
+                          >
+                            <FiChevronRight />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

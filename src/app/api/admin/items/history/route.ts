@@ -1,6 +1,40 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { Item, ItemHistory, ActivityLog, Calibration, Maintenance } from '@prisma/client';
+
+type ActivityLogWithUser = ActivityLog & {
+  user: {
+    id: string;
+    name: string;
+  };
+};
+
+type CalibrationWithRelations = Calibration & {
+  vendor: {
+    id: string;
+    name: string;
+  } | null;
+  user: {
+    id: string;
+    name: string;
+  };
+};
+
+interface PaginatedResponse {
+  item: Item;
+  itemHistory: ItemHistory[];
+  activityLogs: ActivityLogWithUser[];
+  calibrations: CalibrationWithRelations[];
+  maintenances: Maintenance[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalItems: number;
+    type: string;
+  };
+}
 
 // GET item history by serialNumber
 export async function GET(request: Request) {
@@ -11,9 +45,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get serialNumber from query params
+    // Get query params
     const { searchParams } = new URL(request.url);
     const serialNumber = searchParams.get('serialNumber');
+    
+    // New pagination and filtering parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const type = searchParams.get('type') || 'all'; // all, history, activity, calibration, maintenance
     
     if (!serialNumber) {
       return NextResponse.json(
@@ -34,57 +73,124 @@ export async function GET(request: Request) {
       );
     }
     
-    // Get item history
-    const itemHistory = await prisma.itemHistory.findMany({
-      where: { itemSerial: serialNumber },
-      orderBy: { startDate: 'desc' }
-    });
+    // Calculate pagination offset
+    const skip = (page - 1) * limit;
     
-    // Get activity logs related to the item
-    const activityLogs = await prisma.activityLog.findMany({
-      where: { itemSerial: serialNumber },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    // Get calibrations for the item
-    const calibrations = await prisma.calibration.findMany({
-      where: { itemSerial: serialNumber },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        vendor: true,
-        user: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
-    
-    // Get maintenances for the item
-    const maintenances = await prisma.maintenance.findMany({
-      where: { itemSerial: serialNumber },
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    // Combine all history data
-    const history = {
+    // Create base response with item info
+    const response: PaginatedResponse = {
       item: existingItem,
-      itemHistory,
-      activityLogs,
-      calibrations,
-      maintenances
+      itemHistory: [],
+      activityLogs: [],
+      calibrations: [],
+      maintenances: [],
+      pagination: {
+        page,
+        limit,
+        totalPages: 1,
+        totalItems: 0,
+        type
+      }
     };
     
-    return NextResponse.json(history);
+    // Only fetch data based on the requested type to improve performance
+    if (type === 'all' || type === 'history') {
+      const itemHistory = await prisma.itemHistory.findMany({
+        where: { itemSerial: serialNumber },
+        orderBy: { startDate: 'desc' },
+        take: type === 'history' ? limit : 5, // Limit results if showing all types
+        skip: type === 'history' ? skip : 0
+      });
+      
+      if (type === 'history') {
+        const count = await prisma.itemHistory.count({
+          where: { itemSerial: serialNumber }
+        });
+        
+        response.pagination.totalItems = count;
+        response.pagination.totalPages = Math.ceil(count / limit);
+      }
+      
+      response.itemHistory = itemHistory;
+    }
+    
+    if (type === 'all' || type === 'activity') {
+      const activityLogs = await prisma.activityLog.findMany({
+        where: { itemSerial: serialNumber },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: type === 'activity' ? limit : 5, // Limit results if showing all types
+        skip: type === 'activity' ? skip : 0
+      });
+      
+      if (type === 'activity') {
+        const count = await prisma.activityLog.count({
+          where: { itemSerial: serialNumber }
+        });
+        
+        response.pagination.totalItems = count;
+        response.pagination.totalPages = Math.ceil(count / limit);
+      }
+      
+      response.activityLogs = activityLogs as ActivityLogWithUser[];
+    }
+    
+    if (type === 'all' || type === 'calibration') {
+      const calibrations = await prisma.calibration.findMany({
+        where: { itemSerial: serialNumber },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          vendor: true,
+          user: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        take: type === 'calibration' ? limit : 5, // Limit results if showing all types
+        skip: type === 'calibration' ? skip : 0
+      });
+      
+      if (type === 'calibration') {
+        const count = await prisma.calibration.count({
+          where: { itemSerial: serialNumber }
+        });
+        
+        response.pagination.totalItems = count;
+        response.pagination.totalPages = Math.ceil(count / limit);
+      }
+      
+      response.calibrations = calibrations as CalibrationWithRelations[];
+    }
+    
+    if (type === 'all' || type === 'maintenance') {
+      const maintenances = await prisma.maintenance.findMany({
+        where: { itemSerial: serialNumber },
+        orderBy: { createdAt: 'desc' },
+        take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
+        skip: type === 'maintenance' ? skip : 0
+      });
+      
+      if (type === 'maintenance') {
+        const count = await prisma.maintenance.count({
+          where: { itemSerial: serialNumber }
+        });
+        
+        response.pagination.totalItems = count;
+        response.pagination.totalPages = Math.ceil(count / limit);
+      }
+      
+      response.maintenances = maintenances;
+    }
+    
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching item history:', error);
     return NextResponse.json(

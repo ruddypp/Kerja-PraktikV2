@@ -1,26 +1,29 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-
-interface Params {
-  id: string;
-}
+import { prisma } from '@/lib/prisma';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
 // GET a specific inventory schedule
 export async function GET(
   request: Request,
-  { params }: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Verify admin authentication
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
-    if (isNaN(id)) {
+    const { id } = params;
+    
+    if (!id) {
       return NextResponse.json(
-        { error: 'Invalid schedule ID' },
+        { error: 'Schedule ID is required' },
         { status: 400 }
       );
     }
     
-    const schedule = await prisma.inventorySchedule.findUnique({
+    const schedule = await prisma.inventoryCheck.findUnique({
       where: { id }
     });
     
@@ -44,54 +47,29 @@ export async function GET(
 // PATCH update an inventory schedule
 export async function PATCH(
   request: Request,
-  { params }: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Verify admin authentication
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
-    if (isNaN(id)) {
+    const { id } = params;
+    
+    if (!id) {
       return NextResponse.json(
-        { error: 'Invalid schedule ID' },
+        { error: 'Schedule ID is required' },
         { status: 400 }
       );
     }
     
     const body = await request.json();
-    const { name, description, frequency, nextDate } = body;
-    
-    // Validation
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Schedule name is required' },
-        { status: 400 }
-      );
-    }
-    
-    if (!frequency) {
-      return NextResponse.json(
-        { error: 'Frequency is required' },
-        { status: 400 }
-      );
-    }
-    
-    if (!nextDate) {
-      return NextResponse.json(
-        { error: 'Next date is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Validate frequency
-    const validFrequencies = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
-    if (!validFrequencies.includes(frequency)) {
-      return NextResponse.json(
-        { error: 'Invalid frequency. Must be MONTHLY, QUARTERLY, or YEARLY' },
-        { status: 400 }
-      );
-    }
+    const { name, description, nextDate } = body;
     
     // Check if schedule exists
-    const existingSchedule = await prisma.inventorySchedule.findUnique({
+    const existingSchedule = await prisma.inventoryCheck.findUnique({
       where: { id }
     });
     
@@ -103,13 +81,11 @@ export async function PATCH(
     }
     
     // Update schedule
-    const updatedSchedule = await prisma.inventorySchedule.update({
+    const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
-        name,
-        description,
-        frequency: frequency as any,
-        nextDate: new Date(nextDate)
+        notes: description,
+        scheduledDate: new Date(nextDate)
       }
     });
     
@@ -126,20 +102,26 @@ export async function PATCH(
 // DELETE an inventory schedule
 export async function DELETE(
   request: Request,
-  { params }: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    // Verify admin authentication
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
-    if (isNaN(id)) {
+    const { id } = params;
+    
+    if (!id) {
       return NextResponse.json(
-        { error: 'Invalid schedule ID' },
+        { error: 'Schedule ID is required' },
         { status: 400 }
       );
     }
     
     // Check if schedule exists
-    const schedule = await prisma.inventorySchedule.findUnique({
+    const schedule = await prisma.inventoryCheck.findUnique({
       where: { id }
     });
     
@@ -150,11 +132,27 @@ export async function DELETE(
       );
     }
     
-    await prisma.inventorySchedule.delete({
+    // Delete related inventory check items first (if any)
+    await prisma.inventoryCheckItem.deleteMany({
+      where: { checkId: id }
+    });
+    
+    // Now delete the inventory check
+    await prisma.inventoryCheck.delete({
       where: { id }
     });
     
+    // Create activity log
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'DELETED_INVENTORY_CHECK',
+        details: `Deleted inventory check scheduled for ${new Date(schedule.scheduledDate).toLocaleDateString()}`
+      }
+    });
+    
     return NextResponse.json({ 
+      success: true,
       message: 'Schedule deleted successfully'
     });
   } catch (error) {

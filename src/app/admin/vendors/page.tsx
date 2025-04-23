@@ -479,15 +479,15 @@ export default function VendorsPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
-                  <button
-                    type="button"
+                  <button 
+                    type="button" 
                     onClick={closeAddModal}
                     className="btn btn-outlined order-2 sm:order-1"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
+                  <button 
+                    type="submit" 
                     className="btn btn-primary order-1 sm:order-2"
                   >
                     Add Vendor
@@ -592,15 +592,15 @@ export default function VendorsPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
-                  <button
-                    type="button"
+                  <button 
+                    type="button" 
                     onClick={closeEditModal}
                     className="btn btn-outlined order-2 sm:order-1"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
+                  <button 
+                    type="submit" 
                     className="btn btn-primary order-1 sm:order-2"
                   >
                     Update Vendor
@@ -618,7 +618,7 @@ export default function VendorsPage() {
               <div className="mt-3 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <FiTrash2 className="h-6 w-6 text-red-600" />
-                </div>
+              </div>
                 <h3 className="text-title text-lg leading-6 font-medium text-gray-900 mt-4">
                   Delete Vendor
                 </h3>
@@ -628,23 +628,23 @@ export default function VendorsPage() {
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
                     <span className="font-medium">Catatan:</span> Vendor dengan kalibrasi aktif (status In Calibration) tidak dapat dihapus. Vendor dengan kalibrasi yang sudah selesai (COMPLETED) masih dapat dihapus.
-                  </p>
-                </div>
+                </p>
+              </div>
                 <div className="flex justify-center mt-5 gap-3">
-                  <button
-                    type="button"
+                <button 
+                  type="button" 
                     className="btn btn-outlined"
-                    onClick={closeDeleteModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
+                  onClick={closeDeleteModal}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
                     className="btn btn-danger"
-                    onClick={handleDeleteSubmit}
-                  >
+                  onClick={handleDeleteSubmit}
+                >
                     Delete
-                  </button>
+                </button>
                 </div>
               </div>
             </div>
