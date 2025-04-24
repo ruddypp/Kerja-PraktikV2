@@ -3,74 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
-import MaintenanceForm from "@/components/maintenance/MaintenanceForm";
 import DashboardLayout from "@/components/DashboardLayout";
-
-interface ServiceReportPart {
-  id: string;
-  itemNumber: number;
-  description: string;
-  snPnOld: string;
-  snPnNew: string;
-}
-
-interface ServiceReport {
-  id: string;
-  reportNumber: string;
-  customer: string;
-  location: string;
-  brand: string;
-  model: string;
-  dateIn: string;
-  reasonForReturn: string;
-  findings: string;
-  action: string;
-  sensorCO: boolean;
-  sensorH2S: boolean;
-  sensorO2: boolean;
-  sensorLEL: boolean;
-  lampClean: boolean;
-  lampReplace: boolean;
-  pumpTested: boolean;
-  pumpRebuilt: boolean;
-  pumpReplaced: boolean;
-  pumpClean: boolean;
-  instrumentCalibrate: boolean;
-  instrumentUpgrade: boolean;
-  instrumentCharge: boolean;
-  instrumentClean: boolean;
-  instrumentSensorAssembly: boolean;
-  parts: ServiceReportPart[];
-}
-
-interface TechnicalReportPart {
-  id: string;
-  itemNumber: number;
-  namaUnit: string;
-  description: string;
-  quantity: number;
-  unitPrice: number | null;
-  totalPrice: number | null;
-}
-
-interface TechnicalReport {
-  id: string;
-  csrNumber: string;
-  deliveryTo: string;
-  quoNumber: string;
-  dateReport: string;
-  techSupport: string;
-  dateIn: string;
-  estimateWork: string;
-  reasonForReturn: string;
-  findings: string;
-  beforePhotoUrl: string | null;
-  afterPhotoUrl: string | null;
-  termsConditions: string;
-  partsList: TechnicalReportPart[];
-}
 
 interface MaintenanceData {
   id: string;
@@ -84,8 +19,13 @@ interface MaintenanceData {
     partNumber: string;
     description: string;
   };
-  serviceReport: ServiceReport | null;
-  technicalReport: TechnicalReport | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  serviceReport: any;
+  technicalReport: any;
   statusLogs: Array<{
     id: string;
     status: string;
@@ -97,7 +37,7 @@ interface MaintenanceData {
   }>;
 }
 
-export default function MaintenanceDetailPage({
+export default function AdminMaintenanceDetailPage({
   params,
 }: {
   params: { id: string };
@@ -105,7 +45,7 @@ export default function MaintenanceDetailPage({
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { id } = params;
+  const id = React.use(params).id;
 
   useEffect(() => {
     if (id) {
@@ -116,7 +56,7 @@ export default function MaintenanceDetailPage({
   const fetchMaintenanceDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/user/maintenance/${id}`);
+      const response = await fetch(`/api/admin/maintenance/${id}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -176,7 +116,7 @@ export default function MaintenanceDetailPage({
               Data maintenance yang Anda cari tidak ditemukan atau Anda tidak memiliki akses.
             </p>
             <Link
-              href="/user/maintenance"
+              href="/admin/maintenance"
               className="mt-4 inline-flex items-center text-green-600 hover:text-green-800"
             >
               <ArrowLeftIcon className="mr-2 h-4 w-4" />
@@ -188,14 +128,12 @@ export default function MaintenanceDetailPage({
     );
   }
 
-  const isPending = maintenance.status === "PENDING";
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
           <Link
-            href="/user/maintenance"
+            href="/admin/maintenance"
             className="inline-flex items-center text-green-600 hover:text-green-800"
           >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
@@ -213,6 +151,14 @@ export default function MaintenanceDetailPage({
             <div>
               <p className="text-gray-600">Serial Number</p>
               <p className="font-semibold">{maintenance.itemSerial}</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Teknisi</p>
+              <p className="font-semibold">{maintenance.user.name}</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Email Teknisi</p>
+              <p className="font-semibold">{maintenance.user.email}</p>
             </div>
             <div>
               <p className="text-gray-600">Tanggal Mulai</p>
@@ -247,10 +193,10 @@ export default function MaintenanceDetailPage({
         </div>
 
         {/* Riwayat Status */}
-        {maintenance.statusLogs && maintenance.statusLogs.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-100 p-6">
-            <h2 className="text-xl font-bold mb-4">Riwayat Status</h2>
-            
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
+          <h2 className="text-xl font-bold mb-4">Riwayat Status</h2>
+          
+          {maintenance.statusLogs && maintenance.statusLogs.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -307,82 +253,81 @@ export default function MaintenanceDetailPage({
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-gray-500 italic">Tidak ada riwayat status tersedia.</p>
+          )}
+        </div>
 
-        {isPending ? (
-          <MaintenanceForm maintenance={maintenance} onSuccess={() => router.push("/user/maintenance")} />
-        ) : (
-          <div className="bg-white rounded-lg border border-gray-100 p-6">
-            <h2 className="text-xl font-bold mb-4">Laporan Maintenance</h2>
+        {/* Laporan Maintenance */}
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
+          <h2 className="text-xl font-bold mb-4">Laporan Maintenance</h2>
 
-            {maintenance.serviceReport && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2 flex items-center">
-                  <FileTextIcon className="mr-2 h-5 w-5 text-green-600" />
-                  Customer Service Report
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
-                  <div>
-                    <p className="text-gray-600">Alasan Maintenance</p>
-                    <p className="font-medium">{maintenance.serviceReport.reasonForReturn || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Temuan</p>
-                    <p className="font-medium">{maintenance.serviceReport.findings || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Tindakan</p>
-                    <p className="font-medium">{maintenance.serviceReport.action || "-"}</p>
-                  </div>
+          {maintenance.serviceReport && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2 flex items-center">
+                <FileTextIcon className="mr-2 h-5 w-5 text-green-600" />
+                Customer Service Report
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
+                <div>
+                  <p className="text-gray-600">Alasan Maintenance</p>
+                  <p className="font-medium">{maintenance.serviceReport.reasonForReturn || "-"}</p>
                 </div>
-                <a
-                  href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center text-green-600 hover:text-green-800"
-                >
-                  Download Customer Service Report
-                </a>
-              </div>
-            )}
-
-            {maintenance.technicalReport && (
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center">
-                  <ClipboardListIcon className="mr-2 h-5 w-5 text-green-600" />
-                  Technical Report
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
-                  <div>
-                    <p className="text-gray-600">Nomor CSR</p>
-                    <p className="font-medium">{maintenance.technicalReport.csrNumber || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Alasan Maintenance</p>
-                    <p className="font-medium">{maintenance.technicalReport.reasonForReturn || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Temuan</p>
-                    <p className="font-medium">{maintenance.technicalReport.findings || "-"}</p>
-                  </div>
+                <div>
+                  <p className="text-gray-600">Temuan</p>
+                  <p className="font-medium">{maintenance.serviceReport.findings || "-"}</p>
                 </div>
-                <a
-                  href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center text-green-600 hover:text-green-800"
-                >
-                  Download Technical Report
-                </a>
+                <div>
+                  <p className="text-gray-600">Tindakan</p>
+                  <p className="font-medium">{maintenance.serviceReport.action || "-"}</p>
+                </div>
               </div>
-            )}
+              <a
+                href={`/api/admin/maintenance/${maintenance.id}/report?type=csr`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-green-600 hover:text-green-800"
+              >
+                Download Customer Service Report
+              </a>
+            </div>
+          )}
 
-            {!maintenance.serviceReport && !maintenance.technicalReport && (
-              <p className="text-gray-500 italic">Tidak ada laporan tersedia.</p>
-            )}
-          </div>
-        )}
+          {maintenance.technicalReport && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center">
+                <ClipboardListIcon className="mr-2 h-5 w-5 text-green-600" />
+                Technical Report
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
+                <div>
+                  <p className="text-gray-600">Nomor CSR</p>
+                  <p className="font-medium">{maintenance.technicalReport.csrNumber || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Alasan Maintenance</p>
+                  <p className="font-medium">{maintenance.technicalReport.reasonForReturn || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Temuan</p>
+                  <p className="font-medium">{maintenance.technicalReport.findings || "-"}</p>
+                </div>
+              </div>
+              <a
+                href={`/api/admin/maintenance/${maintenance.id}/report?type=technical`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-green-600 hover:text-green-800"
+              >
+                Download Technical Report
+              </a>
+            </div>
+          )}
+
+          {!maintenance.serviceReport && !maintenance.technicalReport && (
+            <p className="text-gray-500 italic">Tidak ada laporan tersedia.</p>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

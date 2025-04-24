@@ -17,6 +17,19 @@ const getRomanMonth = (date: Date) => {
   return romanMonths[date.getMonth()];
 };
 
+// Helper untuk membangun URL gambar lengkap
+const getFullImageUrl = (relativePath: string | null | undefined, host: string): string | null => {
+  if (!relativePath) return null;
+  
+  // Jika path sudah memiliki http atau https, kembalikan apa adanya
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+  
+  // Jika tidak, build URL lengkap berdasarkan origin server
+  return `${host}${relativePath}`;
+};
+
 export async function GET(
   req: NextRequest,
   context: { params: { id: string } }
@@ -106,9 +119,7 @@ export async function GET(
       htmlContent = generateCSRHtml(maintenance);
       filename = `CSR_${maintenance.serviceReport?.reportNumber || maintenanceId}.pdf`;
     } else {
-      htmlContent = generateTechnicalReportHtml(maintenance);
-      // Replace SERVER_HOST placeholder with actual host
-      htmlContent = htmlContent.replace(/http:\/\/SERVER_HOST/g, host);
+      htmlContent = generateTechnicalReportHtml(maintenance, host);
       filename = `Technical_Report_${maintenance.technicalReport?.csrNumber || maintenanceId}.pdf`;
     }
     
@@ -455,23 +466,14 @@ function generateCSRHtml(maintenance: any) {
 }
 
 // Generate HTML untuk Technical Report
-function generateTechnicalReportHtml(maintenance: any) {
+function generateTechnicalReportHtml(maintenance: any, host: string) {
   const tr = maintenance.technicalReport;
   
-  // Helper function to build full URL for images
-  const getFullImageUrl = (relativePath) => {
-    if (!relativePath) return null;
-    // If path already has http or https, return as is
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      return relativePath;
-    }
-    // Otherwise, build a full URL based on the server origin
-    // Using a placeholder domain that will be replaced with actual host in the request
-    return `http://SERVER_HOST${relativePath}`;
-  };
-
-  const beforeImageUrl = getFullImageUrl(tr?.beforePhotoUrl);
-  const afterImageUrl = getFullImageUrl(tr?.afterPhotoUrl);
+  const beforeImageUrl = getFullImageUrl(tr?.beforePhotoUrl, host);
+  const afterImageUrl = getFullImageUrl(tr?.afterPhotoUrl, host);
+  
+  console.log('Before image URL:', tr?.beforePhotoUrl, '->', beforeImageUrl);
+  console.log('After image URL:', tr?.afterPhotoUrl, '->', afterImageUrl);
   
   return `
     <!DOCTYPE html>
@@ -489,12 +491,14 @@ function generateTechnicalReportHtml(maintenance: any) {
           width: 100%;
           max-width: 800px;
           margin: 0 auto;
+          border: 2px solid #006400;
+          padding: 0;
         }
         .header {
           display: flex;
           align-items: flex-start;
-          border-bottom: 1px solid #ccc;
-          padding-bottom: 10px;
+          border-bottom: 2px solid #006400;
+          padding: 10px;
         }
         .logo-container {
           width: 25%;
@@ -502,7 +506,7 @@ function generateTechnicalReportHtml(maintenance: any) {
           text-align: center;
         }
         .logo {
-          width: 60px;
+          width: 80px;
           height: auto;
         }
         .address {
@@ -525,12 +529,13 @@ function generateTechnicalReportHtml(maintenance: any) {
           font-size: 11px;
         }
         .title-bar {
-          background-color: #000;
+          background-color: #006400;
           color: #fff;
-          padding: 5px;
+          padding: 8px;
           text-align: center;
           font-weight: bold;
           margin: 15px 0;
+          font-size: 14px;
         }
         .delivery-table {
           width: 100%;
@@ -569,16 +574,42 @@ function generateTechnicalReportHtml(maintenance: any) {
           width: 48%;
           border: 1px solid #000;
           text-align: center;
-          padding: 10px;
-          height: 200px;
+          padding: 5px;
+          height: 220px;
+          position: relative;
+        }
+        .image-caption {
+          background-color: #006400;
+          color: white;
+          padding: 3px 0;
+          font-weight: bold;
+          text-align: center;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+        }
+        .image-content {
           display: flex;
           justify-content: center;
           align-items: center;
+          height: 100%;
+          width: 100%;
+          padding-top: 25px; /* Space for caption */
+          box-sizing: border-box;
         }
         img.device-image {
           max-width: 95%;
           max-height: 180px;
           object-fit: contain;
+        }
+        .no-image {
+          height: 180px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #999;
+          font-style: italic;
         }
         .parts-table {
           width: 100%;
@@ -591,7 +622,7 @@ function generateTechnicalReportHtml(maintenance: any) {
           text-align: center;
         }
         .parts-table th {
-          background-color: #f0f0f0;
+          background-color: #e9f5e9;
         }
         .terms {
           font-size: 10px;
@@ -600,6 +631,12 @@ function generateTechnicalReportHtml(maintenance: any) {
         }
         .signature {
           margin-top: 20px;
+          display: flex;
+          justify-content: space-between;
+        }
+        .signature-box {
+          width: 45%;
+          text-align: center;
         }
         .signature p {
           margin: 3px 0;
@@ -607,7 +644,7 @@ function generateTechnicalReportHtml(maintenance: any) {
         .signature-line {
           border-top: 1px solid #000;
           width: 150px;
-          margin-top: 20px;
+          margin: 50px auto 0;
         }
       </style>
     </head>
@@ -638,7 +675,7 @@ function generateTechnicalReportHtml(maintenance: any) {
           </div>
         </div>
         
-        <div class="title-bar">Customer Service Report</div>
+        <div class="title-bar">TECHNICAL REPORT</div>
         
         <table class="delivery-table">
           <tr>
@@ -673,16 +710,22 @@ function generateTechnicalReportHtml(maintenance: any) {
         
         <div class="images-container">
           <div class="image-container">
-            ${beforeImageUrl ? 
-              `<img src="${beforeImageUrl}" alt="Before" class="device-image">` : 
-              `<div style="height:150px;display:flex;align-items:center;justify-content:center;color:#999;">No Before Image</div>`
-            }
+            <div class="image-caption">BEFORE</div>
+            <div class="image-content">
+              ${beforeImageUrl ? 
+                `<img src="${beforeImageUrl}" alt="Before" class="device-image">` : 
+                `<div class="no-image">Foto sebelum tidak tersedia</div>`
+              }
+            </div>
           </div>
           <div class="image-container">
-            ${afterImageUrl ? 
-              `<img src="${afterImageUrl}" alt="After" class="device-image">` : 
-              `<div style="height:150px;display:flex;align-items:center;justify-content:center;color:#999;">No After Image</div>`
-            }
+            <div class="image-caption">AFTER</div>
+            <div class="image-content">
+              ${afterImageUrl ? 
+                `<img src="${afterImageUrl}" alt="After" class="device-image">` : 
+                `<div class="no-image">Foto sesudah tidak tersedia</div>`
+              }
+            </div>
           </div>
         </div>
         
@@ -698,31 +741,31 @@ function generateTechnicalReportHtml(maintenance: any) {
             </tr>
           </thead>
           <tbody>
-            ${tr?.partsList?.map((part: any) => `
+            ${tr?.partsList?.map((part: any, index: number) => `
               <tr>
-                <td>${part.itemNumber}</td>
+                <td>${part.itemNumber || index + 1}</td>
                 <td>${part.namaUnit || "QRAE 3"}</td>
                 <td>${part.description || "Kalibrasi"}</td>
                 <td>${part.quantity}</td>
-                <td>${part.unitPrice?.toLocaleString('id-ID') || "-"}</td>
-                <td>${part.totalPrice?.toLocaleString('id-ID') || "-"}</td>
+                <td>${part.unitPrice ? part.unitPrice.toLocaleString('id-ID') : "-"}</td>
+                <td>${part.totalPrice ? part.totalPrice.toLocaleString('id-ID') : "-"}</td>
               </tr>
             `).join("") || 
             `<tr>
-              <td>1.</td>
+              <td>1</td>
               <td>QRAE 3</td>
               <td>Kalibrasi</td>
               <td>1</td>
-              <td></td>
-              <td></td>
+              <td>-</td>
+              <td>-</td>
             </tr>
             <tr>
-              <td></td>
-              <td></td>
+              <td>2</td>
+              <td>QRAE 3</td>
               <td>Sensor CO</td>
               <td>1</td>
-              <td></td>
-              <td></td>
+              <td>-</td>
+              <td>-</td>
             </tr>`}
           </tbody>
         </table>
@@ -732,17 +775,25 @@ function generateTechnicalReportHtml(maintenance: any) {
           <ol style="margin-top: 5px; padding-left: 25px;">
             <li>Price above exclude PPN 11 %</li>
             <li>Delivery : 2 weeks</li>
-            <li>Payment :</li>
-            <li>Franco :</li>
+            <li>Payment : 30 days</li>
+            <li>Franco : Jabodetabek</li>
           </ol>
           <p style="margin: 5px 0;">We hope above are acceptable for your needs. We look further for your order.</p>
           <p style="margin: 5px 0;">Best regards<br>PT. PARAMATA BARAYA INTERNASIONAL</p>
         </div>
         
         <div class="signature">
-          <p>Gerhan M.Y</p>
-          <p>Director</p>
-          <div class="signature-line"></div>
+          <div class="signature-box">
+            <p>Issued By</p>
+            <div class="signature-line"></div>
+            <p>${tr?.techSupport || "Technical Support"}</p>
+          </div>
+          <div class="signature-box">
+            <p>Approved By</p>
+            <div class="signature-line"></div>
+            <p>Gerhan M.Y</p>
+            <p>Director</p>
+          </div>
         </div>
       </div>
     </body>

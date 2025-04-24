@@ -266,9 +266,6 @@ export default function UserItemsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '120px' }}>
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '180px' }}>
-                      Action
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -304,19 +301,6 @@ export default function UserItemsPage() {
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.status === ItemStatus.AVAILABLE && (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => startMaintenance(item.serialNumber)}
-                              disabled={isStartingMaintenance}
-                              className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isStartingMaintenance ? 'Processing...' : 'Mulai Maintenance'}
-                            </button>
-                          </div>
-                        )}
                       </td>
                     </tr>
                   ))}
