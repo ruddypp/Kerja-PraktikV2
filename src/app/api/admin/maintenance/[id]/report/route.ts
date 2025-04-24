@@ -11,9 +11,15 @@ const formatDate = (date: Date | null | undefined) => {
   return format(new Date(date), "dd MMMM yyyy", { locale: id });
 };
 
+// Helper for formatting month in roman numerals
+const getRomanMonth = (date: Date) => {
+  const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  return romanMonths[date.getMonth()];
+};
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const user = await getUserFromRequest(req);
@@ -22,7 +28,10 @@ export async function GET(
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     
+    // In Next.js 15, params is a Promise and needs to be awaited
+    const params = await context.params;
     const maintenanceId = params.id;
+    
     const reportType = req.nextUrl.searchParams.get("type") || "csr"; // Default ke CSR
     
     // Ambil data maintenance
@@ -83,7 +92,10 @@ export async function GET(
     }
     
     // Generate PDF
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     await page.setContent(htmlContent);
     
@@ -114,8 +126,14 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error saat membuat laporan:", error);
+    
+    // Provide more detailed error information
+    const errorMessage = error instanceof Error 
+      ? `${error.name}: ${error.message}` 
+      : "Unknown error";
+      
     return NextResponse.json(
-      { error: "Terjadi kesalahan saat membuat laporan" },
+      { error: "Terjadi kesalahan saat membuat laporan", details: errorMessage },
       { status: 500 }
     );
   }
@@ -124,6 +142,9 @@ export async function GET(
 // Generate HTML untuk Customer Service Report
 function generateCSRHtml(maintenance: any) {
   const sr = maintenance.serviceReport;
+  const currentDate = new Date();
+  const romanMonth = getRomanMonth(currentDate);
+  const currentYear = currentDate.getFullYear();
   
   return `
     <!DOCTYPE html>
@@ -238,7 +259,7 @@ function generateCSRHtml(maintenance: any) {
         </div>
         
         <div class="title">Customer Service Report</div>
-        <div class="subtitle">No. : ${sr?.reportNumber || "-"} /CSR-PBI/ ${new Date().toLocaleDateString('en-US', { month: 'roman' })} /${new Date().getFullYear()}</div>
+        <div class="subtitle">No. : ${sr?.reportNumber || "-"} /CSR-PBI/${romanMonth}/${currentYear}</div>
         
         <div class="form-group">
           <div class="form-label">Customer</div>

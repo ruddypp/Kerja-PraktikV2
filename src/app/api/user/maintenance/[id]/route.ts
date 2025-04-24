@@ -16,8 +16,10 @@ export async function GET(
     // Extract maintenanceId from URL path as a fallback
     let maintenanceId: string;
     try {
-      // First attempt using context.params
-      maintenanceId = context.params.id;
+      // Access id property by using context.params
+      // In Next.js 15, we need to use context.params as a Promise
+      const params = await context.params;
+      maintenanceId = params.id;
     } catch (err) {
       // Fallback: Extract from URL path if context.params fails
       const urlParts = req.url.split('/');
