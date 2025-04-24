@@ -2,9 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiCheckCircle, FiEdit2, FiFileText, FiDownload, FiX } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiDownload } from 'react-icons/fi';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import useSWR from 'swr';
+
+// Tambahkan fetcher untuk SWR
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    cache: 'no-store'
+  });
+  
+  if (!res.ok) {
+    const error = new Error('An error occurred while fetching the data.');
+    throw error;
+  }
+  
+  return res.json();
+};
+
+// Tambahkan konstanta untuk page size
+const PAGE_SIZE = 10;
 
 interface Status {
   id: string;
@@ -86,37 +107,19 @@ export default function CalibrationPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // Tambahkan state untuk pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [completeModal, setCompleteModal] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   
-  // Form states
-  const [editForm, setEditForm] = useState({
-    vendorId: '',
-    calibrationDate: '',
-    result: '',
-    certificateUrl: '',
-    statusId: '',
-    completed: false
-  });
-  
-  // Complete form states
-  const [certificateNumber, setCertificateNumber] = useState('');
-  const [calibrationDate, setCalibrationDate] = useState('');
-  const [nextCalibrationDate, setNextCalibrationDate] = useState('');
-  const [calibrationResult, setCalibrationResult] = useState('');
-  
-  // Filter state
-  const [filter, setFilter] = useState({
-    statusId: '',
-    vendorId: ''
-  });
-  
   // Menambahkan state untuk konfirmasi hapus
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+   
   // Tambahkan state untuk modal edit sertifikat
   const [showEditCertificateModal, setShowEditCertificateModal] = useState(false);
   const [certificateData, setCertificateData] = useState({
@@ -137,6 +140,29 @@ export default function CalibrationPage() {
     vendorPhone: ''
   });
   
+  // Form states
+  const [editForm, setEditForm] = useState({
+    vendorId: '',
+    calibrationDate: '',
+    result: '',
+    certificateUrl: '',
+    statusId: '',
+    completed: false
+  });
+  
+  // Complete form states
+  const [certificateNumber, setCertificateNumber] = useState('');
+  const [calibrationDate, setCalibrationDate] = useState('');
+  const [nextCalibrationDate, setNextCalibrationDate] = useState('');
+  const [calibrationResult, setCalibrationResult] = useState('');
+  
+  // Filter state
+  const [filter, setFilter] = useState({
+    statusId: '',
+    vendorId: '',
+    page: 1
+  });
+  
   // Reset complete form
   const resetCompleteForm = () => {
     setCertificateNumber('');
@@ -145,103 +171,48 @@ export default function CalibrationPage() {
     setCalibrationResult('');
   };
   
-  // Load data on component mount
-  useEffect(() => {
-    fetchVendors();
-    fetchStatuses();
-    fetchCalibrations();
-  }, []);
+  // Mengganti useEffect dengan SWR untuk data vendors dan statuses
+  useSWR('/api/admin/vendors', fetcher, {
+    onSuccess: (data: Vendor[]) => setVendors(data),
+    revalidateOnFocus: false
+  });
   
-  // Apply filters
+  useSWR('/api/admin/statuses?type=calibration', fetcher, {
+    onSuccess: (data: Status[]) => setStatuses(data),
+    revalidateOnFocus: false
+  });
+  
+  // Gunakan SWR untuk data kalibrasi dengan dependencies pada filter
+  const { mutate } = 
+    useSWR(() => `/api/admin/calibrations?statusId=${filter.statusId}&vendorId=${filter.vendorId}&page=${filter.page}&limit=${PAGE_SIZE}`, 
+    fetcher, {
+      onSuccess: (data: {items: Calibration[], total: number}) => {
+        setCalibrations(data.items || []);
+        setTotalItems(data.total || 0);
+        setLoading(false);
+      },
+      onError: (err: Error) => {
+        console.error('Error fetching calibrations:', err);
+        setError('Failed to load calibration requests. Please try refreshing the page.');
+        setLoading(false);
+      },
+      revalidateOnFocus: false
+    });
+  
+  // Fungsi untuk ganti halaman
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setFilter(prev => ({ ...prev, page }));
+  };
+  
+  // Load data on component mount
   useEffect(() => {
     fetchCalibrations();
   }, [filter]);
   
-  const fetchVendors = async () => {
-    try {
-      const response = await fetch('/api/admin/vendors', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
-      }
-      
-      const data = await response.json();
-      setVendors(data);
-    } catch (err) {
-      console.error('Error fetching vendors:', err);
-      // Don't set global error for vendors as it's not the primary data
-    }
-  };
-  
-  const fetchStatuses = async () => {
-    try {
-      // Only fetch calibration statuses, not request statuses
-      const calibrationRes = await fetch('/api/admin/statuses?type=calibration', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-store'
-      });
-      
-      if (!calibrationRes.ok) {
-        const errorText = await calibrationRes.text();
-        throw new Error(`Failed to fetch statuses: ${calibrationRes.status} ${calibrationRes.statusText}${errorText ? ` - ${errorText}` : ''}`);
-      }
-      
-      const calibrationData = await calibrationRes.json();
-      
-      // Set statuses directly from calibration data
-      setStatuses(calibrationData);
-      
-      // Clear any existing error
-      if (error.includes('status')) {
-        setError('');
-      }
-    } catch (err) {
-      console.error('Error fetching statuses:', err);
-      // Display user-friendly error
-      setError('Could not load status information. Please try refreshing the page.');
-      // Still set empty statuses array to prevent undefined errors
-      setStatuses([]);
-    }
-  };
-  
   const fetchCalibrations = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/calibrations', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch calibrations: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
-      }
-      
-      const data = await response.json();
-      setCalibrations(data);
-      setError('');
-    } catch (err) {
-      console.error('Error fetching calibrations:', err);
-      setError('Failed to load calibration requests. Please try refreshing the page.');
-    } finally {
-      setLoading(false);
-    }
+    // Ganti dengan mutate dari SWR
+    return mutate();
   };
   
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -252,7 +223,8 @@ export default function CalibrationPage() {
   const resetFilters = () => {
     setFilter({
       statusId: '',
-      vendorId: ''
+      vendorId: '',
+      page: 1
     });
   };
   
@@ -808,6 +780,44 @@ export default function CalibrationPage() {
             </div>
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {!loading && calibrations.length > 0 && (
+          <div className="flex justify-between items-center mt-4">
+            <div className="text-sm text-gray-700">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} results
+            </div>
+            <div className="flex space-x-1">
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Previous
+              </button>
+              
+              {Array.from({ length: Math.ceil(totalItems / PAGE_SIZE) }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === Math.ceil(totalItems / PAGE_SIZE) || (page >= currentPage - 1 && page <= currentPage + 1))
+                .map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              
+              <button
+                onClick={() => handlePageChange(Math.min(Math.ceil(totalItems / PAGE_SIZE), currentPage + 1))}
+                disabled={currentPage === Math.ceil(totalItems / PAGE_SIZE)}
+                className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Edit Calibration Modal */}
         {showEditModal && selectedCalibration && (

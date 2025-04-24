@@ -15,7 +15,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const calibrationId = params.id;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id: calibrationId } = await params;
     console.log('Admin accessing certificate for calibration ID:', calibrationId);
     
     // Ambil data kalibrasi untuk memastikan ada
@@ -62,7 +63,7 @@ export async function GET(
       let errorData;
       try {
         errorData = JSON.parse(errorText);
-      } catch (e) {
+      } catch {
         errorData = { error: errorText };
       }
       
@@ -114,7 +115,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const calibrationId = params.id;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id: calibrationId } = await params;
     
     // Ambil data kalibrasi untuk memastikan ada
     const calibration = await prisma.calibration.findUnique({

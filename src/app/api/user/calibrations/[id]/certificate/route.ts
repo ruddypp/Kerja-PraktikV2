@@ -28,7 +28,7 @@ function formatDateID(date: Date | string | null | undefined): string {
 // GET untuk menghasilkan sertifikat kalibrasi dalam format PDF
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     // Gunakan getUserFromRequest untuk autentikasi yang lebih konsisten
@@ -42,8 +42,8 @@ export async function GET(
       );
     }
 
-    // Ambil ID kalibrasi dari params dan pastikan params telah diproses dengan benar
-    const calibrationId = await context.params.id;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id: calibrationId } = await params;
     
     console.log('Generating certificate for calibration ID:', calibrationId, 'User:', user.id);
     

@@ -43,6 +43,9 @@ export default function UserItemsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
+  // Start maintenance state
+  const [isStartingMaintenance, setIsStartingMaintenance] = useState(false);
+  
   // Function to fetch items with pagination
   const fetchItems = async (page: number, search: string = '') => {
       try {
@@ -105,6 +108,39 @@ export default function UserItemsPage() {
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+  
+  // Function to start maintenance
+  const startMaintenance = async (serialNumber: string) => {
+    try {
+      setIsStartingMaintenance(true);
+      
+      const response = await fetch('/api/user/maintenance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemSerial: serialNumber }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start maintenance');
+      }
+      
+      toast.success('Maintenance berhasil dimulai');
+      router.push(`/user/maintenance/${data.id}`);
+    } catch (error: unknown) {
+      console.error('Error starting maintenance:', error);
+      let errorMessage = 'Gagal memulai maintenance';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
+    } finally {
+      setIsStartingMaintenance(false);
+    }
   };
   
   // Calculate total pages
@@ -230,6 +266,9 @@ export default function UserItemsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '120px' }}>
                       Status
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '180px' }}>
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -253,18 +292,31 @@ export default function UserItemsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <Link 
-                          href={`/user/barang/history/${encodeURIComponent(item.serialNumber)}`}
-                          className="text-green-600 hover:text-green-800"
+                          href={`/user/item-history/${item.serialNumber}`}
+                          className="text-sm text-blue-600 hover:text-blue-900"
                         >
                           View History
                         </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.status === ItemStatus.AVAILABLE && (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => startMaintenance(item.serialNumber)}
+                              disabled={isStartingMaintenance}
+                              className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isStartingMaintenance ? 'Processing...' : 'Mulai Maintenance'}
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

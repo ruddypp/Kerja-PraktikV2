@@ -1,0 +1,137 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getUserFromRequest } from "@/lib/auth";
+import { ItemStatus, RequestStatus } from "@prisma/client";
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
+    }
+    
+    const userId = user.id;
+    
+    // Ambil semua maintenance yang dibuat oleh user
+    const maintenances = await prisma.maintenance.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        item: true,
+        serviceReport: true,
+        technicalReport: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    
+    return NextResponse.json(maintenances);
+  } catch (error) {
+    console.error("Error saat mengambil data maintenance:", error);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan saat mengambil data" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
+    }
+    
+    const { itemSerial } = await req.json();
+    
+    if (!itemSerial) {
+      return NextResponse.json(
+        { error: "Serial number barang diperlukan" },
+        { status: 400 }
+      );
+    }
+    
+    // Cek apakah barang tersedia
+    const item = await prisma.item.findUnique({
+      where: { serialNumber: itemSerial },
+    });
+    
+    if (!item) {
+      return NextResponse.json(
+        { error: "Barang tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+    
+    if (item.status !== ItemStatus.AVAILABLE) {
+      return NextResponse.json(
+        { error: "Barang tidak tersedia untuk maintenance" },
+        { status: 400 }
+      );
+    }
+    
+    // Buat maintenance baru
+    const maintenance = await prisma.$transaction(async (prisma) => {
+      // Update status item menjadi IN_MAINTENANCE
+      await prisma.item.update({
+        where: { serialNumber: itemSerial },
+        data: { status: ItemStatus.IN_MAINTENANCE },
+      });
+      
+      // Buat record maintenance baru
+      const newMaintenance = await prisma.maintenance.create({
+        data: {
+          itemSerial,
+          userId: user.id,
+          status: RequestStatus.PENDING,
+          startDate: new Date(),
+        },
+      });
+      
+      // Catat log status
+      await prisma.maintenanceStatusLog.create({
+        data: {
+          maintenanceId: newMaintenance.id,
+          status: RequestStatus.PENDING,
+          userId: user.id,
+          notes: "Maintenance dimulai",
+        },
+      });
+      
+      // Catat di history item
+      await prisma.itemHistory.create({
+        data: {
+          itemSerial,
+          action: "MAINTAINED",
+          details: "Barang mulai dalam proses maintenance",
+          relatedId: newMaintenance.id,
+          startDate: new Date(),
+        },
+      });
+      
+      // Catat di activity log
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          itemSerial,
+          action: "MAINTENANCE_STARTED",
+          details: `Memulai maintenance untuk barang ${itemSerial}`,
+        },
+      });
+      
+      return newMaintenance;
+    });
+    
+    return NextResponse.json(maintenance);
+  } catch (error) {
+    console.error("Error saat membuat maintenance:", error);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan saat membuat maintenance" },
+      { status: 500 }
+    );
+  }
+} 

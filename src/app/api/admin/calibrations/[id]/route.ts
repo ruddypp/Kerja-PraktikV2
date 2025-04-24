@@ -16,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { id } = params;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { error: 'Calibration ID is required' },
@@ -83,7 +84,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { id } = params;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { error: 'Calibration ID is required' },
@@ -208,7 +210,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { id } = params;
+    // Di Next.js 15, params adalah objek yang harus diawait
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { error: 'Calibration ID is required' },

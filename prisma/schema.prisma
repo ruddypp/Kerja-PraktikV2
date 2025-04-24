@@ -168,15 +168,111 @@ model Maintenance {
   itemSerial      String
   user            User          @relation(fields: [userId], references: [id])
   userId          String
-  status          RequestStatus @default(COMPLETED)
-  description     String?
-  beforePhotoUrl  String?
-  afterPhotoUrl   String?
+  status          RequestStatus @default(PENDING)
   startDate       DateTime      @default(now())
   endDate         DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  
+  // Relasi ke form
+  serviceReport   ServiceReport?
+  technicalReport TechnicalReport?
+  
   statusLogs      MaintenanceStatusLog[]
+}
+
+// Form 1: Customer Service Report
+model ServiceReport {
+  id                String      @id @default(uuid())
+  maintenance       Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  maintenanceId     String      @unique // One-to-one relationship
+  
+  reportNumber      String?     // No.: ___/CSR-PBI/___/2023
+  customer          String?     // PT. Pertamina EP dsb
+  location          String?
+  brand             String?
+  model             String?
+  serialNumber      String?     // Item serial sebenarnya
+  dateIn            DateTime?
+  reasonForReturn   String?
+  findings          String?
+  action            String?
+  
+  // Service checklist
+  sensorCO          Boolean     @default(false)
+  sensorH2S         Boolean     @default(false)
+  sensorO2          Boolean     @default(false)
+  sensorLEL         Boolean     @default(false)
+  lampClean         Boolean     @default(false)
+  lampReplace       Boolean     @default(false)
+  pumpTested        Boolean     @default(false)
+  pumpRebuilt       Boolean     @default(false)
+  pumpReplaced      Boolean     @default(false)
+  pumpClean         Boolean     @default(false)
+  instrumentCalibrate Boolean   @default(false)
+  instrumentUpgrade  Boolean    @default(false)
+  instrumentCharge   Boolean    @default(false)
+  instrumentClean    Boolean    @default(false)
+  instrumentSensorAssembly Boolean @default(false)
+  
+  // Parts List
+  parts             ServiceReportPart[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Form 2: Technical Report
+model TechnicalReport {
+  id                String      @id @default(uuid())
+  maintenance       Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  maintenanceId     String      @unique // One-to-one relationship
+  
+  csrNumber         String?     // CSR NO: 090/CSR-PBI/IX/24
+  deliveryTo        String?     // PT. Archroma Indonesia
+  quoNumber         String?     // QUO No:
+  dateReport        DateTime?   // Tanggal report (17 Sept 2024)
+  techSupport       String?     // Nama technical support (Harry Sutiawan)
+  dateIn            DateTime?   // Date In: 10 Sept 2024
+  estimateWork      String?     // Estimate Work:
+  reasonForReturn   String?     // Maintenance & calibration
+  findings          String?     // QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang...
+  
+  beforePhotoUrl    String?
+  afterPhotoUrl     String?
+  
+  // Unit details
+  partsList         TechnicalReportPart[]
+  
+  // Terms and conditions
+  termsConditions   String?     // Opsional: jika terms berbeda antar laporan
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model ServiceReportPart {
+  id                String       @id @default(uuid())
+  serviceReport     ServiceReport @relation(fields: [serviceReportId], references: [id], onDelete: Cascade)
+  serviceReportId   String
+  itemNumber        Int          // Nomor urut item
+  description       String       // Deskripsi part
+  snPnOld           String?      // SN/PN/OLD pada form
+  snPnNew           String?      // SN/PN/NEW pada form
+  createdAt         DateTime     @default(now())
+}
+
+model TechnicalReportPart {
+  id                String        @id @default(uuid())
+  technicalReport   TechnicalReport @relation(fields: [technicalReportId], references: [id], onDelete: Cascade)
+  technicalReportId String
+  itemNumber        Int           // No
+  namaUnit          String?       // Nama Unit (QRAE 3)
+  description       String?       // Description (Kalibrasi)
+  quantity          Int           @default(1) // QTY
+  unitPrice         Float?        // Unit Price
+  totalPrice        Float?        // Total Price
+  createdAt         DateTime      @default(now())
 }
 
 // For usage tracking - rentals, calibrations, maintenance history

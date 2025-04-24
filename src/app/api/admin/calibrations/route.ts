@@ -66,12 +66,17 @@ export async function GET(request: Request) {
     const vendorId = searchParams.get('vendorId');
     const itemSerial = searchParams.get('itemSerial');
     
+    // Tambahkan parameter pagination
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+    
     // Build where conditions
-    const where: Record<string, any> = {};
+    const where: Record<string, unknown> = {};
     
     if (statusId) {
       // Extract status from ID format (e.g., "calibration_IN_PROGRESS" -> "IN_PROGRESS")
-      let status = extractStatusFromId(statusId);
+      const status = extractStatusFromId(statusId);
       where.status = status;
     }
     
@@ -82,6 +87,9 @@ export async function GET(request: Request) {
     if (itemSerial) {
       where.itemSerial = itemSerial;
     }
+    
+    // Hitung total items untuk pagination
+    const total = await prisma.calibration.count({ where });
     
     // Fetch all calibrations with filter
     const calibrations = await prisma.calibration.findMany({
@@ -112,10 +120,19 @@ export async function GET(request: Request) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip,
+      take: limit
     });
     
-    return NextResponse.json(calibrations);
+    // Kembalikan hasil dengan informasi pagination
+    return NextResponse.json({
+      items: calibrations,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit)
+    });
   } catch (error) {
     console.error('Error fetching calibrations:', error);
     return NextResponse.json(
@@ -285,7 +302,7 @@ export async function PATCH(request: Request) {
     }
     
     // Prepare update data
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, unknown> = {
       status
     };
     
