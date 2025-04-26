@@ -17,6 +17,39 @@ const getRomanMonth = (date: Date) => {
   return romanMonths[date.getMonth()];
 };
 
+// Helper to build complete image URL
+const getFullImageUrl = (relativePath: string | null | undefined, host: string): string | null => {
+  if (!relativePath) return null;
+  
+  // If path already has http or https, return it as is
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+  
+  // Otherwise, build complete URL based on server origin
+  return `${host}${relativePath}`;
+};
+
+// Generate PDF using puppeteer
+async function generatePDF(html: string, options: any = {}) {
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.setContent(html);
+  const buffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    margin: {
+      top: "0.5cm",
+      right: "0.5cm",
+      bottom: "0.5cm",
+      left: "0.5cm",
+    },
+    ...options,
+  });
+  await browser.close();
+  return buffer;
+}
+
 export async function GET(
   req: NextRequest,
   context: { params: { id: string } }
@@ -79,43 +112,24 @@ export async function GET(
       );
     }
     
+    // Extract host from request URL for building absolute image URLs
+    const requestUrl = new URL(req.url);
+    const host = `${requestUrl.protocol}//${requestUrl.host}`;
+    
     // Generate HTML untuk laporan sesuai dengan jenisnya
     let htmlContent = "";
     let filename = "";
     
     if (reportType === "csr") {
-      htmlContent = generateCSRHtml(maintenance);
+      htmlContent = generateCSRHtml(maintenance, host);
       filename = `CSR_${maintenance.serviceReport?.reportNumber || maintenanceId}.pdf`;
     } else {
-      htmlContent = generateTechnicalReportHtml(maintenance);
+      htmlContent = generateTechnicalReportHtml(maintenance, host);
       filename = `Technical_Report_${maintenance.technicalReport?.csrNumber || maintenanceId}.pdf`;
     }
     
     // Generate PDF
-    const browser = await puppeteer.launch({ 
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent);
-    
-    // Set ukuran halaman ke A4
-    await page.setViewport({ width: 1240, height: 1754 });
-    await page.emulateMediaType("screen");
-    
-    // Generate PDF
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: {
-        top: "1cm",
-        right: "1cm",
-        bottom: "1cm",
-        left: "1cm",
-      },
-    });
-    
-    await browser.close();
+    const pdf = await generatePDF(htmlContent);
     
     // Kembalikan PDF sebagai respons
     return new NextResponse(pdf, {
@@ -140,7 +154,7 @@ export async function GET(
 }
 
 // Generate HTML untuk Customer Service Report
-function generateCSRHtml(maintenance: any) {
+function generateCSRHtml(maintenance: any, host: string) {
   const sr = maintenance.serviceReport;
   const currentDate = new Date();
   const romanMonth = getRomanMonth(currentDate);
@@ -163,11 +177,17 @@ function generateCSRHtml(maintenance: any) {
           max-width: 800px;
           margin: 0 auto;
           border: 2px solid #006400;
-          padding: 10px;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        .inner-container {
+          border: 1px solid #006400;
+          margin: 5px;
+          padding: 0;
         }
         .header {
           border-bottom: 2px solid #006400;
-          padding-bottom: 10px;
+          padding: 10px;
           display: flex;
           align-items: center;
         }
@@ -182,57 +202,65 @@ function generateCSRHtml(maintenance: any) {
           text-align: center;
           font-size: 24px;
           font-weight: bold;
-          margin: 20px 0 10px;
+          margin: 20px 0 5px;
         }
         .subtitle {
           text-align: center;
           font-size: 14px;
           margin-bottom: 20px;
         }
-        .form-group {
+        .form-row {
           display: flex;
-          margin-bottom: 5px;
+          margin: 5px 10px;
         }
         .form-label {
-          width: 150px;
-          font-weight: bold;
+          width: 100px;
+          font-weight: normal;
         }
         .form-value {
           flex: 1;
         }
+        .form-right {
+          margin-left: auto;
+          display: flex;
+        }
+        .form-right .form-label {
+          text-align: left;
+        }
+        .section {
+          margin: 5px 10px;
+          border: 1px solid #000;
+          padding: 5px;
+        }
+        .section-title {
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
         table {
-          width: 100%;
+          width: calc(100% - 20px);
           border-collapse: collapse;
-          margin: 10px 0;
+          margin: 10px;
         }
         th, td {
           border: 1px solid #000;
           padding: 5px;
+          text-align: left;
         }
-        .section {
-          margin: 20px 0;
-          border: 1px solid #000;
-          padding: 10px;
-        }
-        .section-title {
-          font-weight: bold;
-          margin-bottom: 10px;
-        }
-        .checkbox {
-          margin-right: 10px;
+        .checkbox-table td {
+          vertical-align: top;
+          padding: 5px;
         }
         .checkbox-group {
           display: flex;
-          flex-wrap: wrap;
+          flex-direction: column;
         }
         .checkbox-item {
-          width: 25%;
           margin-bottom: 5px;
         }
         .signature-area {
           display: flex;
           justify-content: space-between;
-          margin-top: 50px;
+          margin: 50px 10px 20px;
         }
         .signature-box {
           text-align: center;
@@ -243,44 +271,59 @@ function generateCSRHtml(maintenance: any) {
           margin-top: 50px;
           padding-top: 5px;
         }
+        .parts-list {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .parts-list th, .parts-list td {
+          border: 1px solid #000;
+          padding: 5px;
+          text-align: center;
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://example.com/logo.png" alt="Logo" class="logo">
+          <img src="${host}/public/logo1.png" alt="Logo" class="logo">
           <div class="company-info">
-            <h2>PT. PARAMATA BARAYA INTERNATIONAL</h2>
-            <p>Kompleks Palem Ganda Asri 1 Blok A3 No. 8<br>
-            Karang Tengah, Ciledug – Tangerang 15157<br>
-            Telp. 62-21 730 6424, 733 1150 / Faks. 62-21 733 1150<br>
-            Email : paramata@lndosat.net.id</p>
+            <h2 style="margin: 0; font-size: 14px;">PT. PARAMATA BARAYA INTERNATIONAL</h2>
+            <p style="margin: 0; font-size: 11px;">
+              Kompleks Palem Ganda Asri 1 Blok A3 No. 8<br>
+              Karang Tengah, Ciledug – Tangerang 15157<br>
+              Telp. 62-21 730 6424, 733 1150 / Faks. 62-21 733 1150<br>
+              Email : paramata@lndosat.net.id
+            </p>
           </div>
         </div>
         
         <div class="title">Customer Service Report</div>
         <div class="subtitle">No. : ${sr?.reportNumber || "-"} /CSR-PBI/${romanMonth}/${currentYear}</div>
         
-        <div class="form-group">
+        <div class="form-row">
           <div class="form-label">Customer</div>
           <div class="form-value">: ${sr?.customer || maintenance.item.customer?.name || "-"}</div>
-          <div class="form-label" style="margin-left: 50px;">Serial Number</div>
-          <div class="form-value">: ${sr?.serialNumber || maintenance.itemSerial}</div>
+          <div class="form-right">
+            <div class="form-label">Serial Number</div>
+            <div class="form-value">: ${sr?.serialNumber || maintenance.itemSerial}</div>
+          </div>
         </div>
         
-        <div class="form-group">
+        <div class="form-row">
           <div class="form-label">Location</div>
           <div class="form-value">: ${sr?.location || "-"}</div>
-          <div class="form-label" style="margin-left: 50px;">Date In</div>
-          <div class="form-value">: ${formatDate(sr?.dateIn || maintenance.startDate)}</div>
+          <div class="form-right">
+            <div class="form-label">Date In</div>
+            <div class="form-value">: ${formatDate(sr?.dateIn || maintenance.startDate)}</div>
+          </div>
         </div>
         
-        <div class="form-group">
+        <div class="form-row">
           <div class="form-label">Brand</div>
           <div class="form-value">: ${sr?.brand || "-"}</div>
         </div>
         
-        <div class="form-group">
+        <div class="form-row">
           <div class="form-label">Model</div>
           <div class="form-value">: ${sr?.model || "-"}</div>
         </div>
@@ -300,69 +343,69 @@ function generateCSRHtml(maintenance: any) {
           <p>${sr?.action || "-"}</p>
         </div>
         
-        <table>
+        <table class="checkbox-table" style="margin-bottom: 0;">
           <tr>
-            <td>
+            <td style="width: 25%;">
               <div class="section-title">Sensor Replacement</div>
-              <div class="checkbox-group">
-                <div class="checkbox-item">
+              <div>
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.sensorCO ? "checked" : ""} disabled> CO
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.sensorH2S ? "checked" : ""} disabled> H2S
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.sensorO2 ? "checked" : ""} disabled> O2
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.sensorLEL ? "checked" : ""} disabled> LEL
                 </div>
               </div>
             </td>
-            <td>
+            <td style="width: 25%;">
               <div class="section-title">Lamp Service</div>
-              <div class="checkbox-group">
-                <div class="checkbox-item">
+              <div>
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.lampClean ? "checked" : ""} disabled> Clean
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.lampReplace ? "checked" : ""} disabled> Replace
                 </div>
               </div>
             </td>
-            <td>
+            <td style="width: 25%;">
               <div class="section-title">Pump Service</div>
-              <div class="checkbox-group">
-                <div class="checkbox-item">
+              <div>
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.pumpTested ? "checked" : ""} disabled> Tested
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.pumpRebuilt ? "checked" : ""} disabled> Rebuilt
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.pumpReplaced ? "checked" : ""} disabled> Replaced
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.pumpClean ? "checked" : ""} disabled> Clean
                 </div>
               </div>
             </td>
-            <td>
+            <td style="width: 25%;">
               <div class="section-title">Instrument Service</div>
-              <div class="checkbox-group">
-                <div class="checkbox-item">
+              <div>
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.instrumentCalibrate ? "checked" : ""} disabled> Calibrate
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.instrumentUpgrade ? "checked" : ""} disabled> Upgrade
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.instrumentCharge ? "checked" : ""} disabled> Charge
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.instrumentClean ? "checked" : ""} disabled> Clean
                 </div>
-                <div class="checkbox-item">
+                <div style="margin-bottom: 3px;">
                   <input type="checkbox" ${sr?.instrumentSensorAssembly ? "checked" : ""} disabled> Sensor Assembly
                 </div>
               </div>
@@ -370,37 +413,68 @@ function generateCSRHtml(maintenance: any) {
           </tr>
         </table>
         
-        <div class="section-title">Parts List</div>
-        <table>
+        <div style="text-align: center; margin: 0 10px; border-top: 1px solid #000;">
+          <div style="font-weight: bold;">Parts List</div>
+        </div>
+        
+        <table class="parts-list">
           <thead>
             <tr>
-              <th>Item</th>
-              <th>Description</th>
-              <th>SN/PN/OLD</th>
-              <th>SN/PN/NEW</th>
+              <th style="width: 10%;">Item</th>
+              <th style="width: 45%;">Description</th>
+              <th style="width: 22.5%;">SN/PN/OLD</th>
+              <th style="width: 22.5%;">SN/PN/NEW</th>
             </tr>
           </thead>
           <tbody>
-            ${sr?.parts?.map((part: any) => `
+            ${sr?.parts?.map((part: any, index: number) => `
               <tr>
-                <td>${part.itemNumber}</td>
-                <td>${part.description}</td>
+                <td>${part.itemNumber || index + 1}</td>
+                <td>${part.description || "-"}</td>
                 <td>${part.snPnOld || "-"}</td>
                 <td>${part.snPnNew || "-"}</td>
               </tr>
-            `).join("") || 
-            `<tr><td colspan="4" style="text-align: center;">No parts</td></tr>`}
+            `).join("") || `
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            `}
           </tbody>
         </table>
         
         <div class="signature-area">
           <div class="signature-box">
-            <div>Services/Maintenance by,</div>
-            <div class="signature-line">${maintenance.user.name}</div>
+            <div class="signature-line">Services/Maintenance by,</div>
           </div>
           <div class="signature-box">
-            <div>Mengetahui,</div>
-            <div class="signature-line"></div>
+            <div class="signature-line">Mengetahui,</div>
           </div>
         </div>
       </div>
@@ -410,8 +484,11 @@ function generateCSRHtml(maintenance: any) {
 }
 
 // Generate HTML untuk Technical Report
-function generateTechnicalReportHtml(maintenance: any) {
+function generateTechnicalReportHtml(maintenance: any, host: string) {
   const tr = maintenance.technicalReport;
+  
+  const beforeImageUrl = getFullImageUrl(tr?.beforePhotoUrl, host);
+  const afterImageUrl = getFullImageUrl(tr?.afterPhotoUrl, host);
   
   return `
     <!DOCTYPE html>
@@ -430,31 +507,11 @@ function generateTechnicalReportHtml(maintenance: any) {
           max-width: 800px;
           margin: 0 auto;
         }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 1px solid #000;
-          padding-bottom: 10px;
-        }
-        .logo-container {
-          width: 25%;
-          display: flex;
-          align-items: center;
-        }
-        .logo {
-          width: 60px;
-          height: auto;
-        }
-        .address {
-          font-size: 10px;
-          width: 25%;
-        }
         .title {
           text-align: center;
-          font-size: 18px;
+          font-size: 16px;
           font-weight: bold;
-          margin: 15px 0;
-          width: 100%;
+          margin: 0;
           background-color: #000;
           color: #fff;
           padding: 5px 0;
@@ -462,19 +519,33 @@ function generateTechnicalReportHtml(maintenance: any) {
         table {
           width: 100%;
           border-collapse: collapse;
-          margin: 10px 0;
+          margin: 0;
         }
         th, td {
           border: 1px solid #000;
           padding: 5px;
+          vertical-align: top;
         }
-        .section {
-          margin: 15px 0;
+        .header-table td {
+          padding: 5px;
+          vertical-align: top;
+        }
+        .company-logo {
+          max-width: 80px;
+          height: auto;
+          margin-bottom: 5px;
+        }
+        .company-info {
+          font-size: 10px;
+          line-height: 1.2;
         }
         .section-title {
           font-weight: bold;
-          background-color: #f0f0f0;
+        }
+        .findings-section {
+          border: 1px solid #000;
           padding: 5px;
+          margin: 0;
         }
         .image-container {
           display: flex;
@@ -483,132 +554,191 @@ function generateTechnicalReportHtml(maintenance: any) {
         }
         .image-box {
           width: 48%;
+          border: 1px solid #000;
           text-align: center;
+          padding: 0;
         }
         .image {
-          width: 100%;
+          max-width: 100%;
           height: auto;
-          border: 1px solid #000;
+          max-height: 300px;
+          object-fit: contain;
+        }
+        .no-image {
+          height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #999;
+          font-style: italic;
+          text-align: center;
+        }
+        .parts-table th {
+          background-color: #f5f5f5;
+          text-align: center;
+          font-weight: bold;
+        }
+        .parts-table td {
+          text-align: center;
         }
         .terms {
           margin-top: 20px;
-          font-size: 10px;
+          font-size: 11px;
+          line-height: 1.3;
+        }
+        .terms ol {
+          margin: 5px 0;
+          padding-left: 20px;
         }
         .signature {
           margin-top: 30px;
-          text-align: left;
+          font-size: 11px;
         }
         .signature-line {
-          border-top: 1px solid #000;
           margin-top: 30px;
-          width: 200px;
-          padding-top: 5px;
+          width: 150px;
+          border-top: 1px solid #000;
         }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <div class="logo-container">
-            <img src="https://example.com/logo.png" alt="Logo" class="logo">
-          </div>
-          <div class="address">
-            <p>Komplek Palem Ganda<br>
-            Asri 1 Blok A3 No.8,<br>
-            Karang Tengah<br>
-            Ciledug – Tangerang 15157<br>
-            021-7306424</p>
-          </div>
-          <div>
-            <table>
-              <tr>
-                <td>CSR NO :</td>
-                <td>${tr?.csrNumber || "-"}</td>
-              </tr>
-              <tr>
-                <td>DATE :</td>
-                <td>${formatDate(tr?.dateReport || new Date())}</td>
-              </tr>
-            </table>
-          </div>
-        </div>
-        
         <div class="title">Customer Service Report</div>
         
-        <table>
+        <table class="header-table">
           <tr>
-            <td width="30%">DELIVERY TO :<br>To :</td>
-            <td>${tr?.deliveryTo || "-"}</td>
-            <td width="15%">QUO No:</td>
-            <td>${tr?.quoNumber || "-"}</td>
-          </tr>
-          <tr>
-            <td colspan="2"></td>
-            <td colspan="2">Technical Support<br><br>${tr?.techSupport || "-"}</td>
+            <td style="width: 35%; border: 1px solid #000;">
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <img src="${host}/logo1.png" alt="Logo" class="company-logo">
+                <div class="company-info">
+                  <p style="margin: 0;">Komplek Palem Ganda<br>Asri 1 Blok A3 No.8,<br>Karang Tengah<br>Ciledug – Tangerang 15157<br>021-7306424</p>
+                </div>
+              </div>
+            </td>
+            <td style="width: 35%; border: 1px solid #000; vertical-align: top;">
+              <div>
+                <strong>DELIVERY TO :</strong><br>
+                <strong>To :</strong> ${tr?.deliveryTo || "PT. Archroma Indonesia"}
+              </div>
+              <div style="margin-top: 10px;">
+                <strong>QUO No:</strong> ${tr?.quoNumber || ""}
+              </div>
+            </td>
+            <td style="width: 30%; border: 1px solid #000; vertical-align: top;">
+              <div>
+                <strong>CSR NO :</strong> ${tr?.csrNumber || "000/CSR-PBI/XX/24"}
+              </div>
+              <div>
+                <strong>DATE :</strong> ${formatDate(tr?.dateReport || new Date())}
+              </div>
+              <div style="margin-top: 20px; text-align: center;">
+                <strong>Technical Support</strong>
+                <p style="margin-top: 20px;">${tr?.techSupport || "Henry Sutiawan"}</p>
+              </div>
+            </td>
           </tr>
         </table>
-        
-        <table>
+
+        <table style="margin-top: 0;">
           <tr>
-            <td width="30%">Reason For Return :</td>
-            <td>Date In :</td>
-            <td>Estimate Work :</td>
-          </tr>
-          <tr>
-            <td>${tr?.reasonForReturn || "-"}</td>
-            <td>${formatDate(tr?.dateIn || maintenance.startDate)}</td>
-            <td>${tr?.estimateWork || "-"}</td>
+            <td style="width: 50%; border: 1px solid #000;">
+              <strong>Reason For Return :</strong><br>
+              ${tr?.reasonForReturn || "Maintenance & calibration"}
+            </td>
+            <td style="width: 25%; border: 1px solid #000;">
+              <strong>Date In :</strong><br>
+              ${formatDate(tr?.dateIn || maintenance.startDate) || "10 Sept 2024"}
+            </td>
+            <td style="width: 25%; border: 1px solid #000;">
+              <strong>Estimate Work :</strong><br>
+              ${tr?.estimateWork || ""}
+            </td>
           </tr>
         </table>
-        
-        <div class="section">
+
+        <div class="findings-section">
           <div class="section-title">Findings :</div>
-          <p>${tr?.findings || "-"}</p>
+          <p style="margin: 5px 0;">${tr?.findings || "1. QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang, Sensor CO Fail saat dikalibrasi ulang."}</p>
         </div>
-        
+
         <div class="image-container">
-          <div class="image-box">
-            ${tr?.beforePhotoUrl ? 
-              `<img src="${tr.beforePhotoUrl}" alt="Before" class="image">` : 
-              `<div class="image" style="height:200px;display:flex;align-items:center;justify-content:center;">No Before Image</div>`
-            }
-          </div>
-          <div class="image-box">
-            ${tr?.afterPhotoUrl ? 
-              `<img src="${tr.afterPhotoUrl}" alt="After" class="image">` : 
-              `<div class="image" style="height:200px;display:flex;align-items:center;justify-content:center;">No After Image</div>`
-            }
-          </div>
+          ${beforeImageUrl ? 
+            `<img src="${beforeImageUrl}" alt="Before" style="width: 48%; border: 1px solid #000; object-fit: contain; max-height: 300px;">` : 
+            `<div style="width: 48%; border: 1px solid #000; height: 300px; display: flex; align-items: center; justify-content: center;"><img src="${host}/next.svg" alt="No Before Image" style="max-width: 50%; max-height: 50%;"></div>`
+          }
+          ${afterImageUrl ? 
+            `<img src="${afterImageUrl}" alt="After" style="width: 48%; border: 1px solid #000; object-fit: contain; max-height: 300px;">` : 
+            `<div style="width: 48%; border: 1px solid #000; height: 300px; display: flex; align-items: center; justify-content: center;"><img src="${host}/next.svg" alt="No After Image" style="max-width: 50%; max-height: 50%;"></div>`
+          }
         </div>
-        
-        <table>
+
+        <table class="parts-table">
           <thead>
             <tr>
-              <th>NO</th>
-              <th>Nama Unit</th>
-              <th>DESCRIPTION</th>
-              <th>QTY</th>
-              <th>UNIT PRICE</th>
-              <th>TOTAL PRICE</th>
+              <th style="width: 8%;">NO</th>
+              <th style="width: 22%;">Nama Unit</th>
+              <th style="width: 30%;">DESCRIPTION</th>
+              <th style="width: 10%;">QTY</th>
+              <th style="width: 15%;">UNIT PRICE</th>
+              <th style="width: 15%;">TOTAL PRICE</th>
             </tr>
           </thead>
           <tbody>
-            ${tr?.partsList?.map((part: any) => `
+            ${tr?.partsList?.map((part: any, index: number) => `
               <tr>
-                <td>${part.itemNumber}</td>
-                <td>${part.namaUnit || "-"}</td>
-                <td>${part.description || "-"}</td>
-                <td>${part.quantity}</td>
-                <td>${part.unitPrice?.toLocaleString('id-ID') || "-"}</td>
-                <td>${part.totalPrice?.toLocaleString('id-ID') || "-"}</td>
+                <td>${part.itemNumber || index + 1}</td>
+                <td>${part.namaUnit || "QRAE 3"}</td>
+                <td>${part.description || "Kalibrasi"}</td>
+                <td>${part.quantity || "1"}</td>
+                <td>${part.unitPrice ? part.unitPrice.toLocaleString('id-ID') : ""}</td>
+                <td>${part.totalPrice ? part.totalPrice.toLocaleString('id-ID') : ""}</td>
               </tr>
-            `).join("") || 
-            `<tr><td colspan="6" style="text-align: center;">No parts</td></tr>`}
+            `).join("") || `
+              <tr>
+                <td>1.</td>
+                <td>QRAE 3</td>
+                <td>Kalibrasi</td>
+                <td>1</td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td>2.</td>
+                <td></td>
+                <td>Sensor CO</td>
+                <td>1</td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            `}
           </tbody>
         </table>
-        
+
         <div class="terms">
-          ${tr?.termsConditions || `
           <p><strong>Terms and Condition :</strong></p>
           <ol>
             <li>Price above exclude PPN 11 %</li>
@@ -617,16 +747,15 @@ function generateTechnicalReportHtml(maintenance: any) {
             <li>Franco :</li>
           </ol>
           <p>We hope above are acceptable for your needs. We look further for your order.</p>
-          <p>Best regards<br>PT. PARAMATA BARAYA INTERNASIONAL</p>
-          `}
+          <p><strong>Best regards</strong><br/>PT. PARAMATA BARAYA INTERNASIONAL</p>
         </div>
-        
+
         <div class="signature">
-          <p>Gerhan M.Y<br>Director</p>
+          <p style="margin-top: 20px;"><strong>Gerhan M.Y</strong><br/>Director</p>
           <div class="signature-line"></div>
         </div>
       </div>
     </body>
     </html>
   `;
-} 
+}
