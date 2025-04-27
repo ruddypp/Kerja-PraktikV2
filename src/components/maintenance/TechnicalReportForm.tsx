@@ -13,9 +13,24 @@ interface TechnicalReportPart {
   totalPrice: number | undefined;
 }
 
+interface TechnicalReportData {
+  csrNumber: string;
+  deliveryTo: string;
+  quoNumber: string;
+  dateReport: string;
+  techSupport: string;
+  dateIn: string;
+  estimateWork: string;
+  reasonForReturn: string;
+  findings: string;
+  beforePhotoUrl: string;
+  afterPhotoUrl: string;
+  termsConditions: string;
+}
+
 interface TechnicalReportFormProps {
-  data: any;
-  setData: (data: any) => void;
+  data: TechnicalReportData;
+  setData: (data: TechnicalReportData) => void;
   parts: TechnicalReportPart[];
   setParts: (parts: TechnicalReportPart[]) => void;
 }
@@ -31,6 +46,7 @@ export default function TechnicalReportForm({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    console.log(`Field changed: ${name} = ${value}`);
     setData({ ...data, [name]: value });
   };
 
@@ -86,6 +102,7 @@ export default function TechnicalReportForm({
       try {
         // Show loading state
         toast.loading("Mengupload foto...");
+        console.log("Uploading before photo...");
         
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -95,13 +112,17 @@ export default function TechnicalReportForm({
         if (!response.ok) throw new Error("Upload failed");
         
         const responseData = await response.json();
+        console.log("Upload response data:", responseData);
         
         if (!responseData.success) {
           throw new Error(responseData.error || "Upload failed");
         }
         
-        // Use the full URL to ensure it works in all contexts
-        setData({ ...data, beforePhotoUrl: responseData.fullUrl || responseData.url });
+        // Use the relative URL (path only) to ensure it works in all contexts
+        // We don't use the full URL as it may cause issues with path resolution
+        const photoPath = responseData.url;
+        console.log("Setting before photo URL to:", photoPath);
+        setData({ ...data, beforePhotoUrl: photoPath });
         
         // Dismiss loading toast and show success
         toast.dismiss();
@@ -126,6 +147,7 @@ export default function TechnicalReportForm({
       try {
         // Show loading state
         toast.loading("Mengupload foto...");
+        console.log("Uploading after photo...");
         
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -135,13 +157,17 @@ export default function TechnicalReportForm({
         if (!response.ok) throw new Error("Upload failed");
         
         const responseData = await response.json();
+        console.log("Upload response data:", responseData);
         
         if (!responseData.success) {
           throw new Error(responseData.error || "Upload failed");
         }
         
-        // Use the full URL to ensure it works in all contexts
-        setData({ ...data, afterPhotoUrl: responseData.fullUrl || responseData.url });
+        // Use the relative URL (path only) to ensure it works in all contexts
+        // We don't use the full URL as it may cause issues with path resolution
+        const photoPath = responseData.url;
+        console.log("Setting after photo URL to:", photoPath);
+        setData({ ...data, afterPhotoUrl: photoPath });
         
         // Dismiss loading toast and show success
         toast.dismiss();
@@ -158,112 +184,133 @@ export default function TechnicalReportForm({
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="csrNumber">
             CSR Number
           </label>
           <input
             type="text"
+            id="csrNumber"
             name="csrNumber"
             value={data.csrNumber}
             onChange={handleChange}
             placeholder="090/CSR-PBI/IX/24"
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="CSR Number"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="deliveryTo">
             Delivery To
           </label>
           <input
             type="text"
+            id="deliveryTo"
             name="deliveryTo"
             value={data.deliveryTo}
             onChange={handleChange}
             placeholder="PT. Archroma Indonesia"
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Delivery To"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="quoNumber">
             QUO No
           </label>
           <input
             type="text"
+            id="quoNumber"
             name="quoNumber"
             value={data.quoNumber}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="QUO Number"
+            placeholder="Enter QUO Number"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="dateReport">
             Date Report
           </label>
           <input
             type="date"
+            id="dateReport"
             name="dateReport"
             value={data.dateReport}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Date Report"
+            placeholder="Select Report Date"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="techSupport">
             Technical Support
           </label>
           <input
             type="text"
+            id="techSupport"
             name="techSupport"
             value={data.techSupport}
             onChange={handleChange}
             placeholder="Herry Sutiawan"
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Technical Support"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="dateIn">
             Date In
           </label>
           <input
             type="date"
+            id="dateIn"
             name="dateIn"
             value={data.dateIn}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Date In"
+            placeholder="Select Date In"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reasonForReturn">
             Reason For Return
           </label>
           <input
             type="text"
+            id="reasonForReturn"
             name="reasonForReturn"
             value={data.reasonForReturn}
             onChange={handleChange}
             placeholder="Maintenance & calibration"
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Reason For Return"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="estimateWork">
             Estimate Work
           </label>
           <input
             type="text"
+            id="estimateWork"
             name="estimateWork"
             value={data.estimateWork}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Estimate Work"
+            placeholder="Enter estimate work details"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="findings">
           Findings <span className="text-red-500">*</span>
         </label>
         <textarea
+          id="findings"
           name="findings"
           value={data.findings}
           onChange={handleChange}
@@ -271,6 +318,7 @@ export default function TechnicalReportForm({
           placeholder="QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang, Sensor CO Fail saat dikalibrasi ulang."
           className="w-full p-2 border border-gray-300 rounded-md"
           required
+          title="Findings"
         ></textarea>
       </div>
 
@@ -416,6 +464,7 @@ export default function TechnicalReportForm({
                       }
                       placeholder="QRAE 3"
                       className="w-full p-1 border border-gray-300 rounded-md"
+                      title="Unit Name"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -427,6 +476,7 @@ export default function TechnicalReportForm({
                       }
                       placeholder="Kalibrasi"
                       className="w-full p-1 border border-gray-300 rounded-md"
+                      title="Description"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -438,6 +488,8 @@ export default function TechnicalReportForm({
                       }
                       min="1"
                       className="w-16 p-1 border border-gray-300 rounded-md"
+                      title="Quantity"
+                      placeholder="Quantity"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -449,6 +501,7 @@ export default function TechnicalReportForm({
                       }
                       placeholder="0"
                       className="w-24 p-1 border border-gray-300 rounded-md"
+                      title="Unit Price"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -457,6 +510,8 @@ export default function TechnicalReportForm({
                       value={part.totalPrice || ""}
                       readOnly
                       className="w-24 p-1 border border-gray-300 rounded-md bg-gray-50"
+                      title="Total Price"
+                      placeholder="Total Price"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -464,6 +519,8 @@ export default function TechnicalReportForm({
                       type="button"
                       onClick={() => removePart(index)}
                       className="text-red-500 hover:text-red-700"
+                      title="Remove part"
+                      aria-label="Remove part"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -476,10 +533,11 @@ export default function TechnicalReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="termsConditions">
           Terms and Conditions
         </label>
         <textarea
+          id="termsConditions"
           name="termsConditions"
           value={data.termsConditions}
           onChange={handleChange}
@@ -489,6 +547,7 @@ export default function TechnicalReportForm({
 3. Payment:
 4. Franco:"
           className="w-full p-2 border border-gray-300 rounded-md"
+          title="Terms and Conditions"
         ></textarea>
       </div>
     </div>

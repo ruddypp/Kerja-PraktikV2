@@ -4,27 +4,16 @@ import { getUserFromRequest } from '@/lib/auth';
 import { PDFDocument, rgb, StandardFonts, PDFPage, RGB, PDFFont } from 'pdf-lib';
 import path from 'path';
 import fs from 'fs';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
 
 // Format date to Indonesian format
-function formatDateID(date: Date | string | null | undefined): string {
-  if (!date) return 'N/A';
+function formatDateID(dateString: string | Date | null | undefined): string {
+  if (!dateString) return 'N/A';
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
   
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    // @ts-expect-error - date-fns locale usage is correct but TypeScript definition is outdated
-    return format(dateObj, 'dd MMMM yyyy', { locale: id });
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Invalid Date';
-  }
-}
-
-// Month to Roman numeral conversion
-function getRomanMonth(date: Date): string {
-  const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-  return romanMonths[date.getMonth()];
+  return `${day < 10 ? '0' + day : day}/${month < 10 ? '0' + month : month}/${year}`;
 }
 
 // GET endpoint to generate a maintenance report in PDF format
@@ -111,13 +100,13 @@ export async function GET(
     
     if (reportType === 'csr') {
       // Generate CSR PDF
-      const { pdfDoc, reportNumber } = await generateServiceReportPDF(maintenanceData);
-      pdfBytes = await pdfDoc.save();
+      const { reportNumber, pdfResult } = await generateServiceReportPDF(maintenanceData as ServiceReportMaintenanceData);
+      pdfBytes = pdfResult;
       filename = `CSR_${reportNumber || maintenanceId}.pdf`;
     } else if (reportType === 'technical') {
       // Generate Technical Report PDF
-      const { pdfDoc, reportNumber } = await generateTechnicalReportPDF(maintenanceData);
-      pdfBytes = await pdfDoc.save();
+      const { reportNumber, pdfResult } = await generateTechnicalReportPDF(maintenanceData as TechnicalReportMaintenanceData);
+      pdfBytes = pdfResult;
       filename = `TR_${reportNumber || maintenanceId}.pdf`;
     } else {
       // Invalid report type
@@ -147,29 +136,34 @@ export async function GET(
   }
 }
 
-// Function to generate Service Report PDF
-async function generateServiceReportPDF(maintenanceData: {
+// Update the maintenance data type for both functions
+interface MaintenanceDataBase {
   id: string;
   itemSerial: string;
   status: string;
-  startDate: string;
-  endDate?: string | null;
+  startDate: string | Date;
+  endDate?: string | Date | null;
   item: {
     name: string;
     partNumber: string;
-    customer?: { name: string };
+    customer?: { name: string } | null;
   };
   user: { name: string };
+}
+
+interface ServiceReportMaintenanceData extends MaintenanceDataBase {
   serviceReport: {
-    reportNumber?: string;
-    customer?: string;
-    location?: string;
-    brand?: string;
-    model?: string;
-    dateIn?: string;
-    reasonForReturn?: string;
-    findings?: string;
-    action?: string;
+    id: string;
+    reportNumber?: string | null;
+    customer?: string | null;
+    location?: string | null;
+    brand?: string | null;
+    model?: string | null;
+    serialNumber?: string | null;
+    dateIn?: string | Date | null;
+    reasonForReturn?: string | null;
+    findings?: string | null;
+    action?: string | null;
     sensorCO?: boolean;
     sensorH2S?: boolean;
     sensorO2?: boolean;
@@ -186,16 +180,51 @@ async function generateServiceReportPDF(maintenanceData: {
     instrumentClean?: boolean;
     instrumentSensorAssembly?: boolean;
     parts?: Array<{
+      id: string;
       itemNumber: number;
       description?: string;
-      snPnOld?: string;
-      snPnNew?: string;
+      snPnOld?: string | null;
+      snPnNew?: string | null;
+      createdAt?: Date;
+      serviceReportId?: string;
     }>;
-  };
-}) {
+  } | null;
+  csrNumber?: string;
+}
+
+interface TechnicalReportMaintenanceData extends MaintenanceDataBase {
+  technicalReport: {
+    id: string;
+    csrNumber?: string | null;
+    deliveryTo?: string | null;
+    quoNumber?: string | null;
+    dateReport?: string | Date | null;
+    techSupport?: string | null;
+    dateIn?: string | Date | null;
+    estimateWork?: string | null;
+    reasonForReturn?: string | null;
+    findings?: string | null;
+    beforePhotoUrl?: string | null;
+    afterPhotoUrl?: string | null;
+    termsConditions?: string | null;
+    partsList?: Array<{
+      id: string;
+      itemNumber: number;
+      namaUnit?: string | null;
+      description?: string | null;
+      quantity: number;
+      unitPrice?: number | null;
+      createdAt?: Date;
+      technicalReportId?: string;
+      totalPrice?: number | null;
+    }>;
+  } | null;
+  csrNumber?: string;
+}
+
+// Function to generate Service Report PDF
+async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanceData) {
   const sr = maintenanceData.serviceReport;
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
   
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
@@ -209,7 +238,6 @@ async function generateServiceReportPDF(maintenanceData: {
   
   // Colors
   const black = rgb(0, 0, 0);
-  const white = rgb(1, 1, 1);
   
   // Page coordinates
   const { width, height } = page.getSize();
@@ -266,40 +294,40 @@ async function generateServiceReportPDF(maintenanceData: {
   
   // --- Company information ---
   page.drawText('PT. PARAMATA BARAYA INTERNATIONAL', {
-    x: 180,
-    y: height - 70,
+    x: 205,
+    y: height - 40,
     size: 12,
     font: helveticaBold,
     color: black
   });
   
   page.drawText('Kompleks Palem Ganda Asri 1 Blok A3 No. 8', {
-    x: 180,
-    y: height - 85,
+    x: 205,
+    y: height - 55,
     size: 9,
     font: helvetica,
     color: black
   });
   
   page.drawText('Karang Tengah, Ciledug - Tangerang 15157', {
-    x: 180,
-    y: height - 100,
+    x: 205,
+    y: height - 70,
     size: 9,
     font: helvetica,
     color: black
   });
   
   page.drawText('Telp. 62-21 730 6424, 733 1150 / Faks. 62-21 733 1150', {
-    x: 180,
-    y: height - 115,
+    x: 205,
+    y: height - 85,
     size: 9,
     font: helvetica,
     color: black
   });
   
   page.drawText('Email : paramata@indosat.net.id', {
-    x: 180,
-    y: height - 130,
+    x: 205,
+    y: height - 100,
     size: 9,
     font: helvetica,
     color: black
@@ -308,17 +336,22 @@ async function generateServiceReportPDF(maintenanceData: {
   // --- Title ---
   const titleY = height - 200;
   page.drawText('Customer Service Report', {
-    x: width / 2 - 100,
+    x: width / 2 - 105,
     y: titleY,
     size: 18,
     font: helveticaBold,
-    color: white
+    color: black
   });
   
-  // Report number
-  const reportNumber = sr?.reportNumber || `${currentDate.getDate()}/CSR-PBI/${currentYear}`;
+  // Fix csrNumber to handle undefined
+  const dateIn = sr?.dateIn ? formatDateID(sr.dateIn) : formatDateID(maintenanceData.startDate);
+  // Use default CSR pattern if sr doesn't have csrNumber property
+  const defaultCsr = `SR-${new Date().getDate()}/${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
+  // Use type assertion to handle potential undefined csrNumber
+  const csrNum = (sr && 'csrNumber' in sr ? sr.csrNumber ?? defaultCsr : defaultCsr).toString();
+  const reportNum = (sr?.reportNumber ?? `${dateIn}`).toString();
   
-  page.drawText(`No. :        /        /CSR-PBI/        /2023`, {
+  page.drawText(`No. :        /        /CSR-PBI/${csrNum}/2023`, {
     x: width / 2 - 110,
     y: titleY - 25,
     size: 11,
@@ -328,20 +361,19 @@ async function generateServiceReportPDF(maintenanceData: {
   
   // --- Customer Information Section ---
   const yStart = titleY - 65;
-  const leftColumnX = 50;
-  const rightColumnX = 420;
-  const labelWidth = 100;
+  const leftColumnX = 70;
+  const rightColumnX = 320;
   
   // --- Left Column ---
   page.drawText('Customer', {
     x: leftColumnX,
     y: yStart,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(`: ${sr?.customer || maintenanceData.item.customer?.name || '-'}`, {
+  page.drawText(': ' + (sr?.customer ?? maintenanceData.item.customer?.name ?? '-'), {
     x: leftColumnX + 90,
     y: yStart,
     size: 11,
@@ -353,11 +385,11 @@ async function generateServiceReportPDF(maintenanceData: {
     x: leftColumnX,
     y: yStart - 30,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(':', {
+  page.drawText(': ' + (sr?.location ?? '-'), {
     x: leftColumnX + 90,
     y: yStart - 30,
     size: 11,
@@ -369,11 +401,11 @@ async function generateServiceReportPDF(maintenanceData: {
     x: leftColumnX,
     y: yStart - 60,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(':', {
+  page.drawText(': ' + (sr?.brand ?? '-'), {
     x: leftColumnX + 90,
     y: yStart - 60,
     size: 11,
@@ -385,11 +417,11 @@ async function generateServiceReportPDF(maintenanceData: {
     x: leftColumnX,
     y: yStart - 90,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(':', {
+  page.drawText(': ' + (sr?.model ?? '-'), {
     x: leftColumnX + 90,
     y: yStart - 90,
     size: 11,
@@ -402,11 +434,11 @@ async function generateServiceReportPDF(maintenanceData: {
     x: rightColumnX,
     y: yStart,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(':', {
+  page.drawText(': ' + (sr?.serialNumber ?? maintenanceData.itemSerial ?? '-'), {
     x: rightColumnX + 100,
     y: yStart,
     size: 11,
@@ -418,11 +450,11 @@ async function generateServiceReportPDF(maintenanceData: {
     x: rightColumnX,
     y: yStart - 30,
     size: 11,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
-  page.drawText(':', {
+  page.drawText(': ' + dateIn, {
     x: rightColumnX + 100,
     y: yStart - 30,
     size: 11,
@@ -431,7 +463,7 @@ async function generateServiceReportPDF(maintenanceData: {
   });
   
   // --- Form Fields Section ---
-  const formY = yStart - 140;
+  const formY = yStart - 120;
   const formWidth = width - 2 * (margin + 20);
   
   // Reason For Return
@@ -446,16 +478,16 @@ async function generateServiceReportPDF(maintenanceData: {
   
   page.drawText('Reason For Return :', {
     x: margin + 30,
-    y: formY,
-    size: 11,
-    font: helveticaBold,
+    y: formY - 15,
+    size: 10,
+    font: helvetica,
     color: black
   });
   
   if (sr?.reasonForReturn) {
     // Draw multi-line text for reason for return
     const reasonLines = splitTextToLines(sr.reasonForReturn, formWidth - 20, helvetica, 10);
-    let lineY = formY - 15;
+    let lineY = formY - 35;
     
     reasonLines.forEach((line) => {
       if (lineY > formY - 55) { // Make sure we stay within the box
@@ -483,16 +515,16 @@ async function generateServiceReportPDF(maintenanceData: {
   
   page.drawText('Findings :', {
     x: margin + 30,
-    y: formY - 70,
-    size: 11,
-    font: helveticaBold,
+    y: formY - 75,
+    size: 10,
+    font: helvetica,
     color: black
   });
   
   if (sr?.findings) {
     // Draw multi-line text for findings
     const findingsLines = splitTextToLines(sr.findings, formWidth - 20, helvetica, 10);
-    let lineY = formY - 85;
+    let lineY = formY - 95;
     
     findingsLines.forEach((line) => {
       if (lineY > formY - 135) { // Make sure we stay within the box
@@ -520,16 +552,16 @@ async function generateServiceReportPDF(maintenanceData: {
   
   page.drawText('Action :', {
     x: margin + 30,
-    y: formY - 150,
-    size: 11,
-    font: helveticaBold,
+    y: formY - 155,
+    size: 10,
+    font: helvetica,
     color: black
   });
   
   if (sr?.action) {
     // Draw multi-line text for action
     const actionLines = splitTextToLines(sr.action, formWidth - 20, helvetica, 10);
-    let lineY = formY - 165;
+    let lineY = formY - 175;
     
     actionLines.forEach((line) => {
       if (lineY > formY - 215) { // Make sure we stay within the box
@@ -547,7 +579,6 @@ async function generateServiceReportPDF(maintenanceData: {
   
   // Service Checklist
   const checklistY = formY - 220;
-  const checkboxSize = 10;
   
   // Table for checklist
   page.drawRectangle({
@@ -560,28 +591,28 @@ async function generateServiceReportPDF(maintenanceData: {
   });
   
   // Draw dividing lines for the 4 columns
-  const col1Width = formWidth * 0.25;
-  const col2Width = formWidth * 0.25;
-  const col3Width = formWidth * 0.25;
+  const column1Width = 130;
+  const column2Width = 180;
+  const column3Width = 150;
   
   // Vertical dividers
   page.drawLine({
-    start: { x: margin + 20 + col1Width, y: checklistY - 80 },
-    end: { x: margin + 20 + col1Width, y: checklistY },
+    start: { x: margin + 20 + column1Width, y: checklistY - 80 },
+    end: { x: margin + 20 + column1Width, y: checklistY },
     thickness: 1,
     color: black
   });
   
   page.drawLine({
-    start: { x: margin + 20 + col1Width + col2Width, y: checklistY - 80 },
-    end: { x: margin + 20 + col1Width + col2Width, y: checklistY },
+    start: { x: margin + 20 + column1Width + column2Width, y: checklistY - 80 },
+    end: { x: margin + 20 + column1Width + column2Width, y: checklistY },
     thickness: 1,
     color: black
   });
   
   page.drawLine({
-    start: { x: margin + 20 + col1Width + col2Width + col3Width, y: checklistY - 80 },
-    end: { x: margin + 20 + col1Width + col2Width + col3Width, y: checklistY },
+    start: { x: margin + 20 + column1Width + column2Width + column3Width, y: checklistY - 80 },
+    end: { x: margin + 20 + column1Width + column2Width + column3Width, y: checklistY },
     thickness: 1,
     color: black
   });
@@ -591,31 +622,31 @@ async function generateServiceReportPDF(maintenanceData: {
     x: margin + 25,
     y: checklistY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   page.drawText('Lamp Service', {
-    x: margin + 25 + col1Width + 5,
+    x: margin + 25 + column1Width + 5,
     y: checklistY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   page.drawText('Pump Service', {
-    x: margin + 25 + col1Width + col2Width + 5,
+    x: margin + 25 + column1Width + column2Width + 5,
     y: checklistY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   page.drawText('Instrument Service', {
-    x: margin + 25 + col1Width + col2Width + col3Width + 5,
+    x: margin + 25 + column1Width + column2Width + column3Width + 5,
     y: checklistY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
@@ -626,41 +657,41 @@ async function generateServiceReportPDF(maintenanceData: {
   renderCheckbox(margin + 35, checklistY - 75, sr?.sensorLEL || false, 'LEL', page, black, helvetica, helveticaBold);
   
   // Lamp Service checkboxes
-  renderCheckbox(margin + 35 + col1Width, checklistY - 30, sr?.lampClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width, checklistY - 45, sr?.lampReplace || false, 'Replace', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width, checklistY - 30, sr?.lampClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width, checklistY - 45, sr?.lampReplace || false, 'Replace', page, black, helvetica, helveticaBold);
   
   // Pump Service checkboxes
-  renderCheckbox(margin + 35 + col1Width + col2Width, checklistY - 30, sr?.pumpTested || false, 'Tested', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width, checklistY - 45, sr?.pumpRebuilt || false, 'Rebuilt', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width, checklistY - 60, sr?.pumpReplaced || false, 'Replaced', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width, checklistY - 75, sr?.pumpClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 30, sr?.pumpTested || false, 'Tested', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 45, sr?.pumpRebuilt || false, 'Rebuilt', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 60, sr?.pumpReplaced || false, 'Replaced', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 75, sr?.pumpClean || false, 'Clean', page, black, helvetica, helveticaBold);
   
   // Instrument Service checkboxes
-  renderCheckbox(margin + 35 + col1Width + col2Width + col3Width, checklistY - 30, sr?.instrumentCalibrate || false, 'Calibrate', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width + col3Width, checklistY - 45, sr?.instrumentUpgrade || false, 'Upgrade', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width + col3Width, checklistY - 60, sr?.instrumentCharge || false, 'Charge', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + col1Width + col2Width + col3Width, checklistY - 75, sr?.instrumentClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 30, sr?.instrumentCalibrate || false, 'Calibrate', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 45, sr?.instrumentUpgrade || false, 'Upgrade', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 60, sr?.instrumentCharge || false, 'Charge', page, black, helvetica, helveticaBold);
+  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 75, sr?.instrumentClean || false, 'Clean', page, black, helvetica, helveticaBold);
   
-  // Sensor Assembly checkbox (needs more space)
-  renderCheckbox(margin + 35 + col1Width + col2Width + col3Width, checklistY - 90, sr?.instrumentSensorAssembly || false, 'Sensor Assembly', page, black, helvetica, helveticaBold);
+  // Additional checkbox for Sensor Assembly
+  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 90, sr?.instrumentSensorAssembly || false, 'Sensor Assembly', page, black, helvetica, helveticaBold);
   
   // Parts List
-  const partsY = checklistY - 80;
+  const partsY = checklistY - 90;
   
   // Draw parts list header
   page.drawText('Parts', {
-    x: margin + 20 + formWidth / 2 - 15,
+    x: margin + 20 + formWidth / 2 - 20,
     y: partsY - 15,
-    size: 11,
-    font: helveticaBold,
+    size: 10,
+    font: helvetica,
     color: black
   });
   
   page.drawText('List', {
-    x: margin + 20 + formWidth / 2 + 15,
+    x: margin + 20 + formWidth / 2 + 5,
     y: partsY - 15,
-    size: 11,
-    font: helveticaBold,
+    size: 10,
+    font: helvetica,
     color: black
   });
   
@@ -716,7 +747,7 @@ async function generateServiceReportPDF(maintenanceData: {
     x: margin + 45,
     y: partsTableY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
@@ -724,40 +755,40 @@ async function generateServiceReportPDF(maintenanceData: {
     x: margin + 140,
     y: partsTableY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   page.drawText('SN/PN/OLD', {
-    x: margin + 20 + colWidths[0] + colWidths[1] + 35,
+    x: margin + 20 + colWidths[0] + colWidths[1] + 40,
     y: partsTableY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   page.drawText('SN/PN/NEW', {
-    x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 35,
+    x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 40,
     y: partsTableY - 15,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   // Draw rows for parts (5 rows)
-  const rowHeight = 20;
+  const rowHeight = 21;
+  
+  // Draw 5 horizontal lines for rows
   for (let i = 0; i < 5; i++) {
     const yPos = partsTableY - 25 - (i + 1) * rowHeight;
     
     // Draw horizontal line for row
-    if (i < 5) {
-      page.drawLine({
-        start: { x: margin + 20, y: yPos },
-        end: { x: margin + 20 + formWidth, y: yPos },
-        thickness: 1,
-        color: black
-      });
-    }
+    page.drawLine({
+      start: { x: margin + 20, y: yPos },
+      end: { x: margin + 20 + formWidth, y: yPos },
+      thickness: 1,
+      color: black
+    });
     
     // Fill in part data if available
     if (sr?.parts && i < sr.parts.length) {
@@ -789,7 +820,7 @@ async function generateServiceReportPDF(maintenanceData: {
       const truncatedOldSN = oldSN.length > 15 ? oldSN.substring(0, 12) + '...' : oldSN;
       
       page.drawText(truncatedOldSN, {
-        x: margin + 20 + colWidths[0] + colWidths[1] + 10,
+        x: margin + 20 + colWidths[0] + colWidths[1] + 40,
         y: yPos + 5,
         size: 9,
         font: helvetica,
@@ -801,7 +832,7 @@ async function generateServiceReportPDF(maintenanceData: {
       const truncatedNewSN = newSN.length > 15 ? newSN.substring(0, 12) + '...' : newSN;
       
       page.drawText(truncatedNewSN, {
-        x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 10,
+        x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 40,
         y: yPos + 5,
         size: 9,
         font: helvetica,
@@ -817,7 +848,7 @@ async function generateServiceReportPDF(maintenanceData: {
     x: margin + 70,
     y: signatureY,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
@@ -825,54 +856,19 @@ async function generateServiceReportPDF(maintenanceData: {
     x: width - margin - 150,
     y: signatureY,
     size: 10,
-    font: helveticaBold,
+    font: helvetica,
     color: black
   });
   
   // Create PDF
-  const pdfBytes = await pdfDoc.save();
+  const pdfResult = await pdfDoc.save();
   
-  return { pdfDoc, reportNumber };
+  return { reportNumber: reportNum, pdfResult };
 }
 
 // Function to generate Technical Report PDF
-async function generateTechnicalReportPDF(maintenanceData: {
-  id: string;
-  itemSerial: string;
-  status: string;
-  startDate: string;
-  endDate?: string | null;
-  item: {
-    name: string;
-    partNumber: string;
-    customer?: { name: string };
-  };
-  user: { name: string };
-  technicalReport: {
-    csrNumber?: string;
-    deliveryTo?: string;
-    quoNumber?: string;
-    dateReport?: string;
-    techSupport?: string;
-    dateIn?: string;
-    estimateWork?: string;
-    reasonForReturn?: string;
-    findings?: string;
-    beforePhotoUrl?: string | null;
-    afterPhotoUrl?: string | null;
-    termsConditions?: string;
-    partsList?: Array<{
-      itemNumber: number;
-      namaUnit?: string;
-      description?: string;
-      quantity: number;
-      unitPrice?: number | null;
-    }>;
-  };
-}) {
+async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMaintenanceData) {
   const tr = maintenanceData.technicalReport;
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
   
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
@@ -1030,6 +1026,10 @@ async function generateTechnicalReportPDF(maintenanceData: {
   });
   
   // CSR number
+  // Use default CSR pattern if tr doesn't have csrNumber property
+  const defaultCsr = `TR-${new Date().getDate()}/${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
+  // Use type assertion to handle potential undefined csrNumber
+  const csrNum = (tr && 'csrNumber' in tr ? tr.csrNumber ?? defaultCsr : defaultCsr).toString();
   page.drawText('CSR NO :', {
     x: margin + column1Width + column2Width + 10,
     y: tableTop - 20,
@@ -1038,12 +1038,11 @@ async function generateTechnicalReportPDF(maintenanceData: {
     color: black
   });
   
-  const csrNumber = tr?.csrNumber || '000/CSR-PBI/XX/24';
-  page.drawText(csrNumber, {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 50,
+  page.drawText(csrNum || '', {
+    x: margin + column1Width + column2Width + column3Width - 120,
+    y: tableTop - 150,
     size: 10,
-    font: helvetica,
+    font: helveticaBold,
     color: black
   });
   
@@ -1056,8 +1055,8 @@ async function generateTechnicalReportPDF(maintenanceData: {
     color: black
   });
   
-  const formattedDate = formatDateID(tr?.dateReport || new Date());
-  page.drawText(formattedDate, {
+  const dateIn = tr?.dateIn ? formatDateID(tr.dateIn) : formatDateID(maintenanceData.startDate);
+  page.drawText(dateIn, {
     x: margin + column1Width + column2Width + 10,
     y: tableTop - 95,
     size: 10,
@@ -1124,15 +1123,6 @@ async function generateTechnicalReportPDF(maintenanceData: {
     borderWidth: 1
   });
   
-  page.drawText('Date In :', {
-    x: margin + tableWidth * 0.7 + 10,
-    y: contentY - 15,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  const dateIn = formatDateID(tr?.dateIn || maintenanceData.startDate);
   page.drawText(dateIn, {
     x: margin + tableWidth * 0.7 + 10,
     y: contentY - 30,
@@ -1231,20 +1221,63 @@ async function generateTechnicalReportPDF(maintenanceData: {
   // First photo (Before)
   try {
     if (tr?.beforePhotoUrl) {
-      const beforePhotoPath = tr.beforePhotoUrl.startsWith('/') 
-        ? tr.beforePhotoUrl.substring(1) 
-        : tr.beforePhotoUrl;
+      console.log('Before photo URL:', tr.beforePhotoUrl);
       
-      const fullBeforePhotoPath = path.join(process.cwd(), 'public', beforePhotoPath);
+      let imagePath = '';
       
-      if (fs.existsSync(fullBeforePhotoPath)) {
+      // Handle various URL formats
+      if (tr.beforePhotoUrl.startsWith('http')) {
+        // Full URL: extract pathname
+        try {
+          const url = new URL(tr.beforePhotoUrl);
+          imagePath = url.pathname;
+        } catch (e) {
+          console.error('Error parsing URL:', e);
+          imagePath = tr.beforePhotoUrl;
+        }
+      } else {
+        // Relative path or just filename
+        imagePath = tr.beforePhotoUrl;
+      }
+      
+      // Remove leading slash if present
+      if (imagePath.startsWith('/')) {
+        imagePath = imagePath.substring(1);
+      }
+      
+      // Get the filename only if it's a path
+      const filename = imagePath.split('/').pop() ?? '';
+      
+      // Try multiple paths to find the image
+      const possiblePaths = [
+        path.join(process.cwd(), 'public', imagePath),
+        path.join(process.cwd(), 'public', 'uploads', filename),
+        path.join(process.cwd(), 'public', 'uploads', imagePath)
+      ];
+      
+      console.log('Possible paths for before photo:');
+      possiblePaths.forEach(p => console.log('- ' + p));
+      
+      let photoExists = false;
+      let fullBeforePhotoPath = '';
+      
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          photoExists = true;
+          fullBeforePhotoPath = testPath;
+          console.log('Found before photo at:', fullBeforePhotoPath);
+          break;
+        }
+      }
+      
+      if (photoExists) {
         const beforePhotoBytes = fs.readFileSync(fullBeforePhotoPath);
         
         let beforeImage;
         if (fullBeforePhotoPath.toLowerCase().endsWith('.png')) {
           beforeImage = await pdfDoc.embedPng(beforePhotoBytes);
         } else if (fullBeforePhotoPath.toLowerCase().endsWith('.jpg') || 
-                   fullBeforePhotoPath.toLowerCase().endsWith('.jpeg')) {
+                  fullBeforePhotoPath.toLowerCase().endsWith('.jpeg')) {
           beforeImage = await pdfDoc.embedJpg(beforePhotoBytes);
         }
         
@@ -1266,6 +1299,8 @@ async function generateTechnicalReportPDF(maintenanceData: {
             height: beforeDims.height
           });
         }
+      } else {
+        console.error('Before photo not found. Tried paths:', possiblePaths);
       }
     }
   } catch (err) {
@@ -1275,20 +1310,63 @@ async function generateTechnicalReportPDF(maintenanceData: {
   // Second photo (After)
   try {
     if (tr?.afterPhotoUrl) {
-      const afterPhotoPath = tr.afterPhotoUrl.startsWith('/') 
-        ? tr.afterPhotoUrl.substring(1) 
-        : tr.afterPhotoUrl;
+      console.log('After photo URL:', tr.afterPhotoUrl);
       
-      const fullAfterPhotoPath = path.join(process.cwd(), 'public', afterPhotoPath);
+      let imagePath = '';
       
-      if (fs.existsSync(fullAfterPhotoPath)) {
+      // Handle various URL formats
+      if (tr.afterPhotoUrl.startsWith('http')) {
+        // Full URL: extract pathname
+        try {
+          const url = new URL(tr.afterPhotoUrl);
+          imagePath = url.pathname;
+        } catch (e) {
+          console.error('Error parsing URL:', e);
+          imagePath = tr.afterPhotoUrl;
+        }
+      } else {
+        // Relative path or just filename
+        imagePath = tr.afterPhotoUrl;
+      }
+      
+      // Remove leading slash if present
+      if (imagePath.startsWith('/')) {
+        imagePath = imagePath.substring(1);
+      }
+      
+      // Get the filename only if it's a path
+      const filename = imagePath.split('/').pop() ?? '';
+      
+      // Try multiple paths to find the image
+      const possiblePaths = [
+        path.join(process.cwd(), 'public', imagePath),
+        path.join(process.cwd(), 'public', 'uploads', filename),
+        path.join(process.cwd(), 'public', 'uploads', imagePath)
+      ];
+      
+      console.log('Possible paths for after photo:');
+      possiblePaths.forEach(p => console.log('- ' + p));
+      
+      let photoExists = false;
+      let fullAfterPhotoPath = '';
+      
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          photoExists = true;
+          fullAfterPhotoPath = testPath;
+          console.log('Found after photo at:', fullAfterPhotoPath);
+          break;
+        }
+      }
+      
+      if (photoExists) {
         const afterPhotoBytes = fs.readFileSync(fullAfterPhotoPath);
         
         let afterImage;
         if (fullAfterPhotoPath.toLowerCase().endsWith('.png')) {
           afterImage = await pdfDoc.embedPng(afterPhotoBytes);
         } else if (fullAfterPhotoPath.toLowerCase().endsWith('.jpg') || 
-                   fullAfterPhotoPath.toLowerCase().endsWith('.jpeg')) {
+                  fullAfterPhotoPath.toLowerCase().endsWith('.jpeg')) {
           afterImage = await pdfDoc.embedJpg(afterPhotoBytes);
         }
         
@@ -1310,6 +1388,8 @@ async function generateTechnicalReportPDF(maintenanceData: {
             height: afterDims.height
           });
         }
+      } else {
+        console.error('After photo not found. Tried paths:', possiblePaths);
       }
     }
   } catch (err) {
@@ -1524,9 +1604,9 @@ async function generateTechnicalReportPDF(maintenanceData: {
   });
   
   // Create PDF
-  const pdfBytes = await pdfDoc.save();
+  const pdfResult = await pdfDoc.save();
   
-  return { pdfDoc, reportNumber: csrNumber };
+  return { reportNumber: csrNum, pdfResult };
 }
 
 function renderCheckbox(x: number, y: number, isChecked: boolean, label: string, page: PDFPage, black: RGB, helvetica: PDFFont, helveticaBold: PDFFont) {
@@ -1561,14 +1641,17 @@ function renderCheckbox(x: number, y: number, isChecked: boolean, label: string,
   });
 }
 
-function splitTextToLines(text: string, maxWidth: number, font: PDFFont, size: number): string[] {
+// Helper function to safely handle undefined text in splitTextToLines
+function splitTextToLines(text: string | undefined | null, maxWidth: number, font: PDFFont, fontSize: number): string[] {
+  if (!text) return [];
+  
   const words = text.split(' ');
   const lines: string[] = [];
   let currentLine = '';
 
   for (const word of words) {
     const testLine = currentLine + word + ' ';
-    const testWidth = font.widthOfTextAtSize(testLine, size);
+    const testWidth = font.widthOfTextAtSize(testLine, fontSize);
 
     if (testWidth > maxWidth) {
       lines.push(currentLine.trim());

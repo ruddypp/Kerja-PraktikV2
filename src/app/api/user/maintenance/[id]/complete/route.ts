@@ -50,6 +50,10 @@ export async function POST(
       technicalReportParts = [],
     } = await req.json();
     
+    console.log("Received data for maintenance completion:");
+    console.log("Technical Report Data:", JSON.stringify(technicalReportData, null, 2));
+    console.log("Technical Report Parts:", technicalReportParts.length);
+    
     // Cek apakah maintenance ada dan dimiliki oleh user yang login
     const maintenance = await prisma.maintenance.findUnique({
       where: { id: maintenanceId },
@@ -143,6 +147,11 @@ export async function POST(
       
       // 3. Buat TechnicalReport
       if (technicalReportData) {
+        console.log("Creating technical report with photo URLs:", {
+          beforePhotoUrl: technicalReportData.beforePhotoUrl,
+          afterPhotoUrl: technicalReportData.afterPhotoUrl
+        });
+        
         const technicalReport = await prisma.technicalReport.create({
           data: {
             maintenanceId,
@@ -155,14 +164,17 @@ export async function POST(
             estimateWork: technicalReportData.estimateWork,
             reasonForReturn: technicalReportData.reasonForReturn,
             findings: technicalReportData.findings,
-            beforePhotoUrl: technicalReportData.beforePhotoUrl,
-            afterPhotoUrl: technicalReportData.afterPhotoUrl,
+            beforePhotoUrl: technicalReportData.beforePhotoUrl || null,
+            afterPhotoUrl: technicalReportData.afterPhotoUrl || null,
             termsConditions: technicalReportData.termsConditions,
           },
         });
         
+        console.log("Created technical report:", technicalReport.id);
+        
         // Buat parts jika ada
         if (technicalReportParts.length > 0) {
+          console.log(`Creating ${technicalReportParts.length} technical report parts`);
           for (const part of technicalReportParts) {
             await prisma.technicalReportPart.create({
               data: {

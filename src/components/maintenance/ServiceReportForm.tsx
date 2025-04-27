@@ -9,9 +9,37 @@ interface ServiceReportPart {
   snPnNew: string;
 }
 
+interface ServiceReportData {
+  reportNumber: string;
+  customer: string;
+  location: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  dateIn: string;
+  reasonForReturn: string;
+  findings: string;
+  action: string;
+  sensorCO: boolean;
+  sensorH2S: boolean;
+  sensorO2: boolean;
+  sensorLEL: boolean;
+  lampClean: boolean;
+  lampReplace: boolean;
+  pumpTested: boolean;
+  pumpRebuilt: boolean;
+  pumpReplaced: boolean;
+  pumpClean: boolean;
+  instrumentCalibrate: boolean;
+  instrumentUpgrade: boolean;
+  instrumentCharge: boolean;
+  instrumentClean: boolean;
+  instrumentSensorAssembly: boolean;
+}
+
 interface ServiceReportFormProps {
-  data: any;
-  setData: (data: any) => void;
+  data: ServiceReportData;
+  setData: (data: ServiceReportData) => void;
   parts: ServiceReportPart[];
   setParts: (parts: ServiceReportPart[]) => void;
 }
@@ -94,16 +122,19 @@ export default function ServiceReportForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="serialNumber">
             Serial Number
           </label>
           <input
             type="text"
+            id="serialNumber"
             name="serialNumber"
             value={data.serialNumber}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md bg-gray-100"
             readOnly
+            title="Serial Number"
+            placeholder="Serial Number"
           />
         </div>
         <div>
@@ -133,58 +164,70 @@ export default function ServiceReportForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="dateIn">
             Date In
           </label>
           <input
             type="date"
+            id="dateIn"
             name="dateIn"
             value={data.dateIn}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            title="Date In"
+            placeholder="Date In"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reasonForReturn">
           Reason For Return <span className="text-red-500">*</span>
         </label>
         <textarea
+          id="reasonForReturn"
           name="reasonForReturn"
           value={data.reasonForReturn}
           onChange={handleChange}
           rows={2}
           className="w-full p-2 border border-gray-300 rounded-md"
           required
+          title="Reason For Return"
+          placeholder="Explain the reason for return"
         ></textarea>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="findings">
           Findings <span className="text-red-500">*</span>
         </label>
         <textarea
+          id="findings"
           name="findings"
           value={data.findings}
           onChange={handleChange}
           rows={3}
           className="w-full p-2 border border-gray-300 rounded-md"
           required
+          title="Findings"
+          placeholder="Describe findings during maintenance"
         ></textarea>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="action">
           Action <span className="text-red-500">*</span>
         </label>
         <textarea
+          id="action"
           name="action"
           value={data.action}
           onChange={handleChange}
           rows={3}
           className="w-full p-2 border border-gray-300 rounded-md"
           required
+          title="Action"
+          placeholder="Describe actions taken during maintenance"
         ></textarea>
       </div>
 
@@ -427,6 +470,8 @@ export default function ServiceReportForm({
                           updatePart(index, "description", e.target.value)
                         }
                         className="w-full p-1 border border-gray-300 rounded-md"
+                        placeholder="Part description"
+                        title="Part description"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -437,6 +482,8 @@ export default function ServiceReportForm({
                           updatePart(index, "snPnOld", e.target.value)
                         }
                         className="w-full p-1 border border-gray-300 rounded-md"
+                        placeholder="SN/PN/OLD"
+                        title="SN/PN/OLD"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -447,6 +494,8 @@ export default function ServiceReportForm({
                           updatePart(index, "snPnNew", e.target.value)
                         }
                         className="w-full p-1 border border-gray-300 rounded-md"
+                        placeholder="SN/PN/NEW"
+                        title="SN/PN/NEW"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -454,6 +503,8 @@ export default function ServiceReportForm({
                         type="button"
                         onClick={() => removePart(index)}
                         className="text-red-500 hover:text-red-700"
+                        title="Remove part"
+                        aria-label="Remove part"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

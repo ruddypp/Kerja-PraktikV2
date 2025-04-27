@@ -5,9 +5,27 @@ import { toast } from "react-hot-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServiceReportForm from "./ServiceReportForm";
 import TechnicalReportForm from "./TechnicalReportForm";
+import { RequestStatus } from "@prisma/client";
+
+// Define the Maintenance type based on the prisma schema
+interface Maintenance {
+  id: string;
+  itemSerial: string;
+  userId: string;
+  status: RequestStatus;
+  startDate: string | Date;
+  endDate?: string | Date | null;
+  item: {
+    serialNumber: string;
+    name: string;
+    customer?: {
+      name: string;
+    } | null;
+  };
+}
 
 interface MaintenanceFormProps {
-  maintenance: any;
+  maintenance: Maintenance;
   onSuccess: () => void;
 }
 
@@ -107,6 +125,12 @@ export default function MaintenanceForm({
         return;
       }
       
+      console.log("Submitting maintenance form...");
+      console.log("Service Report Data:", serviceReportData);
+      console.log("Technical Report Data:", technicalReportData);
+      console.log("Service Report Parts:", serviceReportParts);
+      console.log("Technical Report Parts:", technicalReportParts);
+      
       // Submit the form
       const response = await fetch(`/api/user/maintenance/${maintenance.id}/complete`, {
         method: "POST",
@@ -122,6 +146,7 @@ export default function MaintenanceForm({
       });
       
       const data = await response.json();
+      console.log("Submit response:", data);
       
       if (!response.ok) {
         throw new Error(data.error || "Gagal menyelesaikan maintenance");
@@ -129,9 +154,10 @@ export default function MaintenanceForm({
       
       toast.success("Maintenance berhasil diselesaikan");
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error submitting maintenance form:", error);
-      toast.error(error.message || "Gagal menyelesaikan maintenance");
+      const errorMessage = error instanceof Error ? error.message : "Gagal menyelesaikan maintenance";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
