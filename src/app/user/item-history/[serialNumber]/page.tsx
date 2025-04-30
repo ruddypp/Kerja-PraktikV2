@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -57,6 +57,10 @@ interface Calibration {
   vendorId: string;
   status: string;
   notes: string | null;
+  calibrationDate: string | null;
+  validUntil: string | null;
+  certificateNumber: string | null;
+  certificateUrl: string | null;
   createdAt: string;
   vendor: {
     id: string;
@@ -71,7 +75,7 @@ interface Calibration {
 interface Maintenance {
   id: string;
   itemSerial: string;
-  issue: string;
+  userId: string;
   status: string;
   startDate: string;
   endDate: string | null;
@@ -104,41 +108,63 @@ export default function ItemHistoryPage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const itemsPerPage = 10;
+  
+  const fetchItemHistory = useCallback(async () => {
+    if (!serialNumber) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      const type = activeTab === 'all' ? 'all' : 
+                 activeTab === 'history' ? 'history' : 
+                 activeTab === 'calibrations' ? 'calibration' : 
+                 activeTab === 'maintenances' ? 'maintenance' : 'activity';
+      
+      const url = `/api/user/items/history?serialNumber=${encodeURIComponent(serialNumber)}&page=${currentPage}&limit=${itemsPerPage}&type=${type}`;
+      
+      // Create cache key based on URL parameters
+      const cacheKey = `item_history_${serialNumber}_${type}_${currentPage}_${itemsPerPage}`;
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
+      const now = Date.now();
+      
+      // Use cache if available and less than 30 seconds old
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < 30000) {
+        setHistoryData(JSON.parse(cachedData));
+        setLoading(false);
+        return;
+      }
+      
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch item history');
+      }
+      
+      const data = await res.json();
+      setHistoryData(data);
+      
+      // Cache the results
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+    } catch (err) {
+      console.error('Error fetching item history:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [serialNumber, activeTab, currentPage, itemsPerPage]);
   
   useEffect(() => {
-    const fetchItemHistory = async () => {
-      try {
-        setLoading(true);
-        const type = activeTab === 'all' ? 'all' : 
-                   activeTab === 'history' ? 'history' : 
-                   activeTab === 'calibrations' ? 'calibration' : 
-                   activeTab === 'maintenances' ? 'maintenance' : 'activity';
-        
-        const url = `/api/user/items/history?serialNumber=${encodeURIComponent(serialNumber)}&page=${currentPage}&limit=${itemsPerPage}&type=${type}`;
-        const res = await fetch(url);
-        
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to fetch item history');
-        }
-        
-        const data = await res.json();
-        setHistoryData(data);
-      } catch (err) {
-        console.error('Error fetching item history:', err);
-        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     if (serialNumber) {
       fetchItemHistory();
     }
-  }, [serialNumber, activeTab, currentPage, itemsPerPage]);
+  }, [fetchItemHistory, serialNumber]);
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -331,8 +357,10 @@ export default function ItemHistoryPage() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibration Date</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid Until</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
@@ -341,8 +369,14 @@ export default function ItemHistoryPage() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {historyData.calibrations.map((cal) => (
                           <tr key={cal.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(cal.createdAt)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cal.calibrationDate ? formatDate(cal.calibrationDate) : 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cal.validUntil ? formatDate(cal.validUntil) : 'N/A'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cal.vendor.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {cal.certificateNumber ? (
+                                <span className="text-sm text-gray-900">{cal.certificateNumber}</span>
+                              ) : 'N/A'}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 cal.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 
@@ -372,7 +406,6 @@ export default function ItemHistoryPage() {
                         <tr>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -382,7 +415,6 @@ export default function ItemHistoryPage() {
                           <tr key={maint.id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(maint.startDate)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{maint.endDate ? formatDate(maint.endDate) : 'Ongoing'}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900">{maint.issue}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 maint.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 

@@ -48,6 +48,11 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate');
     const activityType = searchParams.get('activityType');
     
+    // Parse pagination parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
+    
     // Build where conditions
     const where: Record<string, unknown> = {
       userId: userId // Only show current user's activities
@@ -78,19 +83,49 @@ export async function GET(request: Request) {
       };
     }
     
-    // Get user activity logs
-    const activityLogs = await prisma.activityLog.findMany({
-      where: where as Record<string, unknown>,
-      orderBy: {
-        createdAt: 'desc'
-      }
+    // Get total count for pagination
+    const totalItems = await prisma.activityLog.count({
+      where: where as Record<string, unknown>
     });
     
-    return NextResponse.json(activityLogs);
+    // Get user activity logs with pagination and only select necessary fields
+    const activityLogs = await prisma.activityLog.findMany({
+      where: where as Record<string, unknown>,
+      select: {
+        id: true,
+        userId: true,
+        itemSerial: true,
+        action: true,
+        details: true,
+        createdAt: true,
+        activity: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
+    });
+    
+    // Return paginated response
+    return NextResponse.json({
+      items: activityLogs,
+      total: totalItems,
+      page,
+      limit,
+      totalPages: Math.ceil(totalItems / limit)
+    });
   } catch (error) {
     console.error('Error fetching user activity logs:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch activity logs' },
+      { 
+        error: 'Failed to fetch activity logs',
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0
+      },
       { status: 500 }
     );
   }

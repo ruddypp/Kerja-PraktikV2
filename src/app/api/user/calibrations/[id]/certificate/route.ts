@@ -574,7 +574,7 @@ page.drawLine({
       size: 12,
       font: helveticaBold,
       color: black
-    });
+  ` });`
     
     // Tabel Hasil Test
     const testTableTop = dataRow1 - 70;

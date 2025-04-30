@@ -394,4 +394,4 @@ model Notification {
   isRead      Boolean          @default(false)
   relatedId   String?          // Reference to related entity (rental/calibration/etc)
   createdAt   DateTime         @default(now())
-}
+}``

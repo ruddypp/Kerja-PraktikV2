@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -14,11 +14,25 @@ interface ActivityLog {
   createdAt: string;
 }
 
+interface PaginatedResponse {
+  items: ActivityLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export default function UserHistoryPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
   
   // Filters
   const [filters, setFilters] = useState({
@@ -30,14 +44,37 @@ export default function UserHistoryPage() {
   const fetchActivityLogs = async () => {
     try {
       setLoading(true);
+      setError('');
       
       // Build query params for filtering
       const params = new URLSearchParams();
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.activityType) params.append('activityType', filters.activityType);
+      params.append('page', pagination.page.toString());
+      params.append('limit', pagination.limit.toString());
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
+      const cacheKey = `activity_logs_${queryString}`;
+      
+      // Check if we have cached data first
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
+      const now = Date.now();
+      
+      // Use cache if available and less than 1 minute old
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
+        const parsedData = JSON.parse(cachedData) as PaginatedResponse;
+        setActivityLogs(parsedData.items);
+        setPagination({
+          page: parsedData.page,
+          limit: parsedData.limit,
+          total: parsedData.total,
+          totalPages: parsedData.totalPages
+        });
+        setLoading(false);
+        return;
+      }
       
       const res = await fetch(`/api/user/activity-logs${queryString}`);
       
@@ -45,8 +82,18 @@ export default function UserHistoryPage() {
         throw new Error(`Failed to fetch activity logs: ${res.statusText}`);
       }
       
-      const data = await res.json();
-      setActivityLogs(data);
+      const data = await res.json() as PaginatedResponse;
+      setActivityLogs(data.items);
+      setPagination({
+        page: data.page,
+        limit: data.limit,
+        total: data.total,
+        totalPages: data.totalPages
+      });
+      
+      // Cache the results
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
     } catch (err) {
       console.error('Error fetching activity logs:', err);
       setError('Failed to load activity history. Please try again.');
@@ -59,17 +106,26 @@ export default function UserHistoryPage() {
     fetchActivityLogs();
   }, []);
 
+  // Debounce filter changes to prevent too many API calls
+  const debouncedFetchLogs = useCallback(
+    debounce(() => {
+      // Reset page to 1 when filters change
+      setPagination(prev => ({ ...prev, page: 1 }));
+      fetchActivityLogs();
+    }, 500),
+    []
+  );
+
+  // Apply filters with debounce
   useEffect(() => {
-    const applyFilters = async () => {
-      try {
-        await fetchActivityLogs();
-      } catch (error) {
-        console.error('Error applying filters:', error);
-      }
-    };
-    
-    applyFilters();
-  }, [filters]);
+    debouncedFetchLogs();
+  }, [filters, debouncedFetchLogs]);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+    fetchActivityLogs();
+  };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -272,7 +328,76 @@ export default function UserHistoryPage() {
             </div>
           </div>
         )}
+
+        {/* Add pagination controls at the bottom if needed */}
+        {!loading && activityLogs.length > 0 && pagination.totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <nav className="relative z-0 inline-flex shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                  pagination.page === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <span className="sr-only">Previous</span>
+                &larr;
+              </button>
+              
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                let pageNum;
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.page <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.page >= pagination.totalPages - 2) {
+                  pageNum = pagination.totalPages - 4 + i;
+                } else {
+                  pageNum = pagination.page - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      pagination.page === pageNum
+                        ? 'z-10 bg-green-500 border-green-500 text-white'
+                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                  pagination.page === pagination.totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <span className="sr-only">Next</span>
+                &rarr;
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
+}
+
+// Debounce function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  return function(...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 } 

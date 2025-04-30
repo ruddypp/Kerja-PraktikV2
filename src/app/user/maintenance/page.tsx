@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -25,15 +25,26 @@ interface Maintenance {
 export default function MaintenancePage() {
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    fetchMaintenances();
+    const cachedData = sessionStorage.getItem('maintenanceData');
+    const lastFetch = sessionStorage.getItem('maintenanceLastFetch');
+    const now = Date.now();
+    
+    if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
+      setMaintenances(JSON.parse(cachedData));
+      setLoading(false);
+    } else {
+      fetchMaintenances();
+    }
   }, []);
 
   const fetchMaintenances = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch("/api/user/maintenance");
       const data = await response.json();
       
@@ -42,9 +53,14 @@ export default function MaintenancePage() {
       }
       
       setMaintenances(data);
+      
+      sessionStorage.setItem('maintenanceData', JSON.stringify(data));
+      sessionStorage.setItem('maintenanceLastFetch', Date.now().toString());
     } catch (error) {
       console.error("Error fetching maintenances:", error);
-      toast.error("Gagal mengambil data maintenance");
+      const errorMessage = error instanceof Error ? error.message : "Gagal mengambil data maintenance";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

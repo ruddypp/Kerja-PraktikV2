@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -46,6 +46,15 @@ export default function UserItemsPage() {
   // Start maintenance state
   const [isStartingMaintenance, setIsStartingMaintenance] = useState(false);
   
+  // Debounced search handling
+  const debouncedFetch = useCallback(
+    // Debounce delay 500ms
+    debounce((page: number, search: string) => {
+      fetchItems(page, search);
+    }, 500),
+    []
+  );
+
   // Function to fetch items with pagination
   const fetchItems = async (page: number, search: string = '') => {
       try {
@@ -87,10 +96,14 @@ export default function UserItemsPage() {
       }
     };
     
-  // Fetch items on initial load and when page or search changes
+  // Fetch items on initial load and when page changes
   useEffect(() => {
-    fetchItems(currentPage, searchQuery);
-  }, [currentPage, searchQuery]);
+    if (searchQuery) {
+      debouncedFetch(currentPage, searchQuery);
+    } else {
+      fetchItems(currentPage, searchQuery);
+    }
+  }, [currentPage, searchQuery, debouncedFetch]);
   
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,4 +422,17 @@ export default function UserItemsPage() {
       </div>
     </DashboardLayout>
   );
+}
+
+// Debounce function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  return function(...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 } 

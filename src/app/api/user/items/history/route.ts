@@ -61,9 +61,20 @@ export async function GET(request: Request) {
       );
     }
     
-    // Check if item exists
+    // Check if item exists - optimized to only select necessary fields
     const existingItem = await prisma.item.findUnique({
-      where: { serialNumber }
+      where: { serialNumber },
+      select: {
+        serialNumber: true,
+        name: true,
+        partNumber: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        lastVerifiedAt: true,
+        description: true,
+        customerId: true
+      }
     });
     
     if (!existingItem) {
@@ -78,7 +89,7 @@ export async function GET(request: Request) {
     
     // Create base response with item info
     const response: PaginatedResponse = {
-      item: existingItem,
+      item: existingItem as Item,
       itemHistory: [],
       activityLogs: [],
       calibrations: [],
@@ -94,8 +105,18 @@ export async function GET(request: Request) {
     
     // Only fetch data based on the requested type to improve performance
     if (type === 'all' || type === 'history') {
+      // For performance optimization, only select required fields
       const itemHistory = await prisma.itemHistory.findMany({
         where: { itemSerial: serialNumber },
+        select: {
+          id: true,
+          itemSerial: true,
+          action: true,
+          details: true,
+          relatedId: true,
+          startDate: true,
+          endDate: true
+        },
         orderBy: { startDate: 'desc' },
         take: type === 'history' ? limit : 5, // Limit results if showing all types
         skip: type === 'history' ? skip : 0
@@ -110,13 +131,20 @@ export async function GET(request: Request) {
         response.pagination.totalPages = Math.ceil(count / limit);
       }
       
-      response.itemHistory = itemHistory;
+      response.itemHistory = itemHistory as ItemHistory[];
     }
     
     if (type === 'all' || type === 'activity') {
+      // For performance optimization, only select required fields
       const activityLogs = await prisma.activityLog.findMany({
         where: { itemSerial: serialNumber },
-        include: {
+        select: {
+          id: true,
+          userId: true,
+          itemSerial: true,
+          action: true,
+          details: true,
+          createdAt: true,
           user: {
             select: {
               id: true,
@@ -142,11 +170,28 @@ export async function GET(request: Request) {
     }
     
     if (type === 'all' || type === 'calibration') {
+      // For performance optimization, only select required fields
       const calibrations = await prisma.calibration.findMany({
         where: { itemSerial: serialNumber },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          vendor: true,
+        select: {
+          id: true,
+          itemSerial: true,
+          vendorId: true,
+          userId: true,
+          status: true,
+          calibrationDate: true,
+          validUntil: true,
+          certificateNumber: true,
+          certificateUrl: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          vendor: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
           user: {
             select: {
               id: true,
@@ -154,6 +199,7 @@ export async function GET(request: Request) {
             }
           }
         },
+        orderBy: { createdAt: 'desc' },
         take: type === 'calibration' ? limit : 5, // Limit results if showing all types
         skip: type === 'calibration' ? skip : 0
       });
@@ -171,23 +217,39 @@ export async function GET(request: Request) {
     }
     
     if (type === 'all' || type === 'maintenance') {
-      const maintenances = await prisma.maintenance.findMany({
-        where: { itemSerial: serialNumber },
-        orderBy: { createdAt: 'desc' },
-        take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
-        skip: type === 'maintenance' ? skip : 0
-      });
-      
-      if (type === 'maintenance') {
-        const count = await prisma.maintenance.count({
-          where: { itemSerial: serialNumber }
+      try {
+        // For performance optimization, only select required fields
+        const maintenances = await prisma.maintenance.findMany({
+          where: { itemSerial: serialNumber },
+          select: {
+            id: true,
+            itemSerial: true,
+            userId: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
+          skip: type === 'maintenance' ? skip : 0
         });
         
-        response.pagination.totalItems = count;
-        response.pagination.totalPages = Math.ceil(count / limit);
+        if (type === 'maintenance') {
+          const count = await prisma.maintenance.count({
+            where: { itemSerial: serialNumber }
+          });
+          
+          response.pagination.totalItems = count;
+          response.pagination.totalPages = Math.ceil(count / limit);
+        }
+        
+        response.maintenances = maintenances as Maintenance[];
+      } catch (error) {
+        console.error('Error fetching maintenance data:', error);
+        // Set empty array in case of error
+        response.maintenances = [];
       }
-      
-      response.maintenances = maintenances;
     }
     
     return NextResponse.json(response);

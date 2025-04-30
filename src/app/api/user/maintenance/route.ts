@@ -14,14 +14,35 @@ export async function GET(req: NextRequest) {
     const userId = user.id;
     
     // Ambil semua maintenance yang dibuat oleh user
+    // Optimasi dengan select hanya kolom yang diperlukan
     const maintenances = await prisma.maintenance.findMany({
       where: {
         userId: userId,
       },
-      include: {
-        item: true,
-        serviceReport: true,
-        technicalReport: true,
+      select: {
+        id: true,
+        itemSerial: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        item: {
+          select: {
+            serialNumber: true,
+            name: true,
+            partNumber: true,
+          },
+        },
+        // Hanya ambil id dari reports
+        serviceReport: {
+          select: {
+            id: true,
+          },
+        },
+        technicalReport: {
+          select: {
+            id: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

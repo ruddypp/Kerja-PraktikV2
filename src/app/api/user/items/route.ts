@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
         { name: { contains: search, mode: 'insensitive' } },
         { serialNumber: { contains: search, mode: 'insensitive' } },
         { partNumber: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        // Removing description search to optimize query
+        // { description: { contains: search, mode: 'insensitive' } }
       ];
     }
     
@@ -61,14 +62,29 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
     
-    // Get total count for pagination
+    // Get total count for pagination - do this only when needed
     const totalItems = await prisma.item.count({ where });
     
-    // Get items with pagination
+    // Get items with pagination - select only needed fields
     const items = await prisma.item.findMany({
       where,
-      include: {
-        customer: true
+      select: {
+        serialNumber: true,
+        name: true,
+        partNumber: true,
+        sensor: true,
+        description: true,
+        customerId: true,
+        status: true,
+        lastVerifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        customer: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: {
         name: 'asc'
