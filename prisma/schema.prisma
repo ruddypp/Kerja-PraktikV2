@@ -64,7 +64,6 @@ model Item {
   serialNumber    String         @id
   name            String
   partNumber      String
-  category        String?
   sensor          String?
   description     String?
   customer        Vendor?        @relation("CustomerItems", fields: [customerId], references: [id])

@@ -16,11 +16,11 @@ type User = {
 
 interface SidebarProps {
   onCloseMobileMenu?: () => void;
+  user?: User | null;
+  loading?: boolean;
 }
 
-export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function Sidebar({ onCloseMobileMenu, user, loading = false }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -54,26 +54,6 @@ export default function Sidebar({ onCloseMobileMenu }: SidebarProps) {
   const isActive = (path: string) => {
     return pathname === path || pathname?.startsWith(path + '/');
   };
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-        } else {
-          console.error('Failed to fetch user data');
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, []);
 
   // Check if current path is under inventory to auto-expand dropdown
   useEffect(() => {

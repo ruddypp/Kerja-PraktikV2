@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import NotificationDropdown from './notifications/NotificationDropdown';
+import { useUser } from '../app/context/UserContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -13,26 +14,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const { user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
-
-  // Fetch current user
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch('/api/auth/me');
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user); // Store the entire user object 
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-
-    fetchUser();
-  }, []);
 
   // Handle errors in layout
   useEffect(() => {
@@ -117,7 +101,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           : 'fixed top-0 left-0 h-full w-64'
         }
       `}>
-        <Sidebar onCloseMobileMenu={() => setIsMobileMenuOpen(false)} />
+        <Sidebar 
+          onCloseMobileMenu={() => setIsMobileMenuOpen(false)} 
+          user={user}
+          loading={loading}
+        />
       </div>
       
       {/* Content area with header */}
