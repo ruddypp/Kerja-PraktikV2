@@ -52,16 +52,25 @@ export function decodeToken(token: string): UserData | null {
  */
 export async function getUserFromRequest(req: Request): Promise<UserData | null> {
   try {
-    // Extract token from cookies
-    const cookieHeader = req.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').filter(Boolean).map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
+    let token: string | undefined;
     
-    const token = cookies['auth_token'];
+    // First try Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // If no token in Authorization header, try cookies
+    if (!token) {
+      const cookieHeader = req.headers.get('cookie') || '';
+      const cookies = Object.fromEntries(
+        cookieHeader.split('; ').filter(Boolean).map(c => {
+          const [name, ...value] = c.split('=');
+          return [name, value.join('=')];
+        })
+      );
+      token = cookies['auth_token'];
+    }
     
     if (!token) {
       return null;
@@ -73,7 +82,7 @@ export async function getUserFromRequest(req: Request): Promise<UserData | null>
       return null;
     }
     
-    // Optionally validate user in database
+    // Validate user in database
     const user = await prisma.user.findUnique({
       where: { id: userData.id }
     });
@@ -109,4 +118,4 @@ export function getRedirectPathByRole(role: Role): string {
     return '/admin-dashboard';
   }
   return '/user/barang';
-} ``
+}

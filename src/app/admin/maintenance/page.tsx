@@ -20,8 +20,8 @@ interface MaintenanceItem {
   user: {
     name: string;
   };
-  serviceReport: any;
-  technicalReport: any;
+  serviceReport: string;
+  technicalReport: string;
 }
 
 export default function AdminMaintenancePage() {

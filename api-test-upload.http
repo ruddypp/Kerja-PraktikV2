@@ -1,0 +1,67 @@
+@baseUrl = http://localhost:3000/api
+@contentType = application/json
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk4MDcyLCJleHAiOjE3NDYwODQ0NzJ9.QEKon8mhYnaxt0dRzKQOwb1Hb0O0xG33L-HLku_Tz4A
+
+### Upload Image with Authentication via Cookie
+# @name uploadImageWithCookie
+POST {{baseUrl}}/upload
+Cookie: auth_token={{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Image with Authentication via Bearer Token
+# @name uploadImageWithBearer
+POST {{baseUrl}}/upload
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.png"
+Content-Type: image/png
+
+< ./test-image.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Without Authentication (Should Fail)
+# @name uploadWithoutAuth
+POST {{baseUrl}}/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Unsupported File Type (Should Fail)
+# @name uploadInvalidType
+POST {{baseUrl}}/upload
+Cookie: auth_token={{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-doc.pdf"
+Content-Type: application/pdf
+
+< ./test-doc.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Without File (Should Fail)
+# @name uploadNoFile
+POST {{baseUrl}}/upload
+Cookie: auth_token={{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="something_else"; 
+Content-Type: text/plain
+
+This is not a file
+------WebKitFormBoundary7MA4YWxkTrZu0gW-- 

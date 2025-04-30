@@ -1,68 +1,72 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verify } from 'jsonwebtoken';
-import { UserData } from '@/lib/auth'; // Import UserData type
+import { getUserFromRequest, verifyToken } from '@/lib/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
+// GET current user
 export async function GET(request: Request) {
   try {
-    // Get token from cookies
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').filter(c => c).map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
+    // First try to get user from request (which checks cookies)
+    let user = await getUserFromRequest(request);
+
+    // If no user found, try Authorization header
+    if (!user) {
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const userData = verifyToken(token);
+        if (userData) {
+          // Validate user in database
+          const dbUser = await prisma.user.findUnique({
+            where: { id: userData.id }
+          });
+          
+          if (dbUser) {
+            user = {
+              id: dbUser.id,
+              name: dbUser.name,
+              email: dbUser.email,
+              role: dbUser.role
+            };
+          }
+        }
+      }
+    }
     
-    const token = cookies['auth_token'];
-    
-    if (!token) {
+    if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Not authenticated' },
+        { error: 'Unauthorized - Please login first' },
         { status: 401 }
       );
     }
     
-    // Verify token with proper typing
-    const decoded = verify(token, JWT_SECRET) as UserData;
-    
-    if (!decoded || !decoded.id) {
-      throw new Error('Invalid token data');
-    }
-    
-    // Get fresh user data - note that id is a string in our schema
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id }
+    // Get user with minimal required fields
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true
+      }
     });
     
-    if (!user) {
+    if (!currentUser) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
+        { error: 'User not found' },
         { status: 404 }
       );
     }
     
-    // Return user without password
-    const userWithoutPassword = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    };
-    
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword
+      user: currentUser
     });
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Error fetching current user:', error);
     return NextResponse.json(
-      { success: false, message: 'Authentication failed' },
-      { status: 401 }
+      { error: 'Failed to fetch current user' },
+      { status: 500 }
     );
   }
-} 
+}

@@ -1,48 +1,56 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+
+// Cache key for vendors
+const VENDORS_CACHE_KEY = 'admin:vendors';
 
 // GET all vendors
 export async function GET(request: Request) {
   try {
-    // Verify the user is an admin using our custom auth system
-    const user = await getUserFromRequest(request);
+    console.log('GET vendors API called');
     
-    if (!user || !isAdmin(user)) {
+    // Verify admin
+    const user = await getUserFromRequest(request);
+    if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get search query from URL
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     
-    console.log('GET vendors API called');
-    
     // Build where conditions
-    const whereCondition: {
-      isDeleted: boolean;
-      OR?: Array<
-        { name: { contains: string; mode: 'insensitive' } } | 
-        { service: { contains: string; mode: 'insensitive' } } |
-        { contactName: { contains: string; mode: 'insensitive' } }
-      >;
-    } = {
-      isDeleted: false // Hanya tampilkan vendor yang belum dihapus
+    const where: any = {
+      isDeleted: false
     };
     
-    if (search) {
-      whereCondition.OR = [
+    if (search && search.trim() !== '') {
+      where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { service: { contains: search, mode: 'insensitive' } },
-        { contactName: { contains: search, mode: 'insensitive' } }
+        { contactName: { contains: search, mode: 'insensitive' } },
+        { contactEmail: { contains: search, mode: 'insensitive' } }
       ];
     }
     
-    console.log('Fetching vendors with where clause:', whereCondition);
+    console.log('Fetching vendors with where clause:', where);
     
+    // Get vendors with pagination
     const vendors = await prisma.vendor.findMany({
-      where: whereCondition,
-      orderBy: { name: 'asc' }
+      where,
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        contactName: true,
+        contactPhone: true,
+        contactEmail: true,
+        service: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
     });
     
     console.log(`Found ${vendors.length} vendors`);

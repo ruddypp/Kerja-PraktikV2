@@ -1,0 +1,160 @@
+### User API Tests
+
+### Login to get token (needed for all authenticated requests)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user123"
+}
+
+### Get Current User Profile
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Logout
+POST http://localhost:3000/api/auth/logout
+
+### Get User Items
+GET http://localhost:3000/api/user/items
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Get User Items with Filters
+GET http://localhost:3000/api/user/items?search=test&status=AVAILABLE&page=1&limit=10
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Get All User Maintenance Requests
+GET http://localhost:3000/api/user/maintenance
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Get Single Maintenance Request
+GET http://localhost:3000/api/user/maintenance/60f5447b-dbed-4a19-bfaa-8082618f48d9
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Create New Maintenance Request
+POST http://localhost:3000/api/user/maintenance
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk0Njc2LCJleHAiOjE3NDYwODEwNzZ9.AO0-VZf-mbkzA4kdPq0itx0W7cINCG2Pk2NekPYmoZo
+
+{
+  "itemSerial": "TEST124"
+}
+
+### Complete Maintenance Request(error)
+POST http://localhost:3000/api/user/maintenance/60f5447b-dbed-4a19-bfaa-8082618f48d9/complete
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk0Njc2LCJleHAiOjE3NDYwODEwNzZ9.AO0-VZf-mbkzA4kdPq0itx0W7cINCG2Pk2NekPYmoZo
+
+{
+  "serviceReportData": {
+    "reportNumber": "SR-001",
+    "customer": "Customer Name",
+    "location": "Customer Location",
+    "brand": "Brand Name",
+    "model": "Model Number",
+    "serialNumber": "ITEM-001",
+    "dateIn": "2025-04-29",
+    "reasonForReturn": "Regular Maintenance",
+    "findings": "No issues found",
+    "action": "Regular maintenance performed",
+    "sensorCO": true,
+    "sensorH2S": true,
+    "sensorO2": true,
+    "sensorLEL": true,
+    "lampClean": true,
+    "lampReplace": false,
+    "pumpTested": true,
+    "pumpRebuilt": false,
+    "pumpReplaced": false,
+    "pumpClean": true,
+    "instrumentCalibrate": true,
+    "instrumentUpgrade": false,
+    "instrumentCharge": true,
+    "instrumentClean": true,
+    "instrumentSensorAssembly": false
+  },
+  "serviceReportParts": [
+    {
+      "itemNumber": "PART-001",
+      "description": "Replacement Filter",
+      "snPnOld": "OLD-001",
+      "snPnNew": "NEW-001"
+    }
+  ],
+  "technicalReportData": {
+    "csrNumber": "CSR-001",
+    "deliveryTo": "Customer Address",
+    "quoNumber": "QUO-001",
+    "dateReport": "2025-04-29",
+    "techSupport": "Tech Name",
+    "dateIn": "2025-04-29",
+    "estimateWork": "2 hours",
+    "reasonForReturn": "Regular Maintenance",
+    "findings": "All systems working normally",
+    "beforePhotoUrl": "uploads/before.jpg",
+    "afterPhotoUrl": "uploads/after.jpg",
+    "termsConditions": "Standard terms apply"
+  },
+  "technicalReportParts": [
+    {
+      "itemNumber": "PART-001",
+      "namaUnit": "Filter Unit",
+      "description": "Air Filter",
+      "quantity": 1,
+      "unitPrice": 50.00,
+      "totalPrice": 50.00
+    }
+  ]
+}
+
+### Get All User Calibrations
+GET http://localhost:3000/api/user/calibrations
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Get Single Calibration (ERROR)
+GET http://localhost:3000/api/user/calibrations/1d6f247c-834c-4576-a653-b34742abe7d8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk0Njc2LCJleHAiOjE3NDYwODEwNzZ9.AO0-VZf-mbkzA4kdPq0itx0W7cINCG2Pk2NekPYmoZo
+
+### Get Single Calibration (Using Debug Endpoint)
+GET http://localhost:3000/api/user/calibrations/debug?id=1d6f247c-834c-4576-a653-b34742abe7d8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk0Njc2LCJleHAiOjE3NDYwODEwNzZ9.AO0-VZf-mbkzA4kdPq0itx0W7cINCG2Pk2NekPYmoZo
+
+### Create New Calibration Request (ERROR)
+POST http://localhost:3000/api/user/calibrations
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+  
+  {
+    "itemSerial": "ITEM-001",
+    "vendorId": "VENDOR-001",
+    "calibrationDate": "2025-04-29",
+    "description": "Regular calibration request"
+  }
+{
+  "itemSerial": "ITEM-001",
+  "vendorId": "VENDOR-001",
+  "calibrationDate": "2025-04-29"
+}
+
+
+### Get User Vendors (Read-only)
+GET http://localhost:3000/api/user/vendors
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Search Vendors
+GET http://localhost:3000/api/user/vendors?search=test
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+### Upload File (for maintenance/technical reports)
+POST http://localhost:3000/api/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTQzNDUxLCJleHAiOjE3NDYwMjk4NTF9.5pMB5nLJXk0GO_VOCqY7xolK5nLvnMJcmcioeLkgbvk
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

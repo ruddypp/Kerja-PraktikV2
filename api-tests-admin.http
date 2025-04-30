@@ -1,0 +1,93 @@
+### Login to get token
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+### Admin Items API Tests
+
+### Get All Items
+GET http://localhost:3000/api/admin/items
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Create New Item
+POST http://localhost:3000/api/admin/items
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+Content-Type: application/json
+
+{
+  "serialNumber": "TEST125",
+  "name": "Test Item",
+  "partNumber": "PART123",
+  "category": "SENSOR",
+  "sensor": "Temperature",
+  "description": "Test description",
+  "status": "AVAILABLE"
+}
+
+### Get Item History
+GET http://localhost:3000/api/admin/items/history?serialNumber=TEST123
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Admin Vendors API Tests
+
+### Get All Vendors
+GET http://localhost:3000/api/admin/vendors
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Create New Vendor
+POST http://localhost:3000/api/admin/vendors
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+Content-Type: application/json
+
+{
+  "name": "Test Vendor",
+  "address": "Test Address",
+  "contactName": "John Doe",
+  "contactPhone": "1234567890",
+  "contactEmail": "john@test.com",
+  "service": "Calibration"
+}
+
+### Admin Maintenance API Tests
+
+### Get All Maintenance
+GET http://localhost:3000/api/admin/maintenance
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Get Maintenance Report (ini error)
+GET http://localhost:3000/api/admin/maintenance/60f5447b-dbed-4a19-bfaa-8082618f48d9/report?type=csr
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Admin Dashboard API Tests
+
+### Get Dashboard Stats
+GET http://localhost:3000/api/admin/dashboard
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Get Activity Logs
+GET http://localhost:3000/api/admin/activity-logs
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Get Notifications
+GET http://localhost:3000/api/admin/notifications
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Mark Notification as Read ( ini error)
+GET http://localhost:3000/api/admin/notifications?id=01cd9061-627b-4298-949c-1875a7c997ff
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Admin Inventory API Tests
+
+### Get Inventory Schedules
+GET http://localhost:3000/api/admin/inventory-schedules
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo
+
+### Admin Users API Tests
+
+### Get All Users
+GET http://localhost:3000/api/admin/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo 

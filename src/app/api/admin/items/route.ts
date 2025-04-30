@@ -3,6 +3,9 @@ import prisma from '@/lib/prisma';
 import { ItemStatus } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
+// Cache key for items
+const ITEMS_CACHE_KEY = 'admin:items';
+
 // GET all items
 export async function GET(request: Request) {
   try {
@@ -59,26 +62,89 @@ export async function GET(request: Request) {
     // Create the actual data fetch promise, including maintenance and calibration history
     const items = await prisma.item.findMany({
       where,
-      include: {
-        customer: true,
+      select: {
+        serialNumber: true,
+        name: true,
+        partNumber: true,
+        category: true,
+        sensor: true,
+        description: true,
+        status: true,
+        lastVerifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        customer: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         calibrations: {
-          orderBy: {
-            createdAt: 'desc',
+          select: {
+            id: true,
+            status: true,
+            calibrationDate: true,
+            validUntil: true,
+            certificateNumber: true,
+            certificateUrl: true,
+            vendor: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           },
-          take: 1,
+          orderBy: {
+            calibrationDate: 'desc'
+          },
+          take: 1
         },
         maintenances: {
-          orderBy: {
-            createdAt: 'desc',
+          select: {
+            id: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            serviceReport: {
+              select: {
+                reportNumber: true,
+                dateIn: true,
+                findings: true,
+                action: true
+              }
+            },
+            technicalReport: {
+              select: {
+                csrNumber: true,
+                dateIn: true,
+                findings: true
+              }
+            }
           },
-          take: 1,
+          orderBy: {
+            startDate: 'desc'
+          },
+          take: 1
         },
         rentals: {
+          select: {
+            id: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            returnDate: true,
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
           where: {
             status: 'APPROVED',
             returnDate: null
           },
-          take: 1,
+          take: 1
         }
       },
       orderBy: {
