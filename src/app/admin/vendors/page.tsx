@@ -20,6 +20,14 @@ export default function VendorsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+  
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -46,7 +54,15 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/admin/vendors${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`, {
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      params.append('page', pagination.page.toString());
+      params.append('limit', pagination.limit.toString());
+      
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      
+      const res = await fetch(`/api/admin/vendors${queryString}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -61,7 +77,13 @@ export default function VendorsPage() {
       }
       
       const data = await res.json();
-      setVendors(data);
+      setVendors(data.items);
+      setPagination({
+        page: data.page,
+        limit: data.limit,
+        total: data.total,
+        totalPages: data.totalPages
+      });
       setError('');
     } catch (err) {
       console.error('Error fetching vendors:', err);
@@ -251,8 +273,29 @@ export default function VendorsPage() {
     }
   };
   
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  // Handle items per page change
+  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLimit = parseInt(e.target.value);
+    setPagination(prev => ({ 
+      ...prev, 
+      limit: newLimit,
+      page: 1 // Reset to page 1 when changing limit
+    }));
+  };
+
+  // Effect to fetch when page changes
+  useEffect(() => {
+    fetchVendors();
+  }, [pagination.page, pagination.limit]);
+  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
     fetchVendors();
   };
   
@@ -339,6 +382,7 @@ export default function VendorsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
@@ -347,8 +391,11 @@ export default function VendorsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {vendors.map((vendor) => (
+                  {vendors.map((vendor, index) => (
                     <tr key={vendor.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
                         <div className="text-xs text-gray-500">{vendor.address || '-'}</div>
@@ -382,6 +429,92 @@ export default function VendorsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+        
+        {/* Pagination info and limit selector */}
+        {!loading && vendors.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
+            </div>
+            <div className="flex items-center mt-2 sm:mt-0">
+              <label htmlFor="limit-select" className="text-sm text-gray-600 mr-2">
+                Items per page:
+              </label>
+              <select 
+                id="limit-select" 
+                value={pagination.limit} 
+                onChange={handleLimitChange}
+                className="form-select text-sm py-1"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center mt-6">
+            <nav className="inline-flex">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={pagination.page === 1}
+                className="btn btn-icon btn-sm"
+              >
+                &laquo;
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="btn btn-icon btn-sm mx-1"
+              >
+                &lt;
+              </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                let pageNum;
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.page <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.page >= pagination.totalPages - 2) {
+                  pageNum = pagination.totalPages - 4 + i;
+                } else {
+                  pageNum = pagination.page - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`btn btn-sm mx-1 ${pagination.page === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="btn btn-icon btn-sm mx-1"
+              >
+                &gt;
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.totalPages)}
+                disabled={pagination.page === pagination.totalPages}
+                className="btn btn-icon btn-sm"
+              >
+                &raquo;
+              </button>
+            </nav>
           </div>
         )}
         

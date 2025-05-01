@@ -28,6 +28,11 @@ enum ActivityType {
   VENDOR_DELETED = 'VENDOR_DELETED'
 }
 
+interface User {
+  id: string;
+  name: string;
+}
+
 interface ActivityLog {
   id: string;
   type: ActivityType;
@@ -41,6 +46,7 @@ interface ActivityLog {
   affectedUserId?: string;
   vendorId?: string;
   createdAt: string;
+  user: User;
 }
 
 interface PaginatedResponse {
@@ -205,11 +211,14 @@ export default function UserHistoryPage() {
       }
       
       // Table data
-      const tableColumn = ['#', 'Date & Time', 'Activity'];
+      const tableColumn = ['#', 'Date & Time', 'User', 'Type', 'Activity', 'Details'];
       const tableRows = activityLogs.map((log, index) => [
         (index + 1).toString(),
         formatDate(log.createdAt),
-        log.action
+        log.user?.name || 'Unknown',
+        log.type.replace(/_/g, ' '),
+        log.action,
+        log.details || '-'
       ]);
       
       // Add table with properly imported autoTable
@@ -222,8 +231,11 @@ export default function UserHistoryPage() {
         styles: { overflow: 'linebreak', cellWidth: 'wrap' },
         columnStyles: {
           0: { cellWidth: 10 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 'auto' }
+          1: { cellWidth: 30 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 'auto' }
         }
       });
       
@@ -364,6 +376,7 @@ export default function UserHistoryPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left">Date & Time</th>
+                  <th className="px-4 py-2 text-left">User</th>
                   <th className="px-4 py-2 text-left">Type</th>
                   <th className="px-4 py-2 text-left">Activity</th>
                   <th className="px-4 py-2 text-left">Details</th>
@@ -373,6 +386,7 @@ export default function UserHistoryPage() {
                 {activityLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">{formatDate(log.createdAt)}</td>
+                    <td className="px-4 py-3">{log.user?.name || 'Unknown'}</td>
                     <td className="px-4 py-3">{log.type.replace(/_/g, ' ')}</td>
                     <td className="px-4 py-3">{log.action}</td>
                     <td className="px-4 py-3">{log.details || '-'}</td>
@@ -449,7 +463,7 @@ export default function UserHistoryPage() {
 }
 
 // Debounce function
-function debounce<T extends (...args: any[]) => any>(
+function debounce<T extends (...args: unknown[]) => void>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -459,4 +473,4 @@ function debounce<T extends (...args: any[]) => any>(
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
-} 
+} ``

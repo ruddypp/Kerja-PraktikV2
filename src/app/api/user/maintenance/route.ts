@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { ItemStatus, RequestStatus } from "@prisma/client";
+import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
+import { logMaintenanceActivity } from "@/lib/activity-logger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -134,18 +135,17 @@ export async function POST(req: NextRequest) {
         },
       });
       
-      // Catat di activity log
-      await prisma.activityLog.create({
-        data: {
-          userId: user.id,
-          itemSerial,
-          action: "MAINTENANCE_STARTED",
-          details: `Memulai maintenance untuk barang ${itemSerial}`,
-        },
-      });
-      
       return newMaintenance;
     });
+    
+    // Catat di activity log setelah transaksi selesai
+    await logMaintenanceActivity(
+      user.id,
+      ActivityType.MAINTENANCE_CREATED,
+      maintenance.id,
+      itemSerial,
+      `Memulai maintenance untuk barang ${itemSerial}`
+    );
     
     return NextResponse.json(maintenance);
   } catch (error) {

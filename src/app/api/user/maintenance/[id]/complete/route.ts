@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { ItemStatus, RequestStatus } from "@prisma/client";
+import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
+import { logMaintenanceActivity } from "@/lib/activity-logger";
 
 interface ServiceReportPartData {
   itemNumber: number;
@@ -232,14 +233,13 @@ export async function POST(
       }
       
       // 7. Catat di activity log
-      await prisma.activityLog.create({
-        data: {
-          userId: user.id,
-          itemSerial: maintenance.itemSerial,
-          action: "MAINTENANCE_COMPLETED",
-          details: `Maintenance selesai untuk ${maintenance.item.name} (${maintenance.itemSerial})`,
-        },
-      });
+      await logMaintenanceActivity(
+        user.id,
+        ActivityType.MAINTENANCE_UPDATED, 
+        maintenanceId,
+        maintenance.itemSerial,
+        `Maintenance selesai untuk ${maintenance.item.name} (${maintenance.itemSerial})`
+      );
       
       return updatedMaintenance;
     });

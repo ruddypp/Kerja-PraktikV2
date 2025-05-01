@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { RequestStatus, ItemStatus, NotificationType } from '@prisma/client';
+import prisma from '@/lib/prisma';
+import { RequestStatus, ItemStatus, NotificationType, ActivityType } from '@prisma/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { z } from 'zod';
+import { logCalibrationActivity } from '@/lib/activity-logger';
 
 // Status yang digunakan dalam kalibrasi - mapping ke enum Prisma
 const ITEM_STATUS_IN_CALIBRATION = ItemStatus.IN_CALIBRATION; // Status untuk kalibrasi dan item
@@ -203,14 +204,13 @@ export async function POST(request: Request) {
     });
     
     // Create activity log entry
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        action: 'INITIATED_CALIBRATION',
-        details: `Kalibrasi baru dimulai untuk item ${item.name}`,
-        itemSerial
-      }
-    });
+    await logCalibrationActivity(
+      user.id,
+      ActivityType.CALIBRATION_CREATED,
+      calibration.id,
+      itemSerial,
+      `Kalibrasi baru dimulai untuk item ${item.name}`
+    );
     
     // Create item history record
     await prisma.itemHistory.create({

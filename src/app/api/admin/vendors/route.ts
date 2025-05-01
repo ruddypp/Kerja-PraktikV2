@@ -18,6 +18,11 @@ export async function GET(request: Request) {
     
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
     
     // Build where conditions
     const where: any = {
@@ -35,27 +40,41 @@ export async function GET(request: Request) {
     console.log('Fetching vendors with where clause:', where);
     
     // Get vendors with pagination
-    const vendors = await prisma.vendor.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        contactName: true,
-        contactPhone: true,
-        contactEmail: true,
-        service: true,
-        createdAt: true,
-        updatedAt: true
-      },
-      orderBy: {
-        name: 'asc'
-      }
+    const [vendors, total] = await Promise.all([
+      prisma.vendor.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          contactName: true,
+          contactPhone: true,
+          contactEmail: true,
+          service: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: {
+          name: 'asc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.vendor.count({ where })
+    ]);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    console.log(`Found ${vendors.length} vendors, page ${page} of ${totalPages}`);
+    
+    return NextResponse.json({
+      items: vendors,
+      total,
+      page,
+      limit,
+      totalPages
     });
-    
-    console.log(`Found ${vendors.length} vendors`);
-    
-    return NextResponse.json(vendors);
   } catch (error) {
     console.error('Error fetching vendors:', error);
     return NextResponse.json(
