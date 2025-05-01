@@ -1,20 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { DashboardStats, formatDate, formatNumber, calculatePercentage } from '@/lib/utils/dashboard';
+import { useRouter } from 'next/navigation';
+import { FiSearch } from 'react-icons/fi';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Pie } from 'react-chartjs-2';
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Tipe data untuk statistik dashboard
 type DashboardData = DashboardStats & {
-  recentActivities: Array<{
-    id: number;
-    activity: string;
-    user: {
-      name: string;
-    };
-    createdAt: Date;
-  }>;
   notifications: Array<{
     id: number;
     message: string;
@@ -23,10 +22,26 @@ type DashboardData = DashboardStats & {
   }>;
 };
 
+// Tipe data untuk suggestion inventory
+interface InventoryItem {
+  serialNumber: string;
+  name: string;
+  partNumber: string;
+  status: string;
+}
+
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<InventoryItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -36,6 +51,7 @@ export default function AdminDashboard() {
           throw new Error('Failed to fetch dashboard data');
         }
         const data = await res.json();
+        
         setStats(data);
       } catch (err) {
         setError('Error loading dashboard data. Please try again later.');
@@ -46,12 +62,177 @@ export default function AdminDashboard() {
     };
 
     fetchDashboardData();
+    
+    // Handler untuk menutup suggestion ketika klik di luar
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
+  
+  // Fungsi untuk mencari item
+  const searchItems = async (term: string) => {
+    if (!term || term.length < 2) {
+      setSearchResults([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/admin/items?search=${encodeURIComponent(term)}&limit=5`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.items || []);
+        setShowSuggestions(true);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error('Error searching items:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  // Debounce search dengan useEffect
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      searchItems(searchTerm);
+    }, 300);
+    
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+  
+  // Handle item selection dan navigasi ke halaman history
+  const handleItemSelect = (item: InventoryItem) => {
+    router.push(`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`);
+    setSearchTerm('');
+    setShowSuggestions(false);
+  };
+
+  // Format status badge
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { color: string; text: string }> = {
+      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Available' },
+      'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'Calibration' },
+      'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Rented' },
+      'IN_MAINTENANCE': { color: 'bg-red-100 text-red-800', text: 'Maintenance' }
+    };
+    
+    const style = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${style.color}`}>
+        {style.text}
+      </span>
+    );
+  };
+  
+  // Pie chart configuration
+  const pieChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+      },
+      title: {
+        display: true,
+        text: 'Distribusi Status Barang',
+      },
+    },
+  };
+
+  const pieChartData = stats ? {
+    labels: ['Available', 'In Calibration', 'Rented', 'Maintenance'],
+    datasets: [
+      {
+        label: 'Status Barang',
+        data: [
+          stats.availableItems || 0,
+          stats.inCalibrationItems || 0,
+          stats.inRentalItems || 0,
+          stats.inMaintenanceItems || 0,
+        ],
+        backgroundColor: [
+          'rgba(75, 192, 75, 0.7)',
+          'rgba(153, 102, 255, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+          'rgba(255, 99, 132, 0.7)',
+        ],
+        borderColor: [
+          'rgba(75, 192, 75, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(255, 99, 132, 1)',
+        ],
+        borderWidth: 1,
+      },
+    ],
+  } : { labels: [], datasets: [] };
 
   return (
     <DashboardLayout>
       <div className="px-2 sm:px-0">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Dashboard</h1>
+        
+        {/* Search Bar dengan Suggestion */}
+        <div className="mb-6 relative" ref={searchRef}>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiSearch className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full bg-white border border-gray-300 rounded-lg py-2 pl-10 pr-3 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              placeholder="Cari barang berdasarkan nama, serial number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+            />
+          </div>
+          
+          {/* Suggestion Dropdown */}
+          {showSuggestions && (
+            <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-60 overflow-y-auto">
+              {isSearching ? (
+                <div className="p-4 text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-green-500 mx-auto mb-2"></div>
+                  Sedang mencari...
+                </div>
+              ) : searchResults.length > 0 ? (
+                <ul className="py-1">
+                  {searchResults.map((item) => (
+                    <li 
+                      key={item.serialNumber}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => handleItemSelect(item)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-sm text-gray-600">SN: {item.serialNumber}</div>
+                        </div>
+                        {getStatusBadge(item.status)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : searchTerm.length >= 2 ? (
+                <div className="p-4 text-center text-gray-500">
+                  Tidak ditemukan barang yang sesuai
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
         
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -174,7 +355,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             
-            {/* Pengingat dan Aktivitas */}
+            {/* Pengingat dan Pie Chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Pengingat */}
               <div className="bg-white p-6 rounded-lg shadow-md">
@@ -206,27 +387,17 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              {/* Aktivitas Terbaru */}
+              {/* Pie Chart - Distribution of Items by Status */}
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Aktivitas Terbaru</h2>
-                <div className="space-y-3">
-                  {stats?.recentActivities && stats.recentActivities.length > 0 ? (
-                    <div className="flex justify-between items-center">
-                      <Link href="/admin/activity-logs" className="text-sm text-green-600 hover:underline">Lihat semua aktivitas</Link>
-                      <span className="text-xs text-gray-500">
-                        {stats.recentActivities.length} aktivitas
-                      </span>
-                    </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Distribusi Status Barang</h2>
+                <div className="h-60">
+                  {stats ? (
+                    <Pie data={pieChartData} options={pieChartOptions} />
                   ) : (
-                    <p className="text-gray-500 text-sm">Tidak ada aktivitas terbaru</p>
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500 text-sm">Loading chart data...</p>
+                    </div>
                   )}
-                  
-                  <div className="flex justify-between items-center">
-                    <Link href="/admin/activity-logs" className="text-sm text-green-600 hover:underline">Lihat semua aktivitas</Link>
-                    <span className="text-xs text-gray-500">
-                      {stats?.recentActivities && stats.recentActivities.length > 0 ? formatDate(stats.recentActivities[0].createdAt) : ''}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>

@@ -271,6 +271,20 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
                 </Link>
               </li>
 
+              {/* Users */}
+              <li>
+                <Link 
+                  href="/admin/users" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/users') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
+                  onClick={handleNavigation}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/users') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  {(isOpen || isMobile) && 'Pengguna'}
+                </Link>
+              </li>
+
               {/* Maintenance */}
               <li>
                 <Link 

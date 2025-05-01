@@ -6,7 +6,6 @@ import { DashboardStats } from '@/lib/utils/dashboard';
 
 // Interface for the dashboard response
 interface DashboardResponse extends DashboardStats {
-  recentActivities: any[];
   notifications: any[];
 }
 
@@ -25,8 +24,7 @@ export async function GET(req: NextRequest) {
       pendingCalibrationsResult,
       pendingRentalsResult,
       upcomingCalibrationsResult,
-      overdueRentalsResult,
-      recentActivitiesResult
+      overdueRentalsResult
     ] = await Promise.allSettled([
       // Query the database for items count
       prisma.item.count(),
@@ -83,21 +81,6 @@ export async function GET(req: NextRequest) {
           status: RequestStatus.APPROVED,
           returnDate: null
         }
-      }),
-      
-      // Get recent activities
-      prisma.activityLog.findMany({
-        take: 5,
-        orderBy: {
-          createdAt: 'desc'
-        },
-        include: {
-          user: {
-            select: {
-              name: true
-            }
-          }
-        }
       })
     ]);
 
@@ -105,15 +88,6 @@ export async function GET(req: NextRequest) {
     const getValue = (result: PromiseSettledResult<any>, defaultValue: any) => {
       return result.status === 'fulfilled' ? result.value : defaultValue;
     };
-
-    // Format recent activities for easy consumption
-    const activities = getValue(recentActivitiesResult, []).map((activity: any) => ({
-      id: activity.id,
-      activity: activity.action || 'Unknown action',
-      details: activity.details || '',
-      userName: activity.user?.name || 'Unknown User',
-      createdAt: activity.createdAt
-    }));
 
     // Create mock notifications since schema has changed
     const mockNotifications = [
@@ -146,7 +120,6 @@ export async function GET(req: NextRequest) {
       pendingRentals: getValue(pendingRentalsResult, 0),
       upcomingCalibrations: getValue(upcomingCalibrationsResult, 0),
       overdueRentals: getValue(overdueRentalsResult, 0),
-      recentActivities: activities,
       notifications: mockNotifications
     };
     
@@ -168,8 +141,7 @@ export async function GET(req: NextRequest) {
       pendingRentals: 0,
       upcomingCalibrations: 0,
       overdueRentals: 0,
-      recentActivities: [],
-      notifications: []
+      notifications: [],
     };
     
     return NextResponse.json(emptyStats, { status: 500 });
