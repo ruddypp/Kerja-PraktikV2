@@ -37,7 +37,7 @@ export default function MaintenancePage() {
       setMaintenances(JSON.parse(cachedData));
       setLoading(false);
     } else {
-      fetchMaintenances();
+    fetchMaintenances();
     }
   }, []);
 

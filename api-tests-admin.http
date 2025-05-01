@@ -7,8 +7,10 @@ Content-Type: application/json
   "password": "admin123"
 }
 
+### Delete Item
+DELETE http://localhost:3000/api/admin/items/debug?serialNumber=123124124sdwq23wq1qa&force=true
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDYwODI1NzcsImV4cCI6MTc0NjE2ODk3N30.ysfok9MAMqSRMc4VMCIolL4R7xFv1yJ1SXF6m2r1kRA  
 ### Admin Items API Tests
-
 ### Get All Items
 GET http://localhost:3000/api/admin/items
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMTAzZGMwLTc2NDItNGNlNy1iODJlLWFiOTg4OWI2ZTFkMiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NDU5NDI2NDksImV4cCI6MTc0NjAyOTA0OX0.9svAGbbfM20XyvZgNgP2KYuxMXjIrE2UrFvxiRBdcQo

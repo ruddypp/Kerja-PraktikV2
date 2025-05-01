@@ -219,8 +219,8 @@ export async function GET(request: Request) {
     if (type === 'all' || type === 'maintenance') {
       try {
         // For performance optimization, only select required fields
-        const maintenances = await prisma.maintenance.findMany({
-          where: { itemSerial: serialNumber },
+      const maintenances = await prisma.maintenance.findMany({
+        where: { itemSerial: serialNumber },
           select: {
             id: true,
             itemSerial: true,
@@ -230,20 +230,20 @@ export async function GET(request: Request) {
             endDate: true,
             createdAt: true
           },
-          orderBy: { createdAt: 'desc' },
-          take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
-          skip: type === 'maintenance' ? skip : 0
+        orderBy: { createdAt: 'desc' },
+        take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
+        skip: type === 'maintenance' ? skip : 0
+      });
+      
+      if (type === 'maintenance') {
+        const count = await prisma.maintenance.count({
+          where: { itemSerial: serialNumber }
         });
         
-        if (type === 'maintenance') {
-          const count = await prisma.maintenance.count({
-            where: { itemSerial: serialNumber }
-          });
-          
-          response.pagination.totalItems = count;
-          response.pagination.totalPages = Math.ceil(count / limit);
-        }
-        
+        response.pagination.totalItems = count;
+        response.pagination.totalPages = Math.ceil(count / limit);
+      }
+      
         response.maintenances = maintenances as Maintenance[];
       } catch (error) {
         console.error('Error fetching maintenance data:', error);

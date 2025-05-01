@@ -3,9 +3,6 @@ import prisma from '@/lib/prisma';
 import { ItemStatus } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
-// Cache key for items
-const ITEMS_CACHE_KEY = 'admin:items';
-
 // GET all items
 export async function GET(request: Request) {
   try {
@@ -35,10 +32,11 @@ export async function GET(request: Request) {
     console.log('Query params:', { category, status, search, page, limit, skip });
     
     // Build where conditions with proper typing
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     
     if (category && category !== 'all') {
-      where.category = category;
+      // Hapus kondisi category karena field sudah tidak ada
+      // where.category = category; 
     }
     
     if (status && status !== 'all') {
@@ -59,6 +57,14 @@ export async function GET(request: Request) {
     // Get total count for pagination
     const totalItems = await prisma.item.count({ where });
     
+    // Get count by status
+    const countByStatus = {
+      AVAILABLE: await prisma.item.count({ where: { ...where, status: ItemStatus.AVAILABLE }}),
+      IN_CALIBRATION: await prisma.item.count({ where: { ...where, status: ItemStatus.IN_CALIBRATION }}),
+      RENTED: await prisma.item.count({ where: { ...where, status: ItemStatus.RENTED }}),
+      IN_MAINTENANCE: await prisma.item.count({ where: { ...where, status: ItemStatus.IN_MAINTENANCE }})
+    };
+    
     // Create the actual data fetch promise, including maintenance and calibration history
     const items = await prisma.item.findMany({
       where,
@@ -66,7 +72,6 @@ export async function GET(request: Request) {
         serialNumber: true,
         name: true,
         partNumber: true,
-        category: true,
         sensor: true,
         description: true,
         status: true,
@@ -162,7 +167,8 @@ export async function GET(request: Request) {
       total: totalItems,
       page,
       limit,
-      totalPages: Math.ceil(totalItems / limit)
+      totalPages: Math.ceil(totalItems / limit),
+      countByStatus
     });
   } catch (error) {
     console.error('Error fetching items:', error);
@@ -172,7 +178,13 @@ export async function GET(request: Request) {
       total: 0,
       page: 1,
       limit: 10,
-      totalPages: 0
+      totalPages: 0,
+      countByStatus: {
+        AVAILABLE: 0,
+        IN_CALIBRATION: 0,
+        RENTED: 0,
+        IN_MAINTENANCE: 0
+      }
     });
   }
 }
@@ -191,7 +203,6 @@ export async function POST(request: Request) {
       serialNumber,
       name,
       partNumber,
-      category,
       sensor,
       description,
       customerId,
@@ -233,7 +244,15 @@ export async function POST(request: Request) {
     }
     
     // Create item data object with proper typing
-    const itemData: any = {
+    const itemData: {
+      serialNumber: string,
+      name: string,
+      partNumber: string,
+      sensor: string | null,
+      description: string | null,
+      customerId: string | null,
+      status: ItemStatus
+    } = {
       serialNumber,
       name,
       partNumber,
@@ -242,11 +261,6 @@ export async function POST(request: Request) {
       customerId: customerId || null,
       status: status || ItemStatus.AVAILABLE
     };
-    
-    // Add category if provided
-    if (category) {
-      itemData.category = category;
-    }
     
     // Create item
     const item = await prisma.item.create({
@@ -345,7 +359,14 @@ export async function PATCH(request: Request) {
     console.log('PATCH - Existing item:', existingItem);
     
     // Update item data object with proper typing
-    const itemData: any = {
+    const itemData: {
+      name: string,
+      partNumber: string,
+      sensor: string | null,
+      description: string | null,
+      customerId: string | null,
+      status: ItemStatus
+    } = {
       name,
       partNumber,
       sensor: sensor || null,
@@ -410,10 +431,35 @@ export async function DELETE(request: Request) {
     const existingItem = await prisma.item.findUnique({
       where: { serialNumber },
       include: {
-        calibrations: true,
-        rentals: true,
-        maintenances: true,
-        histories: true
+        calibrations: {
+          include: {
+            statusLogs: true,
+            certificate: true
+          }
+        },
+        rentals: {
+          include: {
+            statusLogs: true
+          }
+        },
+        maintenances: {
+          include: {
+            statusLogs: true,
+            serviceReport: {
+              include: {
+                parts: true
+              }
+            },
+            technicalReport: {
+              include: {
+                partsList: true
+              }
+            }
+          }
+        },
+        histories: true,
+        inventoryCheckItems: true,
+        activityLogs: true
       }
     });
     
@@ -424,47 +470,139 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Check if item has related records
-    const hasRelatedRecords = 
-      (existingItem.calibrations && existingItem.calibrations.length > 0) ||
-      (existingItem.rentals && existingItem.rentals.length > 0) ||
-      (existingItem.maintenances && existingItem.maintenances.length > 0);
+    console.log(`Attempting full deletion of item ${serialNumber} with ALL related records`);
     
-    if (hasRelatedRecords) {
+    try {
+      // 1. Hapus semua relasi CalibrationStatusLog
+      for (const calibration of existingItem.calibrations || []) {
+        if (calibration.statusLogs?.length > 0) {
+          await prisma.calibrationStatusLog.deleteMany({
+            where: { calibrationId: calibration.id }
+          });
+        }
+        
+        // Hapus sertifikat kalibrasi jika ada
+        if (calibration.certificate) {
+          await prisma.calibrationCertificate.delete({
+            where: { calibrationId: calibration.id }
+          });
+        }
+      }
+      
+      // 2. Hapus semua relasi MaintenanceStatusLog dan laporan terkait
+      for (const maintenance of existingItem.maintenances || []) {
+        if (maintenance.statusLogs?.length > 0) {
+          await prisma.maintenanceStatusLog.deleteMany({
+            where: { maintenanceId: maintenance.id }
+          });
+        }
+        
+        // Hapus ServiceReport dan parts jika ada
+        if (maintenance.serviceReport) {
+          // Hapus parts terlebih dahulu
+          if (maintenance.serviceReport.parts?.length > 0) {
+            await prisma.serviceReportPart.deleteMany({
+              where: { serviceReportId: maintenance.serviceReport.id }
+            });
+          }
+          
+          await prisma.serviceReport.delete({
+            where: { maintenanceId: maintenance.id }
+          });
+        }
+        
+        // Hapus TechnicalReport dan partsList jika ada
+        if (maintenance.technicalReport) {
+          // Hapus parts terlebih dahulu
+          if (maintenance.technicalReport.partsList?.length > 0) {
+            await prisma.technicalReportPart.deleteMany({
+              where: { technicalReportId: maintenance.technicalReport.id }
+            });
+          }
+          
+          await prisma.technicalReport.delete({
+            where: { maintenanceId: maintenance.id }
+          });
+        }
+      }
+      
+      // 3. Hapus semua relasi RentalStatusLog
+      for (const rental of existingItem.rentals || []) {
+        if (rental.statusLogs?.length > 0) {
+          await prisma.rentalStatusLog.deleteMany({
+            where: { rentalId: rental.id }
+          });
+        }
+      }
+      
+      // 4. Hapus inventoryCheckItems
+      if (existingItem.inventoryCheckItems?.length > 0) {
+        await prisma.inventoryCheckItem.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 5. Hapus activityLogs
+      if (existingItem.activityLogs?.length > 0) {
+        await prisma.activityLog.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 6. Hapus histories
+      if (existingItem.histories?.length > 0) {
+        await prisma.itemHistory.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 7. Hapus calibrations
+      if (existingItem.calibrations?.length > 0) {
+        await prisma.calibration.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 8. Hapus maintenances
+      if (existingItem.maintenances?.length > 0) {
+        await prisma.maintenance.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 9. Hapus rentals
+      if (existingItem.rentals?.length > 0) {
+        await prisma.rental.deleteMany({
+          where: { itemSerial: serialNumber }
+        });
+      }
+      
+      // 10. Hapus item
+      await prisma.item.delete({
+        where: { serialNumber }
+      });
+      
+      // Buat activity log penghapusan (tanpa relasi ke item)
+      await prisma.activityLog.create({
+        data: {
+          userId: user?.id || '',
+          action: 'DELETED',
+          details: `Item ${existingItem.name} (${serialNumber}) deleted from inventory along with all related records`
+        }
+      });
+      
+      return NextResponse.json({ 
+        success: true,
+        message: 'Item dan semua data terkait berhasil dihapus'
+      });
+      
+    } catch (error) {
+      console.error(`Error in deletion process for item ${serialNumber}:`, error);
       return NextResponse.json(
-        { 
-          error: 'Cannot delete item with related records',
-          count: 
-            (existingItem.calibrations?.length || 0) +
-            (existingItem.rentals?.length || 0) +
-            (existingItem.maintenances?.length || 0)
-        },
-        { status: 409 }
+        { error: `Failed to delete item: ${error}` },
+        { status: 500 }
       );
     }
-    
-    // Delete item history first (to avoid foreign key constraints)
-    if (existingItem.histories && existingItem.histories.length > 0) {
-      await prisma.itemHistory.deleteMany({
-        where: { itemSerial: serialNumber }
-      });
-    }
-    
-    // Delete the actual item
-    await prisma.item.delete({
-      where: { serialNumber }
-    });
-    
-    // Create activity log for deletion
-    await prisma.activityLog.create({
-      data: {
-        userId: user?.id || '',
-        action: 'DELETED',
-        details: `Item ${existingItem.name} (${serialNumber}) deleted from inventory`
-      }
-    });
-    
-    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting item:', error);
     return NextResponse.json(

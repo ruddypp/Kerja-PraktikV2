@@ -99,6 +99,14 @@ export default function AdminInventoryPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // Status counts from the server
+  const [statusCounts, setStatusCounts] = useState({
+    AVAILABLE: 0,
+    IN_CALIBRATION: 0,
+    RENTED: 0,
+    IN_MAINTENANCE: 0
+  });
+  
   // Clear form
   const clearForm = useCallback(() => {
     setFormData({
@@ -203,6 +211,11 @@ export default function AdminInventoryPage() {
       if (itemsData.items && typeof itemsData.total === 'number') {
         setItems(itemsData.items);
         setTotalItems(itemsData.total);
+        
+        // Set status counts from API response
+        if (itemsData.countByStatus) {
+          setStatusCounts(itemsData.countByStatus);
+        }
       } else {
         // Fallback if API doesn't support pagination yet
         setItems(itemsData);
@@ -442,21 +455,16 @@ export default function AdminInventoryPage() {
     category: ''
   };
 
-  // Count items by status
+  // Count items by status - This will be removed since we now get counts from the API
   const itemStatusCount = useMemo(() => {
-    const counts: Record<ItemStatus, number> = {
-      [ItemStatus.AVAILABLE]: 0,
-      [ItemStatus.IN_CALIBRATION]: 0,
-      [ItemStatus.RENTED]: 0,
-      [ItemStatus.IN_MAINTENANCE]: 0
+    // Use the server-provided counts instead of calculating from current page items
+    return {
+      [ItemStatus.AVAILABLE]: statusCounts.AVAILABLE,
+      [ItemStatus.IN_CALIBRATION]: statusCounts.IN_CALIBRATION,
+      [ItemStatus.RENTED]: statusCounts.RENTED,
+      [ItemStatus.IN_MAINTENANCE]: statusCounts.IN_MAINTENANCE
     };
-    
-    items.forEach(item => {
-      counts[item.status]++;
-    });
-    
-    return counts;
-  }, [items]);
+  }, [statusCounts]);
 
   return (
     <DashboardLayout>

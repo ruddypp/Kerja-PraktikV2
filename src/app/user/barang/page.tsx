@@ -54,7 +54,7 @@ export default function UserItemsPage() {
     }, 500),
     []
   );
-
+  
   // Function to fetch items with pagination
   const fetchItems = async (page: number, search: string = '') => {
       try {
@@ -101,7 +101,7 @@ export default function UserItemsPage() {
     if (searchQuery) {
       debouncedFetch(currentPage, searchQuery);
     } else {
-      fetchItems(currentPage, searchQuery);
+    fetchItems(currentPage, searchQuery);
     }
   }, [currentPage, searchQuery, debouncedFetch]);
   
