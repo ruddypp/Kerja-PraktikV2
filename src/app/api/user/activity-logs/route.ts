@@ -1,131 +1,105 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
+import { ActivityType } from '@prisma/client';
 
-// GET activity logs for current user
+// GET user's activity logs with filtering and pagination
 export async function GET(request: Request) {
   try {
-    // Get user ID from auth token in cookies
-    let userId = 0; // Default to invalid user ID
-    
-    try {
-      // Get token from cookies manually
-      const cookieHeader = request.headers.get('cookie') || '';
-      const cookies = Object.fromEntries(
-        cookieHeader.split('; ').filter(c => c).map(c => {
-          const [name, ...value] = c.split('=');
-          return [name, value.join('=')];
-        })
-      );
-      
-      const token = cookies['auth_token'];
-      
-      if (token) {
-        const userData = decodeToken(token);
-        if (userData?.id) {
-          userId = userData.id;
-        }
-      }
-    } catch (authError) {
-      console.error('Error getting user from token:', authError);
-      return NextResponse.json(
-        { error: 'Authentication failed' },
-        { status: 401 }
-      );
+    // Verify user is authenticated
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
-    
+    // Get query params
     const { searchParams } = new URL(request.url);
-    
-    // Parse filters
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const activityType = searchParams.get('activityType');
-    
-    // Parse pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+    const activityType = searchParams.get('activityType') || '';
+    
+    // Calculate skip for pagination
     const skip = (page - 1) * limit;
     
-    // Build where conditions
-    const where: Record<string, unknown> = {
-      userId: userId // Only show current user's activities
+    // Build where clause for filtering
+    const where: any = {
+      // Show activities performed by the user OR affecting this user
+      OR: [
+        { userId: user.id },
+        { affectedUserId: user.id }
+      ]
     };
     
-    if (startDate || endDate) {
-      where.createdAt = {};
-      
-      if (startDate) {
-        where.createdAt = {
-          ...where.createdAt as object,
-          gte: new Date(startDate)
-        };
-      }
-      
-      if (endDate) {
-        where.createdAt = {
-          ...where.createdAt as object,
-          lte: new Date(endDate)
-        };
-      }
-    }
-    
-    if (activityType) {
-      where.activity = {
-        contains: activityType,
-        mode: 'insensitive'
+    // Add date filters if provided
+    if (startDate) {
+      where.createdAt = {
+        ...(where.createdAt || {}),
+        gte: new Date(startDate)
       };
     }
     
-    // Get total count for pagination
-    const totalItems = await prisma.activityLog.count({
-      where: where as Record<string, unknown>
-    });
+    if (endDate) {
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999); // Set to end of day
+      where.createdAt = {
+        ...(where.createdAt || {}),
+        lte: endDateTime
+      };
+    }
     
-    // Get user activity logs with pagination and only select necessary fields
-    const activityLogs = await prisma.activityLog.findMany({
-      where: where as Record<string, unknown>,
-      select: {
-        id: true,
-        userId: true,
-        itemSerial: true,
-        action: true,
-        details: true,
-        createdAt: true,
-        activity: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      skip,
-      take: limit
-    });
+    // Add activity type filter if provided
+    if (activityType && Object.values(ActivityType).includes(activityType as ActivityType)) {
+      where.type = activityType;
+    }
     
-    // Return paginated response
+    // Get activity logs with pagination
+    const [activityLogs, total] = await Promise.all([
+      prisma.activityLog.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          action: true,
+          details: true,
+          itemSerial: true,
+          rentalId: true,
+          calibrationId: true,
+          maintenanceId: true,
+          vendorId: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.activityLog.count({ where })
+    ]);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
     return NextResponse.json({
       items: activityLogs,
-      total: totalItems,
+      total,
       page,
       limit,
-      totalPages: Math.ceil(totalItems / limit)
+      totalPages
     });
+    
   } catch (error) {
     console.error('Error fetching user activity logs:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch activity logs',
-        items: [],
-        total: 0,
-        page: 1,
-        limit: 20,
-        totalPages: 0
-      },
+      { error: 'Failed to fetch activity logs' },
       { status: 500 }
     );
   }

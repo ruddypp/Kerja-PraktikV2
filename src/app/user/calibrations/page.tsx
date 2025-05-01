@@ -241,7 +241,7 @@ export default function UserCalibrationPage() {
   
   const fetchVendors = async () => {
     try {
-      const response = await fetch('/api/user/vendors', {
+      const response = await fetch('/api/vendors', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

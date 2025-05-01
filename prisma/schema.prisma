@@ -40,6 +40,27 @@ enum NotificationType {
   GENERAL_INFO
 }
 
+enum ActivityType {
+  ITEM_CREATED
+  ITEM_UPDATED
+  ITEM_DELETED
+  CALIBRATION_CREATED
+  CALIBRATION_UPDATED
+  CALIBRATION_DELETED
+  MAINTENANCE_CREATED
+  MAINTENANCE_UPDATED
+  MAINTENANCE_DELETED
+  RENTAL_CREATED
+  RENTAL_UPDATED
+  RENTAL_DELETED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  VENDOR_CREATED
+  VENDOR_UPDATED
+  VENDOR_DELETED
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -58,6 +79,7 @@ model User {
   maintenanceStatusLogs MaintenanceStatusLog[]
   rentalStatusLogs      RentalStatusLog[]
   notifications         Notification[]
+  affectedUserLogs      ActivityLog[]    @relation("AffectedUserLogs")
 }
 
 model Item {
@@ -95,6 +117,7 @@ model Rental {
   updatedAt    DateTime      @updatedAt
   
   statusLogs   RentalStatusLog[]
+  activityLogs ActivityLog[]
 }
 
 model Calibration {
@@ -123,6 +146,7 @@ model Calibration {
   
   // Relasi ke sertifikat
   certificate     CalibrationCertificate?
+  activityLogs    ActivityLog[]
 }
 
 // Model baru untuk detail sertifikat kalibrasi
@@ -178,6 +202,7 @@ model Maintenance {
   technicalReport TechnicalReport?
   
   statusLogs      MaintenanceStatusLog[]
+  activityLogs    ActivityLog[]
 }
 
 // Form 1: Customer Service Report
@@ -289,14 +314,35 @@ model ItemHistory {
 
 // For movement and actions tracking
 model ActivityLog {
-  id         String    @id @default(uuid())
-  user       User      @relation(fields: [userId], references: [id])
-  userId     String
-  item       Item?     @relation(fields: [itemSerial], references: [serialNumber])
-  itemSerial String?
-  action     String    // ADDED, MOVED, ASSIGNED, STATUS_CHANGED, etc.
-  details    String?   // Description of the activity
-  createdAt  DateTime  @default(now())
+  id               String       @id @default(uuid())
+  type             ActivityType
+  action           String       // Additional details about the action
+  details          String?      // Description of the activity
+
+  // Who performed the action
+  user             User         @relation(fields: [userId], references: [id])
+  userId           String
+
+  // What was affected - only one of these will be set
+  item             Item?        @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial       String?
+
+  rental           Rental?      @relation(fields: [rentalId], references: [id])
+  rentalId         String?
+
+  calibration      Calibration? @relation(fields: [calibrationId], references: [id])
+  calibrationId    String?
+
+  maintenance      Maintenance? @relation(fields: [maintenanceId], references: [id])
+  maintenanceId    String?
+
+  affectedUser     User?        @relation("AffectedUserLogs", fields: [affectedUserId], references: [id])
+  affectedUserId   String?
+
+  vendor           Vendor?      @relation(fields: [vendorId], references: [id])
+  vendorId         String?
+
+  createdAt        DateTime     @default(now())
 }
 
 model Vendor {
@@ -307,13 +353,14 @@ model Vendor {
   contactPhone String?
   contactEmail String?
   service      String?
-   isDeleted    Boolean       @default(false)
+  isDeleted    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   
   calibrations   Calibration[]
   vendorHistory  VendorHistory[]
   customerItems  Item[]       @relation("CustomerItems")
+  activityLogs   ActivityLog[]
 }
 
 model VendorHistory {

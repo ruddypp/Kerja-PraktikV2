@@ -288,11 +288,11 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
               {/* History */}
               <li>
                 <Link 
-                  href="/admin/activity-logs" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/activity-logs') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
+                  href="/admin/history" 
+                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/history') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/activity-logs') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/history') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {(isOpen || isMobile) && 'History'}

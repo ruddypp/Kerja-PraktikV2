@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { Item, ItemHistory, ActivityLog, Calibration, Maintenance } from '@prisma/client';
+import { Item, ItemHistory, ActivityLog, Calibration, Maintenance, ActivityType } from '@prisma/client';
 
 type ActivityLogWithUser = ActivityLog & {
   user: {
@@ -140,6 +140,7 @@ export async function GET(request: Request) {
         where: { itemSerial: serialNumber },
         select: {
           id: true,
+          type: true,
           userId: true,
           itemSerial: true,
           action: true,

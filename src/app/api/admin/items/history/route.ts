@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
-import { Item, ItemHistory, ActivityLog, Calibration, Maintenance } from '@prisma/client';
+import { Item, ItemHistory, ActivityLog, Calibration, Maintenance, ActivityType } from '@prisma/client';
 
 type ActivityLogWithUser = ActivityLog & {
   user: {

@@ -304,7 +304,7 @@ export default function UserItemsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Link 
-                          href={`/user/item-history/${item.serialNumber}`}
+                          href={`/user/barang/history/${item.serialNumber}`}
                           className="text-sm text-blue-600 hover:text-blue-900"
                         >
                           View History

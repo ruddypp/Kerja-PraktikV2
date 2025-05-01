@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
+// @ts-expect-error jspdf-autotable doesn't have proper TypeScript types
 import autoTable from 'jspdf-autotable';
 
 // Define ActivityType enum to match Prisma schema
@@ -28,6 +29,11 @@ enum ActivityType {
   VENDOR_DELETED = 'VENDOR_DELETED'
 }
 
+interface User {
+  id: string;
+  name: string;
+}
+
 interface ActivityLog {
   id: string;
   type: ActivityType;
@@ -41,6 +47,8 @@ interface ActivityLog {
   affectedUserId?: string;
   vendorId?: string;
   createdAt: string;
+  user: User;
+  affectedUser?: User;
 }
 
 interface PaginatedResponse {
@@ -51,7 +59,7 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
-export default function UserHistoryPage() {
+export default function AdminHistoryPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,7 +75,9 @@ export default function UserHistoryPage() {
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
-    activityType: ''
+    activityType: '',
+    userId: '',
+    itemSerial: '',
   });
 
   const fetchActivityLogs = async () => {
@@ -80,32 +90,14 @@ export default function UserHistoryPage() {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.activityType) params.append('activityType', filters.activityType);
+      if (filters.userId) params.append('userId', filters.userId);
+      if (filters.itemSerial) params.append('itemSerial', filters.itemSerial);
       params.append('page', pagination.page.toString());
       params.append('limit', pagination.limit.toString());
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
-      const cacheKey = `activity_logs_${queryString}`;
       
-      // Check if we have cached data first
-      const cachedData = sessionStorage.getItem(cacheKey);
-      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
-      const now = Date.now();
-      
-      // Use cache if available and less than 1 minute old
-      if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
-        const parsedData = JSON.parse(cachedData) as PaginatedResponse;
-        setActivityLogs(parsedData.items);
-        setPagination({
-          page: parsedData.page,
-          limit: parsedData.limit,
-          total: parsedData.total,
-          totalPages: parsedData.totalPages
-        });
-        setLoading(false);
-        return;
-      }
-      
-      const res = await fetch(`/api/user/activity-logs${queryString}`);
+      const res = await fetch(`/api/admin/activity-logs${queryString}`);
       
       if (!res.ok) {
         throw new Error(`Failed to fetch activity logs: ${res.statusText}`);
@@ -119,10 +111,6 @@ export default function UserHistoryPage() {
         total: data.total,
         totalPages: data.totalPages
       });
-      
-      // Cache the results
-      sessionStorage.setItem(cacheKey, JSON.stringify(data));
-      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
     } catch (err) {
       console.error('Error fetching activity logs:', err);
       setError('Failed to load activity history. Please try again.');
@@ -165,7 +153,9 @@ export default function UserHistoryPage() {
     setFilters({
       startDate: '',
       endDate: '',
-      activityType: ''
+      activityType: '',
+      userId: '',
+      itemSerial: '',
     });
   };
 
@@ -180,13 +170,13 @@ export default function UserHistoryPage() {
       
       // Add title
       doc.setFontSize(16);
-      doc.text('Activity Report', 14, 15);
+      doc.text('System Activity Report', 14, 15);
       
       // Add filters information
       doc.setFontSize(10);
       let yPos = 25;
       
-      doc.text(`Created on: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
+      doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
       yPos += 5;
       
       if (filters.startDate) {
@@ -200,16 +190,29 @@ export default function UserHistoryPage() {
       }
       
       if (filters.activityType) {
-        doc.text(`Activity Type: ${filters.activityType}`, 14, yPos);
+        doc.text(`Activity Type: ${filters.activityType.replace(/_/g, ' ')}`, 14, yPos);
+        yPos += 5;
+      }
+      
+      if (filters.userId) {
+        doc.text(`User ID: ${filters.userId}`, 14, yPos);
+        yPos += 5;
+      }
+      
+      if (filters.itemSerial) {
+        doc.text(`Item Serial: ${filters.itemSerial}`, 14, yPos);
         yPos += 5;
       }
       
       // Table data
-      const tableColumn = ['#', 'Date & Time', 'Activity'];
+      const tableColumn = ['#', 'Date & Time', 'User', 'Type', 'Action', 'Details'];
       const tableRows = activityLogs.map((log, index) => [
         (index + 1).toString(),
         formatDate(log.createdAt),
-        log.action
+        log.user?.name || 'Unknown',
+        log.type.replace(/_/g, ' '),
+        log.action,
+        log.details || '-'
       ]);
       
       // Add table with properly imported autoTable
@@ -222,13 +225,16 @@ export default function UserHistoryPage() {
         styles: { overflow: 'linebreak', cellWidth: 'wrap' },
         columnStyles: {
           0: { cellWidth: 10 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 'auto' }
+          1: { cellWidth: 35 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 60 }
         }
       });
       
       // Save file
-      doc.save('activity-history.pdf');
+      doc.save('system-activity-report.pdf');
       
       setSuccess('PDF report successfully created');
       setTimeout(() => setSuccess(''), 3000);
@@ -242,14 +248,16 @@ export default function UserHistoryPage() {
     <DashboardLayout>
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Activity History</h1>
-          <button
-            onClick={generatePDF}
-            className="btn btn-primary"
-            disabled={loading || activityLogs.length === 0}
-          >
-            Export PDF
-          </button>
+          <h1 className="text-title text-xl md:text-2xl">System Activity History</h1>
+          <div className="space-x-2">
+            <button
+              onClick={generatePDF}
+              className="btn btn-primary"
+              disabled={loading || activityLogs.length === 0}
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -265,7 +273,7 @@ export default function UserHistoryPage() {
         )}
 
         {/* Filters */}
-        <div className="card mb-6 border border-gray-200">
+        <div className="card mb-6 border border-gray-200 p-4">
           <h2 className="text-subtitle mb-4">Filter History</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -338,14 +346,44 @@ export default function UserHistoryPage() {
                 </optgroup>
               </select>
             </div>
-          </div>
-          <div className="mt-4">
-            <button onClick={resetFilters} className="btn btn-secondary mr-2">
-              Reset Filters
-            </button>
-            <button onClick={() => fetchActivityLogs()} className="btn btn-primary">
-              Apply Filters
-            </button>
+            <div>
+              <label htmlFor="userId" className="form-label">
+                User ID
+              </label>
+              <input
+                type="text"
+                id="userId"
+                name="userId"
+                value={filters.userId}
+                onChange={handleFilterChange}
+                placeholder="Filter by user ID"
+                className="form-input w-full"
+              />
+            </div>
+            <div>
+              <label htmlFor="itemSerial" className="form-label">
+                Item Serial
+              </label>
+              <input
+                type="text"
+                id="itemSerial"
+                name="itemSerial"
+                value={filters.itemSerial}
+                onChange={handleFilterChange}
+                placeholder="Filter by item serial"
+                className="form-input w-full"
+              />
+            </div>
+            <div className="flex items-end">
+              <div className="mt-6 space-x-2">
+                <button onClick={resetFilters} className="btn btn-secondary">
+                  Reset Filters
+                </button>
+                <button onClick={() => fetchActivityLogs()} className="btn btn-primary">
+                  Apply Filters
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -364,18 +402,29 @@ export default function UserHistoryPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left">Date & Time</th>
+                  <th className="px-4 py-2 text-left">User</th>
                   <th className="px-4 py-2 text-left">Type</th>
                   <th className="px-4 py-2 text-left">Activity</th>
                   <th className="px-4 py-2 text-left">Details</th>
+                  <th className="px-4 py-2 text-left">Related ID</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {activityLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">{formatDate(log.createdAt)}</td>
+                    <td className="px-4 py-3">{log.user?.name || 'Unknown'}</td>
                     <td className="px-4 py-3">{log.type.replace(/_/g, ' ')}</td>
                     <td className="px-4 py-3">{log.action}</td>
                     <td className="px-4 py-3">{log.details || '-'}</td>
+                    <td className="px-4 py-3">
+                      {log.itemSerial ? `Item: ${log.itemSerial}` : 
+                       log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
+                       log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
+                       log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
+                       log.affectedUserId ? `User: ${log.affectedUser?.name || log.affectedUserId.substring(0, 8)}...` :
+                       log.vendorId ? `Vendor: ${log.vendorId.substring(0, 8)}...` : '-'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -448,8 +497,8 @@ export default function UserHistoryPage() {
   );
 }
 
-// Debounce function
-function debounce<T extends (...args: any[]) => any>(
+// Debounce function to prevent too many API calls
+function debounce<T extends (...args: unknown[]) => void>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

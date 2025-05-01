@@ -1,70 +1,109 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
-// GET all activity logs with filters
+// NOTE: If you're seeing TypeScript errors related to the ActivityLog model,
+// you may need to regenerate the Prisma client after schema changes:
+// npx prisma generate
+
+// GET all activity logs (admin only) with filtering and pagination
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    
-    // Parse filters
-    const userId = searchParams.get('userId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const activityType = searchParams.get('activityType');
-    
-    // Build where conditions
-    const where: Record<string, unknown> = {};
-    
-    if (userId) {
-      where.userId = parseInt(userId);
+    // Verify admin
+    const user = await getUserFromRequest(request);
+    if (!isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get query params
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+    const activityType = searchParams.get('activityType') || '';
+    const userId = searchParams.get('userId') || '';
+    const itemSerial = searchParams.get('itemSerial') || '';
+    
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+    
+    // Build query filters
+    // @ts-ignore - TypeScript might complain if Prisma client hasn't been regenerated after schema changes
+    const filters: any = {};
+    
     if (startDate || endDate) {
-      where.createdAt = {};
+      filters.createdAt = {};
       
       if (startDate) {
-        where.createdAt = {
-          ...where.createdAt as object,
-          gte: new Date(startDate)
-        };
+        filters.createdAt.gte = new Date(startDate);
       }
       
       if (endDate) {
-        where.createdAt = {
-          ...where.createdAt as object,
-          lte: new Date(endDate)
-        };
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        filters.createdAt.lte = endDateTime;
       }
     }
     
     if (activityType) {
-      where.activity = {
-        contains: activityType,
-        mode: 'insensitive'
-      };
+      filters.type = activityType;
     }
     
-    // Get activity logs with user information
-    const activityLogs = await prisma.activityLog.findMany({
-      where: where as Record<string, unknown>,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
+    if (userId) {
+      filters.OR = [
+        { userId },
+        { affectedUserId: userId }
+      ];
+    }
+    
+    if (itemSerial) {
+      filters.itemSerial = itemSerial;
+    }
+    
+    // Execute queries
+    // @ts-ignore - TypeScript might complain if Prisma client hasn't been regenerated after schema changes
+    const [activityLogs, total] = await Promise.all([
+      prisma.activityLog.findMany({
+        where: filters,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          affectedUser: {
+            select: {
+              id: true,
+              name: true
+            }
           }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.activityLog.count({
+        where: filters
+      })
+    ]);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    return NextResponse.json({
+      items: activityLogs,
+      total,
+      page,
+      limit,
+      totalPages
     });
     
-    return NextResponse.json(activityLogs);
   } catch (error) {
-    console.error('Error fetching activity logs:', error);
+    console.error('Error fetching admin activity logs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch activity logs' },
       { status: 500 }
