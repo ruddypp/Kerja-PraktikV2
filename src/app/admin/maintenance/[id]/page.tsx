@@ -45,7 +45,7 @@ export default function AdminMaintenanceDetailPage({
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const id = React.use(params).id;
+  const id = params.id;
 
   useEffect(() => {
     if (id) {

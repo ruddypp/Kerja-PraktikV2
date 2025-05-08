@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
-import { Search, Filter, ClipboardCheckIcon } from "lucide-react";
+import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 interface MaintenanceItem {
@@ -30,10 +30,44 @@ export default function AdminMaintenancePage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  
+  // State untuk modal konfirmasi hapus
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [maintenanceToDelete, setMaintenanceToDelete] = useState<MaintenanceItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Konstanta untuk caching
+  const CACHE_DURATION = 60000; // 1 menit
+  const CACHE_KEY = 'admin_maintenance_data';
+  const CACHE_TIMESTAMP_KEY = 'admin_maintenance_last_fetch';
+
+  // Fungsi untuk membersihkan cache
+  const invalidateCache = useCallback(() => {
+    sessionStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  }, []);
+
+  // Debounce function
+  const debounce = useCallback((func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }, []);
 
   useEffect(() => {
     fetchMaintenances();
   }, []);
+
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearchTerm(term);
+      applyFilters();
+    }, 500), // 500ms delay
+    [maintenances, statusFilter]
+  );
 
   useEffect(() => {
     applyFilters();
@@ -42,6 +76,20 @@ export default function AdminMaintenancePage() {
   const fetchMaintenances = async () => {
     try {
       setLoading(true);
+
+      // Cek apakah ada data di cache dan masih valid
+      const cachedData = sessionStorage.getItem(CACHE_KEY);
+      const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+      const now = Date.now();
+      
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+        // Gunakan data dari cache jika masih valid
+        const data = JSON.parse(cachedData);
+        setMaintenances(data);
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/admin/maintenance");
       
       if (!response.ok) {
@@ -49,12 +97,69 @@ export default function AdminMaintenancePage() {
       }
       
       const data = await response.json();
+      
+      // Simpan data ke cache
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      sessionStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
+      
       setMaintenances(data);
     } catch (error) {
       console.error("Error fetching maintenances:", error);
       toast.error("Gagal mengambil data maintenance");
+      
+      // Coba gunakan data cache yang lama jika ada
+      const oldCache = sessionStorage.getItem(CACHE_KEY);
+      if (oldCache) {
+        try {
+          setMaintenances(JSON.parse(oldCache));
+          toast.info("Menampilkan data terakhir dari cache");
+        } catch (e) {
+          console.error("Error parsing old cache:", e);
+        }
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fungsi untuk membuka modal konfirmasi hapus
+  const openDeleteModal = (maintenance: MaintenanceItem) => {
+    setMaintenanceToDelete(maintenance);
+    setShowDeleteModal(true);
+  };
+
+  // Fungsi untuk menghapus maintenance
+  const deleteMaintenance = async () => {
+    if (!maintenanceToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      const response = await fetch(`/api/admin/maintenance/${maintenanceToDelete.id}`, {
+        method: "DELETE"
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Gagal menghapus data maintenance");
+      }
+      
+      toast.success("Data maintenance berhasil dihapus");
+      
+      // Hapus dari state
+      setMaintenances(maintenances.filter(item => item.id !== maintenanceToDelete.id));
+      
+      // Invalidasi cache
+      invalidateCache();
+      
+      // Tutup modal
+      setShowDeleteModal(false);
+      setMaintenanceToDelete(null);
+    } catch (error) {
+      console.error("Error deleting maintenance:", error);
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus data maintenance");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -78,6 +183,17 @@ export default function AdminMaintenancePage() {
     }
     
     setFilteredMaintenances(result);
+  };
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    debouncedSearch(e.target.value);
+  };
+
+  // Handle refresh button
+  const handleRefresh = () => {
+    invalidateCache();
+    fetchMaintenances();
   };
 
   const getStatusBadge = (status: string) => {
@@ -124,6 +240,14 @@ export default function AdminMaintenancePage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Manajemen Maintenance</h1>
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+            disabled={loading}
+          >
+            <RefreshCw size={16} />
+            {loading ? "Memuat..." : "Refresh Data"}
+          </button>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-100 p-4">
@@ -140,8 +264,8 @@ export default function AdminMaintenancePage() {
                   type="text"
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500"
                   placeholder="Cari berdasarkan nama barang, serial number, atau nama user"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  defaultValue={searchTerm}
+                  onChange={handleSearchChange}
                 />
               </div>
             </div>
@@ -199,6 +323,12 @@ export default function AdminMaintenancePage() {
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
+                      Serial Number
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
                       User
                     </th>
                     <th
@@ -223,12 +353,6 @@ export default function AdminMaintenancePage() {
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
-                      Laporan
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
                       Aksi
                     </th>
                   </tr>
@@ -241,11 +365,14 @@ export default function AdminMaintenancePage() {
                           {maintenance.item.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {maintenance.itemSerial}
+                          {maintenance.item.partNumber}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{maintenance.user.name}</div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {maintenance.itemSerial}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {maintenance.user.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(maintenance.startDate)}
@@ -257,47 +384,21 @@ export default function AdminMaintenancePage() {
                         {getStatusBadge(maintenance.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {maintenance.status === "COMPLETED" && (
-                          <div className="space-y-1">
-                            {maintenance.serviceReport && (
-                            <a
-                              href={`/api/admin/maintenance/${maintenance.id}/report?type=csr`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                                className="text-green-600 hover:text-green-800 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                CSR Report
-                            </a>
-                            )}
-                            {maintenance.technicalReport && (
-                            <a
-                              href={`/api/admin/maintenance/${maintenance.id}/report?type=technical`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                                className="text-green-600 hover:text-green-800 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                              Technical Report
-                            </a>
-                            )}
-                            {!maintenance.serviceReport && !maintenance.technicalReport && (
-                              <span className="text-gray-500">No reports</span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Link
-                          href={`/admin/maintenance/${maintenance.id}`}
-                          className="text-green-600 hover:text-green-800"
-                        >
-                          Lihat Detail
-                        </Link>
+                        <div className="flex items-center space-x-4">
+                          <Link 
+                            href={`/admin/maintenance/${maintenance.id}`}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Lihat Detail
+                          </Link>
+                          <button
+                            onClick={() => openDeleteModal(maintenance)}
+                            className="text-red-600 hover:text-red-900 flex items-center"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -307,6 +408,51 @@ export default function AdminMaintenancePage() {
           </div>
         )}
       </div>
+
+      {/* Modal Konfirmasi Hapus */}
+      {showDeleteModal && maintenanceToDelete && (
+        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black opacity-50"></div>
+          <div className="relative bg-white rounded-lg max-w-md w-full mx-4 p-6 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Konfirmasi Hapus</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Anda yakin ingin menghapus data maintenance untuk barang <span className="font-semibold">{maintenanceToDelete.item.name}</span> dengan serial number <span className="font-semibold">{maintenanceToDelete.itemSerial}</span>?
+            </p>
+            <p className="text-sm text-red-500 mb-6">
+              Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait maintenance ini.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                disabled={isDeleting}
+              >
+                Batal
+              </button>
+              <button
+                onClick={deleteMaintenance}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Hapus
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 } 

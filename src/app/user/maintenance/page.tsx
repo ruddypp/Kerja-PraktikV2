@@ -28,43 +28,82 @@ export default function MaintenancePage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Durasi cache dalam milidetik (1 menit)
+  const CACHE_DURATION = 60000;
+  const CACHE_KEY = 'maintenanceData';
+  const CACHE_TIMESTAMP_KEY = 'maintenanceLastFetch';
+
+  // Fungsi untuk membersihkan cache
+  const invalidateCache = useCallback(() => {
+    sessionStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  }, []);
+
   useEffect(() => {
-    const cachedData = sessionStorage.getItem('maintenanceData');
-    const lastFetch = sessionStorage.getItem('maintenanceLastFetch');
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+    const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
     const now = Date.now();
     
-    if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
-      setMaintenances(JSON.parse(cachedData));
-      setLoading(false);
+    // Cek apakah cache masih valid (tidak lebih dari durasi yang ditentukan)
+    if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+      try {
+        setMaintenances(JSON.parse(cachedData));
+        setLoading(false);
+      } catch (e) {
+        console.error("Error parsing cached data:", e);
+        // Jika terjadi kesalahan parsing, hapus cache dan muat ulang data
+        invalidateCache();
+        fetchMaintenances();
+      }
     } else {
-    fetchMaintenances();
+      fetchMaintenances();
     }
-  }, []);
+  }, [invalidateCache]);
 
   const fetchMaintenances = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await fetch("/api/user/maintenance");
-      const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || "Gagal mengambil data maintenance");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal mengambil data maintenance");
       }
+      
+      const data = await response.json();
       
       setMaintenances(data);
       
-      sessionStorage.setItem('maintenanceData', JSON.stringify(data));
-      sessionStorage.setItem('maintenanceLastFetch', Date.now().toString());
+      // Simpan data ke cache
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
     } catch (error) {
       console.error("Error fetching maintenances:", error);
       const errorMessage = error instanceof Error ? error.message : "Gagal mengambil data maintenance";
       setError(errorMessage);
       toast.error(errorMessage);
+      
+      // Coba gunakan data cache yang lama jika ada
+      const oldCache = sessionStorage.getItem(CACHE_KEY);
+      if (oldCache) {
+        try {
+          setMaintenances(JSON.parse(oldCache));
+          toast.info("Menampilkan data terakhir dari cache");
+        } catch (e) {
+          console.error("Error parsing old cache:", e);
+        }
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Fungsi untuk memuat ulang data (untuk penggunaan tombol refresh)
+  const refreshData = useCallback(() => {
+    invalidateCache();
+    fetchMaintenances();
+  }, [invalidateCache]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -110,13 +149,25 @@ export default function MaintenancePage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Maintenance Barang</h1>
-          <Link
-            href="/user/maintenance/new"
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center"
-          >
-            <PlusIcon className="mr-2 h-5 w-5" />
-            Mulai Maintenance Baru
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={refreshData}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center"
+              disabled={loading}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+              </svg>
+              {loading ? "Memuat..." : "Refresh"}
+            </button>
+            <Link
+              href="/user/maintenance/new"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center"
+            >
+              <PlusIcon className="mr-2 h-5 w-5" />
+              Mulai Maintenance Baru
+            </Link>
+          </div>
         </div>
 
         <div className="bg-green-50 border-l-4 border-green-500 p-4">

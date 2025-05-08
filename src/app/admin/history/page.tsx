@@ -96,6 +96,26 @@ export default function AdminHistoryPage() {
       params.append('limit', pagination.limit.toString());
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
+      const cacheKey = `admin_activity_logs_${queryString}`;
+      
+      // Check if we have cached data first
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
+      const now = Date.now();
+      
+      // Use cache if available and less than 1 minute old
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
+        const parsedData = JSON.parse(cachedData) as PaginatedResponse;
+        setActivityLogs(parsedData.items);
+        setPagination({
+          page: parsedData.page,
+          limit: parsedData.limit,
+          total: parsedData.total,
+          totalPages: parsedData.totalPages
+        });
+        setLoading(false);
+        return;
+      }
       
       const res = await fetch(`/api/admin/activity-logs${queryString}`);
       
@@ -111,6 +131,10 @@ export default function AdminHistoryPage() {
         total: data.total,
         totalPages: data.totalPages
       });
+      
+      // Cache the results
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
     } catch (err) {
       console.error('Error fetching activity logs:', err);
       setError('Failed to load activity history. Please try again.');

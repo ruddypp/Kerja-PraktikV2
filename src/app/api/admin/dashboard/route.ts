@@ -1,17 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ItemStatus, RequestStatus } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { DashboardStats } from '@/lib/utils/dashboard';
 
+// Interface for the notification type
+interface Notification {
+  id: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: Date;
+}
+
 // Interface for the dashboard response
 interface DashboardResponse extends DashboardStats {
-  notifications: any[];
+  notifications: Notification[];
 }
 
 // GET dashboard statistics
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
+    // Set headers for HTTP caching
+    const headers = new Headers();
+    headers.set('Cache-Control', 'private, max-age=30'); // Cache for 30 seconds
+    headers.set('Vary', 'Cookie'); // Vary cache by cookie (for user-specific data)
+    
     // Use Promise.allSettled to fetch all data in parallel
     // This ensures that a failure in one query doesn't affect others
     const [
@@ -29,7 +43,7 @@ export async function GET(req: NextRequest) {
       // Query the database for items count
       prisma.item.count(),
       
-      // Get counts for different item statuses
+      // Get counts for different item statuses - using optimized count queries
       prisma.item.count({
         where: { status: ItemStatus.AVAILABLE }
       }),
@@ -56,7 +70,7 @@ export async function GET(req: NextRequest) {
         where: { status: RequestStatus.PENDING }
       }),
       
-      // Get pending rentals count
+      // Get pending rentals count - this is redundant with pendingRequestsResult, but kept for backward compatibility
       prisma.rental.count({
         where: { status: RequestStatus.PENDING }
       }),
@@ -85,12 +99,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Helper function to get the value from the promise result
-    const getValue = (result: PromiseSettledResult<any>, defaultValue: any) => {
+    const getValue = <T>(result: PromiseSettledResult<T>, defaultValue: T): T => {
       return result.status === 'fulfilled' ? result.value : defaultValue;
     };
 
     // Create mock notifications since schema has changed
-    const mockNotifications = [
+    const mockNotifications: Notification[] = [
       {
         id: '1',
         message: 'You have pending calibration requests to review',
@@ -107,23 +121,33 @@ export async function GET(req: NextRequest) {
       }
     ];
     
+    // Ensure all values are proper numbers
+    const ensureNumber = (value: any): number => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseInt(value, 10);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    };
+    
     // Combine all stats
     const dashboardStats: DashboardResponse = {
-      totalItems: getValue(totalItemsResult, 0),
-      availableItems: getValue(availableItemsResult, 0),
+      totalItems: ensureNumber(getValue(totalItemsResult, 0)),
+      availableItems: ensureNumber(getValue(availableItemsResult, 0)),
       inUseItems: 0, // No longer in schema
-      inCalibrationItems: getValue(inCalibrationItemsResult, 0),
-      inRentalItems: getValue(rentedItemsResult, 0),
-      inMaintenanceItems: getValue(inMaintenanceItemsResult, 0),
-      pendingRequests: getValue(pendingRequestsResult, 0),
-      pendingCalibrations: getValue(pendingCalibrationsResult, 0),
-      pendingRentals: getValue(pendingRentalsResult, 0),
-      upcomingCalibrations: getValue(upcomingCalibrationsResult, 0),
-      overdueRentals: getValue(overdueRentalsResult, 0),
+      inCalibrationItems: ensureNumber(getValue(inCalibrationItemsResult, 0)),
+      inRentalItems: ensureNumber(getValue(rentedItemsResult, 0)),
+      inMaintenanceItems: ensureNumber(getValue(inMaintenanceItemsResult, 0)),
+      pendingRequests: ensureNumber(getValue(pendingRequestsResult, 0)),
+      pendingCalibrations: ensureNumber(getValue(pendingCalibrationsResult, 0)),
+      pendingRentals: ensureNumber(getValue(pendingRentalsResult, 0)),
+      upcomingCalibrations: ensureNumber(getValue(upcomingCalibrationsResult, 0)),
+      overdueRentals: ensureNumber(getValue(overdueRentalsResult, 0)),
       notifications: mockNotifications
     };
     
-    return NextResponse.json(dashboardStats);
+    return NextResponse.json(dashboardStats, { headers });
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     

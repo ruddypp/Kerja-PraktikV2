@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiFilter, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ItemStatus } from '@prisma/client';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiFilter, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 
 // Item schema for form validation
 const itemSchema = z.object({
@@ -61,11 +61,10 @@ interface Vendor {
 }
 
 export default function AdminInventoryPage() {
-  const router = useRouter();
-  
   // States
   const [items, setItems] = useState<Item[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendorSearch, setVendorSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -97,7 +96,6 @@ export default function AdminInventoryPage() {
   // Error state
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof ItemFormData, string>>>({});
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   
   // Status counts from the server
   const [statusCounts, setStatusCounts] = useState({
@@ -106,6 +104,10 @@ export default function AdminInventoryPage() {
     RENTED: 0,
     IN_MAINTENANCE: 0
   });
+
+  // Konstanta untuk caching
+  const CACHE_DURATION = 60000; // 1 menit
+  const CACHE_KEY_PREFIX = 'admin_inventory';
   
   // Clear form
   const clearForm = useCallback(() => {
@@ -127,6 +129,9 @@ export default function AdminInventoryPage() {
     setIsEditMode(false);
     setCurrentItem(null);
     setModalOpen(true);
+    
+    // Fetch vendors when opening the modal
+    fetchVendors();
   }, [clearForm]);
   
   // Open modal in edit mode
@@ -157,6 +162,9 @@ export default function AdminInventoryPage() {
     setCurrentItem(item);
     setIsEditMode(true);
     setModalOpen(true);
+    
+    // Fetch vendors when opening the modal
+    fetchVendors();
   }, []);
   
   // Open delete confirmation
@@ -164,9 +172,41 @@ export default function AdminInventoryPage() {
     setCurrentItem(item);
     setConfirmDeleteOpen(true);
   }, []);
+
+  // Membuat cacheKey berdasarkan parameter
+  const getCacheKey = useCallback((page: number, filters: {search: string, status: string, category: string}) => {
+    return `${CACHE_KEY_PREFIX}_${page}_${filters.search}_${filters.status}_${filters.category}`;
+  }, []);
+  
+  // Fungsi untuk invalidasi cache
+  const invalidateCache = useCallback(() => {
+    // Hapus semua cache terkait inventory
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(CACHE_KEY_PREFIX)) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  }, []);
+
+  // Debounce function
+  const debounce = useCallback((func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }, []);
+  
+  // Debounced search
+  const debouncedFetchData = useCallback(
+    debounce((page: number, filters: {search: string, status: string, category: string}) => {
+      fetchData(page, filters);
+    }, 500), // 500ms delay
+    []
+  );
   
   // Fetch data
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (page = currentPage, currentFilters = filters) => {
     try {
       setLoading(true);
       setError('');
@@ -176,24 +216,43 @@ export default function AdminInventoryPage() {
       // Build query parameters including pagination
       const queryParams = new URLSearchParams();
       
-      if (filters.search) queryParams.append('search', filters.search);
-      if (filters.status) queryParams.append('status', filters.status);
-      if (filters.category) queryParams.append('category', filters.category);
+      if (currentFilters.search) queryParams.append('search', currentFilters.search);
+      if (currentFilters.status) queryParams.append('status', currentFilters.status);
+      if (currentFilters.category) queryParams.append('category', currentFilters.category);
       
       // Add pagination parameters
-      queryParams.append('page', currentPage.toString());
+      queryParams.append('page', page.toString());
       queryParams.append('limit', itemsPerPage.toString());
       
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
       // Debug log untuk melihat query string
       console.log('Fetching items with query:', queryString);
+
+      // Cek apakah ada cache
+      const cacheKey = getCacheKey(page, currentFilters);
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_time`);
+      const now = Date.now();
+
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+        // Gunakan data dari cache
+        console.log('Using cached data for inventory');
+        const data = JSON.parse(cachedData);
+        
+        setItems(data.items || []);
+        setTotalItems(data.total || 0);
+        
+        if (data.countByStatus) {
+          setStatusCounts(data.countByStatus);
+        }
+        
+        setLoading(false);
+        return;
+      }
       
-      // Fetch items
-      const itemsRes = await fetch(`/api/admin/items${queryString}`, {
-        cache: 'no-store',
-        next: { revalidate: 0 }
-      });
+      // Fetch items from API
+      const itemsRes = await fetch(`/api/admin/items${queryString}`);
       console.log('Response status:', itemsRes.status);
       
       if (!itemsRes.ok) {
@@ -202,6 +261,10 @@ export default function AdminInventoryPage() {
       }
       
       const itemsData = await itemsRes.json();
+      
+      // Simpan data ke cache
+      sessionStorage.setItem(cacheKey, JSON.stringify(itemsData));
+      sessionStorage.setItem(`${cacheKey}_time`, now.toString());
       
       // Debug log untuk melihat data yang diterima
       console.log('Items fetched:', itemsData);
@@ -230,29 +293,60 @@ export default function AdminInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filters]);
+  }, [currentPage, filters, getCacheKey]);
+  
+  // Handle search and filter changes with debounce
+  const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    const newFilters = { ...filters, [name]: value };
+    setFilters(newFilters);
+    
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+    
+    // Use debounced fetch for search to prevent too many requests
+    debouncedFetchData(1, newFilters);
+  }, [filters, debouncedFetchData]);
 
   // Fetch vendors
   const fetchVendors = async () => {
     try {
       console.log('Fetching vendors for dropdown...');
-      const vendorsRes = await fetch('/api/admin/vendors');
+      
+      // Remove caching temporarily to ensure we get fresh data
+      const vendorsRes = await fetch('/api/admin/vendors?limit=100');
       if (!vendorsRes.ok) {
         throw new Error('Failed to fetch vendors');
       }
+      
       const vendorsData = await vendorsRes.json();
       console.log('Vendors fetched successfully:', vendorsData);
-      setVendors(vendorsData);
+      
+      if (vendorsData && vendorsData.items && Array.isArray(vendorsData.items)) {
+        setVendors(vendorsData.items);
+        console.log('Vendors set to:', vendorsData.items);
+      } else {
+        console.error('Invalid vendors data format received:', vendorsData);
+        setVendors([]);
+      }
     } catch (err) {
       console.error('Error fetching vendors:', err);
-      // We don't set error state here to prevent blocking the main inventory view
+      setVendors([]);
     }
   };
 
   useEffect(() => {
     console.log('Halaman inventory dimuat, memanggil fetchData()');
     fetchData();
+    // Explicitly fetch vendors on page load
+    fetchVendors();
   }, [fetchData]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchData(page, filters);
+  };
   
   // Handle form change
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -265,6 +359,20 @@ export default function AdminInventoryPage() {
       setFormErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
+  
+  // Handle vendor search
+  const handleVendorSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setVendorSearch(e.target.value);
+  };
+  
+  // Filter vendors based on search term
+  const filteredVendors = useMemo(() => {
+    if (!vendorSearch.trim()) return vendors;
+    return vendors.filter(vendor => 
+      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
+      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
+    );
+  }, [vendors, vendorSearch]);
   
   // Validate form
   const validateForm = (): boolean => {
@@ -308,8 +416,7 @@ export default function AdminInventoryPage() {
             description: formData.description || null,
             customerId: formData.customerId || null,
             status: formData.status
-          }),
-          cache: 'no-store'
+          })
       });
       
       if (!res.ok) {
@@ -328,8 +435,7 @@ export default function AdminInventoryPage() {
         const res = await fetch('/api/admin/items', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-          cache: 'no-store'
+          body: JSON.stringify(formData)
         });
         
         if (!res.ok) {
@@ -346,14 +452,16 @@ export default function AdminInventoryPage() {
       // Close modal and refresh data
       setModalOpen(false);
       
+      // Invalidate cache setelah perubahan
+      invalidateCache();
+      
       // Wait a moment before refreshing data to ensure backend updates are complete
       setTimeout(() => {
         fetchData();
       }, 500);
-      
-    } catch (err: any) {
-      console.error('Error submitting form:', err);
-      toast.error(err.message || 'An error occurred');
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      toast.error(error.message || 'Failed to save item');
     } finally {
       setFormSubmitting(false);
     }
@@ -364,41 +472,43 @@ export default function AdminInventoryPage() {
     if (!currentItem) return;
     
     try {
-      setFormSubmitting(true);
-      
-      const res = await fetch(`/api/admin/items?serialNumber=${currentItem.serialNumber}`, {
+      const serialNumber = encodeURIComponent(currentItem.serialNumber);
+      const response = await fetch(`/api/admin/items?serialNumber=${serialNumber}`, {
         method: 'DELETE'
       });
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        
-        // Handle case where item has related records
-        if (res.status === 409) {
-          toast.error(`This item has ${errorData.count} related records and cannot be deleted`);
-        } else {
-          throw new Error(errorData.error || 'Failed to delete item');
-        }
-      } else {
-        toast.success('Item deleted successfully');
-        fetchData();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete item');
       }
       
+      // Close confirm dialog and refresh data
       setConfirmDeleteOpen(false);
-    } catch (err: any) {
-      console.error('Error deleting item:', err);
-      toast.error(err.message || 'An error occurred');
-    } finally {
-      setFormSubmitting(false);
+      
+      toast.success('Item deleted successfully');
+      
+      // Invalidate cache setelah perubahan
+      invalidateCache();
+      
+      // Refresh data
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting item:', error);
+      toast.error(error.message || 'Failed to delete item');
     }
   };
   
-  // Handle filter change
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      status: '',
+      category: ''
+    });
+    setCurrentPage(1);
+    fetchData(1, { search: '', status: '', category: '' });
   };
-  
+
   // Get status badge color
   const getStatusBadgeClass = (status: ItemStatus): string => {
     switch (status) {
@@ -418,20 +528,6 @@ export default function AdminInventoryPage() {
   // Status display name
   const getStatusDisplayName = (status: ItemStatus) => {
     return status.replace('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-  };
-  
-  // Reset filters
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      status: '',
-      category: ''
-    });
-  };
-
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
   };
 
   // Calculate total pages
@@ -466,17 +562,20 @@ export default function AdminInventoryPage() {
     };
   }, [statusCounts]);
 
+  // Get selected vendor name
+  const selectedVendorName = useMemo(() => {
+    if (!formData.customerId) return '';
+    const selectedVendor = vendors.find(v => v.id === formData.customerId);
+    return selectedVendor ? selectedVendor.name : '';
+  }, [formData.customerId, vendors]);
+
   return (
     <DashboardLayout>
       <div className="p-6 bg-white rounded shadow">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
             <button
-            onClick={() => {
-              setModalOpen(true);
-              setFormData(defaultFormData);
-              setFormErrors({});
-            }}
+            onClick={openCreateModal}
             className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow transition duration-300"
           >
             <span className="flex items-center">
@@ -884,30 +983,87 @@ export default function AdminInventoryPage() {
 
                       {/* Customer */}
                       <div className="relative">
-                        <select
-                          name="customerId"
-                          id="customerId"
-                          value={formData.customerId || ''}
-                          onChange={handleFormChange}
-                          className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 appearance-none peer"
-                        >
-                          <option value="">None</option>
-                          {vendors.map((vendor) => (
-                            <option key={vendor.id} value={vendor.id}>
-                              {vendor.name}
-                            </option>
-                          ))}
-                        </select>
                         <label 
                           htmlFor="customerId" 
-                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-focus:text-green-600"
+                          className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 z-10"
                         >
                           Customer
                         </label>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                          </svg>
+                        <div className="mt-1 w-full border border-gray-300 rounded-md shadow-sm focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500">
+                          {selectedVendorName && (
+                            <div className="px-3 pt-2 pb-1 flex items-center justify-between">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-900">{selectedVendorName}</span>
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  Selected
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="text-gray-400 hover:text-gray-500"
+                                onClick={() => setFormData(prev => ({...prev, customerId: ''}))}
+                              >
+                                <span className="sr-only">Clear selection</span>
+                                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Search customers..."
+                              value={vendorSearch}
+                              onChange={handleVendorSearch}
+                              className={`w-full px-3 py-2 border-0 ${selectedVendorName ? 'border-t border-gray-200 rounded-b-md' : 'rounded-t-md'} focus:ring-0 focus:outline-none text-sm`}
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="overflow-y-auto max-h-40 border-t border-gray-300 rounded-b-md bg-white">
+                            <div 
+                              className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === '' ? 'bg-green-50' : ''}`}
+                              onClick={() => {
+                                setFormData(prev => ({...prev, customerId: ''}));
+                                setVendorSearch('');
+                              }}
+                            >
+                              None
+                            </div>
+                            {filteredVendors.map(vendor => (
+                              <div
+                                key={vendor.id}
+                                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === vendor.id ? 'bg-green-50' : ''}`}
+                                onClick={() => {
+                                  setFormData(prev => ({...prev, customerId: vendor.id}));
+                                  setVendorSearch('');
+                                }}
+                              >
+                                <div className="font-medium">{vendor.name}</div>
+                                {vendor.contactName && (
+                                  <div className="text-xs text-gray-600">{vendor.contactName}</div>
+                                )}
+                              </div>
+                            ))}
+                            {filteredVendors.length === 0 && (
+                              <div className="px-3 py-2 text-gray-500 text-sm">No results found</div>
+                            )}
+                            {vendorSearch.trim() !== '' && filteredVendors.length > 0 && (
+                              <div className="px-3 py-1 text-xs text-gray-500 border-t border-gray-200">
+                                Showing {filteredVendors.length} of {vendors.length} vendors
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="hidden"
+                            name="customerId"
+                            id="customerId"
+                            value={formData.customerId || ''}
+                          />
                         </div>
                       </div>
 

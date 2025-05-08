@@ -103,6 +103,23 @@ body {
   @apply bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5;
 }
 
+/* Add styles for dropdown select options */
+select.form-select {
+  max-height: 40px; /* Height for the select itself */
+}
+
+/* For Webkit browsers (Chrome, Safari) */
+select.form-select option {
+  padding: 8px;
+}
+
+/* This targets the dropdown itself */
+select.form-select[size] {
+  height: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 .badge {
   @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full;
 }

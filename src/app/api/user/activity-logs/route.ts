@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 import { ActivityType } from '@prisma/client';
 
@@ -33,20 +33,18 @@ export async function GET(request: Request) {
     };
     
     // Add date filters if provided
-    if (startDate) {
-      where.createdAt = {
-        ...(where.createdAt || {}),
-        gte: new Date(startDate)
-      };
-    }
-    
-    if (endDate) {
-      const endDateTime = new Date(endDate);
-      endDateTime.setHours(23, 59, 59, 999); // Set to end of day
-      where.createdAt = {
-        ...(where.createdAt || {}),
-        lte: endDateTime
-      };
+    if (startDate || endDate) {
+      where.createdAt = {};
+      
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
+      }
+      
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999); // Set to end of day
+        where.createdAt.lte = endDateTime;
+      }
     }
     
     // Add activity type filter if provided
@@ -54,7 +52,7 @@ export async function GET(request: Request) {
       where.type = activityType;
     }
     
-    // Get activity logs with pagination
+    // Get activity logs with pagination and optimized selection
     const [activityLogs, total] = await Promise.all([
       prisma.activityLog.findMany({
         where,
@@ -88,13 +86,23 @@ export async function GET(request: Request) {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    return NextResponse.json({
+    // Create response data
+    const responseData = {
       items: activityLogs,
       total,
       page,
       limit,
       totalPages
-    });
+    };
+    
+    // Create response with cache headers
+    const response = NextResponse.json(responseData);
+    
+    // Set cache control headers - cache for 1 minute
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    response.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
+    
+    return response;
     
   } catch (error) {
     console.error('Error fetching user activity logs:', error);

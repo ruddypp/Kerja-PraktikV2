@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
 
 interface Vendor {
   id: string;
@@ -46,21 +46,82 @@ export default function VendorsPage() {
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  
-  useEffect(() => {
-    fetchVendors();
+  const [searchInput, setSearchInput] = useState('');
+
+  // Constants for caching
+  const CACHE_DURATION = 60000; // 1 minute
+  const getCacheKey = (query: string, page: number, limit: number) => 
+    `admin_vendors_${query}_${page}_${limit}`;
+
+  // Invalidate cache function
+  const invalidateCache = useCallback(() => {
+    // Clear all vendor-related caches by finding keys that match the pattern
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('admin_vendors_')) {
+        sessionStorage.removeItem(key);
+      }
+    });
   }, []);
   
-  const fetchVendors = async () => {
+  // Debounce function
+  const debounce = useCallback((func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }, []);
+
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      setSearchQuery(query);
+      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search
+      fetchVendors(query, 1, pagination.limit);
+    }, 500),
+    [pagination.limit]
+  );
+  
+  useEffect(() => {
+    fetchVendors(searchQuery, pagination.page, pagination.limit);
+  }, []);
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchInput(query);
+    debouncedSearch(query);
+  };
+  
+  const fetchVendors = async (search: string = searchQuery, page: number = pagination.page, limit: number = pagination.limit) => {
     try {
       setLoading(true);
       // Build query params
       const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      params.append('page', pagination.page.toString());
-      params.append('limit', pagination.limit.toString());
+      if (search) params.append('search', search);
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
+      const cacheKey = getCacheKey(search, page, limit);
+      
+      // Check cache first
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
+      const now = Date.now();
+      
+      // Use cache if available and not expired
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+        const data = JSON.parse(cachedData);
+        setVendors(data.items);
+        setPagination({
+          page: data.page,
+          limit: data.limit,
+          total: data.total,
+          totalPages: data.totalPages
+        });
+        setLoading(false);
+        return;
+      }
       
       const res = await fetch(`/api/admin/vendors${queryString}`, {
         method: 'GET',
@@ -68,7 +129,6 @@ export default function VendorsPage() {
           'Content-Type': 'application/json',
         },
         credentials: 'include', // Include cookies for authentication
-        cache: 'no-store'
       });
       
       if (!res.ok) {
@@ -77,6 +137,11 @@ export default function VendorsPage() {
       }
       
       const data = await res.json();
+      
+      // Cache the results
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      
       setVendors(data.items);
       setPagination({
         page: data.page,
@@ -170,6 +235,9 @@ export default function VendorsPage() {
       // Success
       setSuccess('Vendor added successfully!');
       closeAddModal();
+      
+      // Invalidate cache before fetching fresh data
+      invalidateCache();
       fetchVendors();
       
       // Clear success message after 3 seconds
@@ -217,6 +285,9 @@ export default function VendorsPage() {
       // Success
       setSuccess('Vendor updated successfully!');
       closeEditModal();
+      
+      // Invalidate cache before fetching fresh data
+      invalidateCache();
       fetchVendors();
       
       // Clear success message after 3 seconds
@@ -237,65 +308,64 @@ export default function VendorsPage() {
     if (!selectedVendor) return;
     
     try {
-      // Use the correct URL with ID for the DELETE request
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Include cookies for authentication
+        credentials: 'include' // Include cookies for authentication
       });
       
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Gagal menghapus vendor');
+        throw new Error(errorData.error || 'Failed to delete vendor');
       }
       
       // Success
-      setSuccess('Vendor berhasil dihapus!');
+      setSuccess('Vendor deleted successfully!');
       closeDeleteModal();
+      
+      // Invalidate cache before fetching fresh data
+      invalidateCache();
       fetchVendors();
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-    } catch (err: Error | unknown) {
-      console.error('Error deleting vendor:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Gagal menghapus vendor';
-      setError(errorMessage);
-      closeDeleteModal(); // Menutup modal konfirmasi delete ketika terjadi error
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete vendor');
       
-      // Clear error message after 5 seconds
+      // Clear error message after 3 seconds
       setTimeout(() => {
         setError('');
-      }, 5000);
+      }, 3000);
     }
   };
   
-  // Handle page change
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
+    fetchVendors(searchQuery, newPage, pagination.limit);
   };
-
-  // Handle items per page change
+  
   const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLimit = parseInt(e.target.value);
-    setPagination(prev => ({ 
-      ...prev, 
+    setPagination(prev => ({
+      ...prev,
       limit: newLimit,
-      page: 1 // Reset to page 1 when changing limit
+      page: 1 // Reset to first page when changing limit
     }));
+    fetchVendors(searchQuery, 1, newLimit);
   };
-
-  // Effect to fetch when page changes
-  useEffect(() => {
-    fetchVendors();
-  }, [pagination.page, pagination.limit]);
+  
+  const refreshData = () => {
+    // Invalidate cache and fetch fresh data
+    invalidateCache();
+    fetchVendors(searchQuery, pagination.page, pagination.limit);
+  };
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
     fetchVendors();
   };
   
@@ -304,12 +374,16 @@ export default function VendorsPage() {
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-title text-xl md:text-2xl">Vendor Management</h1>
-          <button 
-            onClick={openAddModal}
-            className="btn btn-primary flex items-center"
-          >
-            <FiPlus className="mr-2" /> Add Vendor
-          </button>
+          <div className="flex space-x-2">
+            <button onClick={refreshData} className="btn btn-secondary flex items-center gap-2">
+              <FiRefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button onClick={openAddModal} className="btn btn-primary flex items-center gap-2">
+              <FiPlus className="h-4 w-4" />
+              Add Vendor
+            </button>
+          </div>
         </div>
         
         {error && (
@@ -341,7 +415,7 @@ export default function VendorsPage() {
                 className="form-input pl-10 w-full"
                 placeholder="Search vendors by name or services..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchInputChange}
               />
             </div>
             <button type="submit" className="btn btn-secondary ml-2">

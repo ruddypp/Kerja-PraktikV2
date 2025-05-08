@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { NotificationType } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 
@@ -21,38 +21,106 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Constants for caching
+  const CACHE_DURATION = 60000; // 1 minute
+  const CACHE_KEY = `notifications_${userId}`;
+  const CACHE_TIMESTAMP_KEY = `notifications_timestamp_${userId}`;
 
-  // Fetch notifications on component mount and when userId changes
-  useEffect(() => {
+  // Fetch notifications with caching and error handling
+  const fetchNotifications = useCallback(async (forceRefresh = false) => {
+    // Skip if no userId
     if (!userId) return;
     
-    const fetchNotifications = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/admin/notifications?userId=${userId}&limit=10`);
+    try {
+      setError(null);
+      setLoading(true);
+      
+      // Check cache first (unless force refresh is requested)
+      if (!forceRefresh) {
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch notifications');
+        // Use cache if available and not expired
+        if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+          const data = JSON.parse(cachedData);
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
+          setLoading(false);
+          return;
         }
-        
-        const data = await response.json();
-        setNotifications(data.notifications);
-        setUnreadCount(data.unreadCount);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      } finally {
-        setLoading(false);
       }
-    };
-    
+      
+      // Make API request with retry logic
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries) {
+        try {
+          const response = await fetch(`/api/admin/notifications?userId=${userId}&limit=10`, {
+            cache: 'no-store'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch notifications: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          // Cache the results
+          const cacheData = {
+            notifications: data.notifications,
+            unreadCount: data.unreadCount
+          };
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+          sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+          
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
+          break; // Success, exit retry loop
+        } catch (error) {
+          retries++;
+          
+          if (retries >= maxRetries) {
+            throw error; // Rethrow if max retries reached
+          }
+          
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setError('Failed to load notifications');
+      
+      // Try to use cached data even if it's expired
+      const cachedData = sessionStorage.getItem(CACHE_KEY);
+      if (cachedData) {
+        try {
+          const data = JSON.parse(cachedData);
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+  
+  // Fetch notifications on component mount and when userId changes
+  useEffect(() => {
     fetchNotifications();
     
-    // Set up polling for new notifications (every 30 seconds)
-    const interval = setInterval(fetchNotifications, 30000);
+    // Set up polling for new notifications (every minute)
+    const interval = setInterval(() => fetchNotifications(), 60000);
     
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [userId, fetchNotifications]);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -68,12 +136,25 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
+    
+    // Refresh notifications when opening dropdown if it's been a while
+    if (!isOpen) {
+      const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+      const now = Date.now();
+      
+      if (!lastFetch || now - parseInt(lastFetch) > CACHE_DURATION) {
+        fetchNotifications(true);
+      }
+    }
   };
   
   const markAsRead = async (id: string) => {
     try {
       const response = await fetch(`/api/admin/notifications?id=${id}`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       });
       
       if (response.ok) {
@@ -84,6 +165,21 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           )
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
+        
+        // Update cache
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          try {
+            const data = JSON.parse(cachedData);
+            data.notifications = data.notifications.map((notif: Notification) => 
+              notif.id === id ? { ...notif, isRead: true } : notif
+            );
+            data.unreadCount = Math.max(0, data.unreadCount - 1);
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -93,7 +189,10 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   const markAllAsRead = async () => {
     try {
       const response = await fetch(`/api/admin/notifications?userId=${userId}&markAllRead=true`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       });
       
       if (response.ok) {
@@ -102,10 +201,30 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           prev.map(notif => ({ ...notif, isRead: true }))
         );
         setUnreadCount(0);
+        
+        // Update cache
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          try {
+            const data = JSON.parse(cachedData);
+            data.notifications = data.notifications.map((notif: Notification) => 
+              ({ ...notif, isRead: true })
+            );
+            data.unreadCount = 0;
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
+  };
+  
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchNotifications(true);
   };
   
   // Get icon and color based on notification type
@@ -213,21 +332,43 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Notifications</h3>
-              {unreadCount > 0 && (
+              <div className="flex space-x-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Mark all as read
+                  </button>
+                )}
                 <button
-                  onClick={markAllAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  onClick={handleRefresh}
+                  className="text-sm text-gray-600 hover:text-gray-800"
+                  title="Refresh notifications"
                 >
-                  Mark all as read
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
                 </button>
-              )}
+              </div>
             </div>
           </div>
           
           <div className="divide-y divide-gray-200">
-            {loading ? (
+            {loading && notifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
+                <div className="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-green-500 mr-2"></div>
                 Loading notifications...
+              </div>
+            ) : error ? (
+              <div className="p-4 text-center">
+                <p className="text-red-500 text-sm mb-2">{error}</p>
+                <button 
+                  onClick={handleRefresh}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Try again
+                </button>
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
@@ -256,14 +397,6 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
               })
             )}
           </div>
-          
-          {notifications.length > 0 && (
-            <div className="p-4 border-t border-gray-200">
-              <Button variant="outline" className="w-full text-center">
-                View all notifications
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </div>

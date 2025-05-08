@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { ActivityType } from '@prisma/client';
 
 // Cache key for vendors
 const VENDORS_CACHE_KEY = 'admin:vendors';
@@ -8,8 +9,6 @@ const VENDORS_CACHE_KEY = 'admin:vendors';
 // GET all vendors
 export async function GET(request: Request) {
   try {
-    console.log('GET vendors API called');
-    
     // Verify admin
     const user = await getUserFromRequest(request);
     if (!isAdmin(user)) {
@@ -37,9 +36,7 @@ export async function GET(request: Request) {
       ];
     }
     
-    console.log('Fetching vendors with where clause:', where);
-    
-    // Get vendors with pagination
+    // Get vendors with pagination - use select to specify only needed fields
     const [vendors, total] = await Promise.all([
       prisma.vendor.findMany({
         where,
@@ -66,15 +63,23 @@ export async function GET(request: Request) {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    console.log(`Found ${vendors.length} vendors, page ${page} of ${totalPages}`);
-    
-    return NextResponse.json({
+    // Create response data
+    const responseData = {
       items: vendors,
       total,
       page,
       limit,
       totalPages
-    });
+    };
+    
+    // Create response with cache headers
+    const response = NextResponse.json(responseData);
+    
+    // Set cache control headers - cache for 1 minute
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    response.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
+    
+    return response;
   } catch (error) {
     console.error('Error fetching vendors:', error);
     return NextResponse.json(
@@ -128,7 +133,8 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           action: 'CREATE_VENDOR',
-          details: `Added new vendor: ${name}`
+          details: `Added new vendor: ${name}`,
+          type: ActivityType.VENDOR_CREATED
         }
       });
     } catch (logError) {
@@ -136,7 +142,11 @@ export async function POST(request: Request) {
       // Continue even if logging fails
     }
     
-    return NextResponse.json(newVendor, { status: 201 });
+    // Create response with cache busting headers
+    const response = NextResponse.json(newVendor, { status: 201 });
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error creating vendor:', error);
     

@@ -219,74 +219,128 @@ export async function DELETE(
       );
     }
 
-    // Verify calibration exists
-    const calibration = await prisma.calibration.findUnique({
-      where: { id },
-      include: {
-        item: true
-      }
-    });
-
-    if (!calibration) {
-      return NextResponse.json(
-        { error: 'Calibration not found' },
-        { status: 404 }
-      );
-    }
-
-    // If item is in calibration, set it back to available
-    if (calibration.item.status === ItemStatus.IN_CALIBRATION) {
-      await prisma.item.update({
-        where: { serialNumber: calibration.itemSerial },
-        data: { status: ItemStatus.AVAILABLE }
+    // Use a transaction to ensure all operations succeed or fail together
+    return await prisma.$transaction(async (tx) => {
+      // Verify calibration exists
+      const calibration = await tx.calibration.findUnique({
+        where: { id },
+        include: {
+          item: true,
+          certificate: true,
+          statusLogs: true
+        }
       });
-    }
-    
-    // Delete related records first in the correct order to avoid foreign key violations
-    
-    // 1. Delete certificate first (if exists)
-    await prisma.calibrationCertificate.deleteMany({
-      where: { calibrationId: id }
-    });
-    
-    // 2. Delete status logs
-    await prisma.calibrationStatusLog.deleteMany({
-      where: { calibrationId: id }
-    });
-    
-    // 3. Update item history entries instead of deleting them
-    await prisma.itemHistory.updateMany({
-      where: { 
-        relatedId: id,
-        action: 'CALIBRATED'
-      },
-      data: {
-        details: `Calibration record deleted by admin (${user.name})`,
-        endDate: new Date()
-      }
-    });
-    
-    // 4. Now delete the calibration itself
-    await prisma.calibration.delete({
-      where: { id }
-    });
 
-    // Create activity log
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        itemSerial: calibration.itemSerial,
-        action: 'DELETED_CALIBRATION',
-        details: `Deleted calibration record for ${calibration.item.name}`
+      if (!calibration) {
+        return NextResponse.json(
+          { error: 'Calibration not found' },
+          { status: 404 }
+        );
       }
+
+      try {
+        // 1. Delete certificate first (if exists)
+        if (calibration.certificate) {
+          await tx.calibrationCertificate.delete({
+            where: { id: calibration.certificate.id }
+          });
+        }
+        
+        // 2. Delete status logs
+        if (calibration.statusLogs && calibration.statusLogs.length > 0) {
+          await tx.calibrationStatusLog.deleteMany({
+            where: { calibrationId: id }
+          });
+        }
+        
+        // 3. Update item history entries instead of deleting them
+        await tx.itemHistory.updateMany({
+          where: { 
+            relatedId: id,
+            action: 'CALIBRATED'
+          },
+          data: {
+            details: `Calibration record deleted by admin (${user.name})`,
+            endDate: new Date()
+          }
+        });
+        
+        // If item is in calibration, set it back to available
+        if (calibration.item.status === ItemStatus.IN_CALIBRATION) {
+          await tx.item.update({
+            where: { serialNumber: calibration.itemSerial },
+            data: { status: ItemStatus.AVAILABLE }
+          });
+        }
+        
+        // 4. Now delete the calibration itself
+        await tx.calibration.delete({
+          where: { id }
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId: user.id,
+            itemSerial: calibration.itemSerial,
+            action: 'DELETED_CALIBRATION',
+            details: `Deleted calibration record for ${calibration.item.name}`,
+            type: 'CALIBRATION_DELETED'
+          }
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Calibration successfully deleted' 
+        });
+      } catch (deleteError) {
+        console.error('Specific error during deletion process:', deleteError);
+        // Handle specific database errors
+        if (deleteError instanceof Prisma.PrismaClientKnownRequestError) {
+          if (deleteError.code === 'P2003') {
+            return NextResponse.json(
+              { error: 'Cannot delete calibration: It is referenced by other records in the system' },
+              { status: 400 }
+            );
+          } else if (deleteError.code === 'P2025') {
+            return NextResponse.json(
+              { error: 'Calibration or related record not found' },
+              { status: 404 }
+            );
+          } else {
+            return NextResponse.json(
+              { error: `Database error (${deleteError.code}): ${deleteError.message}` },
+              { status: 400 }
+            );
+          }
+        }
+        
+        // Handle general errors
+        return NextResponse.json(
+          { error: deleteError instanceof Error ? deleteError.message : 'Failed to delete calibration' },
+          { status: 500 }
+        );
+      }
+    }, {
+      maxWait: 5000, // 5s max wait
+      timeout: 10000 // 10s timeout
     });
-    
-    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting calibration:', error);
+    
+    // Provide more detailed error information
+    let errorMessage = 'Failed to delete calibration';
+    let statusCode = 500;
+    
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      errorMessage = `Database error (${error.code}): ${error.message}`;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to delete calibration' },
-      { status: 500 }
+      { error: errorMessage, details: String(error) },
+      { status: statusCode }
     );
   }
 } 

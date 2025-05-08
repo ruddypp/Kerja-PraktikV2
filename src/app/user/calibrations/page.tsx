@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -99,6 +99,14 @@ export default function UserCalibrationPage() {
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
+  const [itemSearch, setItemSearch] = useState('');
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+  const itemSearchRef = useRef<HTMLDivElement>(null);
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+  const vendorSearchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
   // Simplified form for direct calibration
@@ -106,7 +114,8 @@ export default function UserCalibrationPage() {
     itemSerial: '',
     vendorId: '',
     
-    // Form fields tambahan sesuai alur
+    // Form fields tambahan sesuai alur - field address dan phone tetap ada
+    // dalam state tetapi tidak ditampilkan di UI
     address: '',
     phone: '',
     fax: '',
@@ -164,7 +173,56 @@ export default function UserCalibrationPage() {
     fetchCalibrations();
     fetchAvailableItems();
     fetchVendors();
+    
+    // Handler for clicking outside the suggestions to close them
+    const handleClickOutside = (event: MouseEvent) => {
+      if (itemSearchRef.current && !itemSearchRef.current.contains(event.target as Node)) {
+        setShowItemSuggestions(false);
+      }
+      if (vendorSearchRef.current && !vendorSearchRef.current.contains(event.target as Node)) {
+        setShowVendorSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
+  
+  // Filter items based on search term
+  useEffect(() => {
+    if (itemSearch.length < 2) {
+      setFilteredItems([]);
+      setShowItemSuggestions(false);
+      return;
+    }
+    
+    const filtered = items.filter(item => 
+      item.name.toLowerCase().includes(itemSearch.toLowerCase()) || 
+      item.serialNumber.toLowerCase().includes(itemSearch.toLowerCase())
+    );
+    
+    setFilteredItems(filtered);
+    setShowItemSuggestions(true);
+  }, [itemSearch, items]);
+  
+  // Filter vendors based on search term
+  useEffect(() => {
+    if (vendorSearch.length < 2) {
+      setFilteredVendors([]);
+      setShowVendorSuggestions(false);
+      return;
+    }
+    
+    const filtered = vendors.filter(vendor => 
+      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
+      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
+    );
+    
+    setFilteredVendors(filtered);
+    setShowVendorSuggestions(true);
+  }, [vendorSearch, vendors]);
   
   const fetchCalibrations = async () => {
     try {
@@ -267,19 +325,7 @@ export default function UserCalibrationPage() {
     const { name, value } = e.target;
     setCalibrationForm(prev => ({ ...prev, [name]: value }));
     
-    // Jika memilih item, isi otomatis data item
-    if (name === 'itemSerial') {
-      const selectedItem = items.find(item => item.serialNumber === value);
-      if (selectedItem) {
-        setCalibrationForm(prev => ({
-          ...prev,
-          manufacturer: selectedItem.name || '', // Nama produk sebagai manufacturer
-          instrumentName: selectedItem.partNumber || '', // Part number sebagai instrument name
-          modelNumber: selectedItem.sensor || '', // Sensor sebagai model number
-          configuration: '' // Dibiarkan kosong untuk diisi pengguna
-        }));
-      }
-    }
+    // We'll handle itemSerial selection in the handleItemSelect function instead
   };
   
   const openCalibrationModal = () => {
@@ -552,6 +598,37 @@ export default function UserCalibrationPage() {
     }
   };
   
+  const handleItemSelect = (item: Item) => {
+    setItemSearch(''); // Clear search
+    setShowItemSuggestions(false);
+    
+    // Set the selected item in the form
+    setCalibrationForm(prev => ({
+      ...prev,
+      itemSerial: item.serialNumber,
+      manufacturer: item.name || '', // Nama produk sebagai manufacturer
+      instrumentName: item.partNumber || '', // Part number sebagai instrument name
+      modelNumber: item.sensor || '', // Sensor sebagai model number
+      configuration: '' // Dibiarkan kosong untuk diisi pengguna
+    }));
+  };
+  
+  const handleVendorSelect = (vendor: Vendor) => {
+    setVendorSearch(''); // Clear search
+    setShowVendorSuggestions(false);
+    
+    // Set the selected vendor in the form
+    setCalibrationForm(prev => ({
+      ...prev,
+      vendorId: vendor.id,
+      // Field address dan phone tetap ada tapi diisi kosong
+      // karena data ini sudah ada di data vendor yang dipilih
+      address: '',
+      phone: '',
+      fax: ''
+    }));
+  };
+  
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
@@ -560,6 +637,7 @@ export default function UserCalibrationPage() {
           <button 
             onClick={openCalibrationModal}
             className="btn btn-primary flex items-center"
+            aria-label="Create new calibration"
           >
             <FiPlus className="mr-2" /> New Calibration
           </button>
@@ -759,10 +837,15 @@ export default function UserCalibrationPage() {
       {/* Header */}
       <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 rounded-t-lg">
         <h2 className="text-lg font-semibold">New Calibration</h2>
-        <button onClick={closeCalibrationModal} className="text-white hover:text-gray-200">
+        <button 
+          onClick={closeCalibrationModal} 
+          className="text-white hover:text-gray-200"
+          aria-label="Close modal"
+          title="Close calibration form"
+        >
           <FiX size={20} />
-                </button>
-              </div>
+        </button>
+      </div>
               
       {/* Form */}
       <form onSubmit={handleCalibrationSubmit} className="p-4">
@@ -771,25 +854,68 @@ export default function UserCalibrationPage() {
           <div className="space-y-3">
             <h3 className="font-medium text-gray-700">Item Details</h3>
 
-            {/* Item Select */}
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">Item</label>
-                  <select
-                name="itemSerial"
-                value={calibrationForm.itemSerial}
-                onChange={handleCalibrationFormChange}
-                    required
-                className="form-select w-full text-sm"
-              >
-                <option value="">Select Item</option>
-                {items.map((item) => (
-                  <option key={item.serialNumber} value={item.serialNumber}>
-                    {item.name} - {item.serialNumber}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Item Selection */}
+            <div className="space-y-2" ref={itemSearchRef}>
+              <label className="block mb-1 text-sm font-medium text-gray-700" id="item-label">Item</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Search for item by name or serial number"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+                  aria-labelledby="item-label"
+                  onFocus={() => itemSearch.length >= 2 && setShowItemSuggestions(true)}
+                />
                 
+                {/* Show selected item if any */}
+                {calibrationForm.itemSerial && (
+                  <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
+                    <p className="font-medium text-sm">
+                      {items.find(item => item.serialNumber === calibrationForm.itemSerial)?.name || "Selected Item"}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      SN: {calibrationForm.itemSerial}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Suggestions dropdown */}
+                {showItemSuggestions && (
+                  <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {filteredItems.length > 0 ? (
+                      <ul className="py-1">
+                        {filteredItems.map((item) => (
+                          <li 
+                            key={item.serialNumber}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => handleItemSelect(item)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="font-medium">{item.name}</div>
+                                <div className="text-sm text-gray-600">SN: {item.serialNumber}</div>
+                              </div>
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800`}>
+                                Available
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">
+                        No matching items found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {!calibrationForm.itemSerial && (
+                <p className="text-xs text-gray-500 mt-1">Search and select an item for calibration</p>
+              )}
+            </div>
+
             {/* Other Inputs */}
             {[
               { name: 'manufacturer', placeholder: 'RAE Systems', label: 'Nama Produk' },
@@ -812,7 +938,7 @@ export default function UserCalibrationPage() {
 
             {/* Date */}
             <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">Calibration Date</label>
+              <label className="block mb-1 text-sm font-medium text-gray-700" id="calibration-date-label">Calibration Date</label>
               <input
                 type="date"
                 name="calibrationDate"
@@ -820,6 +946,8 @@ export default function UserCalibrationPage() {
                 onChange={handleCalibrationFormChange}
                 required
                 className="form-input w-full text-sm"
+                aria-labelledby="calibration-date-label"
+                title="Select the calibration date"
               />
             </div>
           </div>
@@ -829,42 +957,81 @@ export default function UserCalibrationPage() {
             <h3 className="font-medium text-gray-700">Vendor Details</h3>
 
             {/* Vendor */}
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">Vendor</label>
-                  <select
-                    name="vendorId"
-                value={calibrationForm.vendorId}
-                onChange={handleCalibrationFormChange}
-                required
-                className="form-select w-full text-sm"
-              >
-                <option value="">Select Vendor</option>
-                {vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-            {/* Other Inputs */}
-            {[
-              { name: 'address', label: 'Address', placeholder: 'Vendor address' },
-              { name: 'phone', label: 'Phone', placeholder: 'Phone number' },
-              { name: 'fax', label: 'Fax', placeholder: 'Fax number' },
-            ].map(({ name, label, placeholder }) => (
-              <div key={name}>
-                <label className="block mb-1 text-sm font-medium text-gray-700">{label}</label>
+            <div className="space-y-2" ref={vendorSearchRef}>
+              <label className="block mb-1 text-sm font-medium text-gray-700" id="vendor-label">Vendor</label>
+              <div className="relative">
                 <input
                   type="text"
-                  name={name}
-                  value={calibrationForm[name]}
-                  onChange={handleCalibrationFormChange}
-                  placeholder={placeholder}
-                  className="form-input w-full text-sm"
-                  />
-                </div>
-            ))}
+                  value={vendorSearch}
+                  onChange={(e) => setVendorSearch(e.target.value)}
+                  placeholder="Search for vendor by name"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+                  aria-labelledby="vendor-label"
+                  onFocus={() => vendorSearch.length >= 2 && setShowVendorSuggestions(true)}
+                />
+                
+                {/* Show selected vendor if any */}
+                {calibrationForm.vendorId && (
+                  <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
+                    <p className="font-medium text-sm">
+                      {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.name || "Selected Vendor"}
+                    </p>
+                    {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName && (
+                      <p className="text-xs text-gray-600">
+                        Contact: {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Suggestions dropdown */}
+                {showVendorSuggestions && (
+                  <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {filteredVendors.length > 0 ? (
+                      <ul className="py-1">
+                        {filteredVendors.map((vendor) => (
+                          <li 
+                            key={vendor.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => handleVendorSelect(vendor)}
+                          >
+                            <div>
+                              <div className="font-medium">{vendor.name}</div>
+                              {vendor.contactName && (
+                                <div className="text-sm text-gray-600">Contact: {vendor.contactName}</div>
+                              )}
+                              {vendor.contactPhone && (
+                                <div className="text-xs text-gray-500">Phone: {vendor.contactPhone}</div>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">
+                        No matching vendors found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {!calibrationForm.vendorId && (
+                <p className="text-xs text-gray-500 mt-1">Search and select a vendor for calibration</p>
+              )}
+            </div>
+
+            {/* Other Inputs - Tampilkan hanya fax */}
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Fax</label>
+              <input
+                type="text"
+                name="fax"
+                value={calibrationForm.fax}
+                onChange={handleCalibrationFormChange}
+                placeholder="Fax number"
+                className="form-input w-full text-sm"
+              />
+            </div>
 
             {/* Notes */}
             <div>
@@ -986,11 +1153,16 @@ export default function UserCalibrationPage() {
     <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl h-5/6 flex flex-col overflow-hidden">
       <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3">
         <h2 className="text-lg font-semibold">Complete Calibration</h2>
-        <button onClick={closeCompleteModal} className="text-white">
+        <button 
+          onClick={closeCompleteModal} 
+          className="text-white"
+          aria-label="Close modal"
+          title="Close complete calibration form"
+        >
           <FiX size={20} />
         </button>
-                </div>
-                
+      </div>
+      
       <div className="overflow-y-auto flex-grow">
         <form onSubmit={handleCompleteSubmit} className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1170,7 +1342,7 @@ export default function UserCalibrationPage() {
               </div>
               
               <div>
-                <label className="block mb-1 text-sm font-medium text-gray-900">Valid Until</label>
+                <label className="block mb-1 text-sm font-medium text-gray-900" id="valid-until-label">Valid Until</label>
                 <input
                   type="date"
                   name="validUntil"
@@ -1178,6 +1350,8 @@ export default function UserCalibrationPage() {
                   onChange={handleCompleteFormChange}
                   required
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                  aria-labelledby="valid-until-label"
+                  title="Select the date until which the calibration is valid"
                 />
               </div>
               

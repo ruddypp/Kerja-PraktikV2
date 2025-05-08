@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { ActivityType } from '@prisma/client';
 
-// GET all users (for admin dropdowns)
+// GET all users (for admin)
 export async function GET(request: NextRequest) {
   try {
+    // Verify user is admin
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Check if user has search param
     const searchQuery = request.nextUrl.searchParams.get('search');
     
+    // Build where clause
     let whereClause = {};
     
     if (searchQuery) {
@@ -20,6 +28,7 @@ export async function GET(request: NextRequest) {
       };
     }
     
+    // Find users with optimized select
     const users = await prisma.user.findMany({
       where: whereClause,
       select: {
@@ -35,7 +44,14 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    return NextResponse.json(users);
+    // Create response with cache headers
+    const response = NextResponse.json(users);
+    
+    // Set cache control headers - cache for 1 minute
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    response.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
+    
+    return response;
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
@@ -100,7 +116,22 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    return NextResponse.json(newUser, { status: 201 });
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        type: ActivityType.USER_CREATED,
+        action: 'CREATE_USER',
+        details: `Created user: ${data.name} (${data.email})`,
+        affectedUserId: newUser.id
+      }
+    });
+    
+    // Return response with cache busting headers
+    const response = NextResponse.json(newUser, { status: 201 });
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error creating user:', error);
     return NextResponse.json(

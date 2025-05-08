@@ -149,6 +149,9 @@ interface MaintenanceDataBase {
     customer?: { name: string } | null;
   };
   user: { name: string };
+  serviceReport?: {
+    reportNumber?: string | null;
+  } | null;
 }
 
 interface ServiceReportMaintenanceData extends MaintenanceDataBase {
@@ -222,7 +225,7 @@ interface TechnicalReportMaintenanceData extends MaintenanceDataBase {
   csrNumber?: string;
 }
 
-// Function to generate Service Report PDF
+// Function to generate CSR1 PDF
 async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanceData) {
   const sr = maintenanceData.serviceReport;
   
@@ -238,10 +241,11 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   
   // Colors
   const black = rgb(0, 0, 0);
+  const darkGreen = rgb(0, 0.5, 0);
   
   // Page coordinates
   const { width, height } = page.getSize();
-  const margin = 20;
+  const margin = 6;
   
   // --- Double Border around the entire page ---
   // Outer border
@@ -250,8 +254,8 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
     y: margin,
     width: width - 2 * margin,
     height: height - 2 * margin,
-    borderColor: black,
-    borderWidth: 1.5,
+    borderColor: darkGreen,
+    borderWidth: 2,
   });
   
   // Inner border (slightly smaller)
@@ -260,366 +264,338 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
     y: margin + 5,
     width: width - 2 * (margin + 5),
     height: height - 2 * (margin + 5),
+    borderColor: darkGreen,
+    borderWidth: 1,
+  });
+  
+  // --- Header box ---
+  const headerY = height - 110;
+  
+  // Header box rectangle
+  page.drawRectangle({
+    x: margin + 5,
+    y: headerY,
+    width: width - 2 * (margin + 5),
+    height: 100,
     borderColor: black,
     borderWidth: 1,
   });
   
-  // --- Header with box ---
-  page.drawRectangle({
-    x: margin + 5,
-    y: height - 150,
-    width: width - 2 * (margin + 5),
-    height: 130,
-    borderColor: black,
-    borderWidth: 1.5,
-  });
-  
-  // --- Load and embed company logo ---
-  try {
-    const logoPath = path.join(process.cwd(), 'public', 'logo1.png');
-    const logoImageBytes = fs.readFileSync(logoPath);
-    const logoImage = await pdfDoc.embedPng(logoImageBytes);
-    const logoDims = logoImage.scale(0.4);
     
-    page.drawImage(logoImage, {
-      x: 60,
-      y: height - 110,
-      width: logoDims.width,
-      height: logoDims.height
-    });
-  } catch (err) {
-    console.error('Error loading company logo:', err);
-    // Continue without logo if there's an error
-  }
+// --- Logo Perusahaan (PNG dari public/logo1.png) ---
+const logoPath = path.join(process.cwd(), 'public', 'logo1.png');
+const logoImageBytes = fs.readFileSync(logoPath);
+const logoImage = await pdfDoc.embedPng(logoImageBytes); // gunakan embedJpg jika file .jpg
+const logoDims = logoImage.scale(1.2); // Sesuaikan skala sesuai ukuran logo
+
+page.drawImage(logoImage, {
+  x: 25,
+  y: height - 110, // Sesuaikan posisi Y agar sejajar dengan teks header
+  width: logoDims.width,
+  height: logoDims.height
+});
   
   // --- Company information ---
   page.drawText('PT. PARAMATA BARAYA INTERNATIONAL', {
-    x: 205,
-    y: height - 40,
-    size: 12,
+    x: width / 2 - 155,
+    y: headerY + 80,
+    size: 14,
     font: helveticaBold,
     color: black
   });
   
   page.drawText('Kompleks Palem Ganda Asri 1 Blok A3 No. 8', {
-    x: 205,
-    y: height - 55,
-    size: 9,
+    x: width / 2 - 135,
+    y: headerY + 60,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Karang Tengah, Ciledug - Tangerang 15157', {
-    x: 205,
-    y: height - 70,
-    size: 9,
+    x: width / 2 - 130,
+    y: headerY + 45,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Telp. 62-21 730 6424, 733 1150 / Faks. 62-21 733 1150', {
-    x: 205,
-    y: height - 85,
-    size: 9,
+    x: width / 2 - 155,
+    y: headerY + 30,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText('Email : paramata@indosat.net.id', {
-    x: 205,
-    y: height - 100,
-    size: 9,
+  page.drawText('Email : paramata@lndosat.net.id', {
+    x: width / 2 - 90,
+    y: headerY + 15,
+    size: 10,
     font: helvetica,
     color: black
   });
+  
+  // --- Main Content Area ---
+  const contentWidth = width - 2 * (margin + 20);
+  const contentX = margin + 20;
   
   // --- Title ---
-  const titleY = height - 200;
+  const titleY = headerY - 35;
   page.drawText('Customer Service Report', {
-    x: width / 2 - 105,
+    x: width / 2 - 130,
     y: titleY,
-    size: 18,
+    size: 22,
     font: helveticaBold,
     color: black
   });
   
-  // Fix csrNumber to handle undefined
-  const dateIn = sr?.dateIn ? formatDateID(sr.dateIn) : formatDateID(maintenanceData.startDate);
-  // Use default CSR pattern if sr doesn't have csrNumber property
-  const defaultCsr = `SR-${new Date().getDate()}/${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
-  // Use type assertion to handle potential undefined csrNumber
-  const csrNum = (sr && 'csrNumber' in sr ? sr.csrNumber ?? defaultCsr : defaultCsr).toString();
-  const reportNum = (sr?.reportNumber ?? `${dateIn}`).toString();
-  
-  page.drawText(`No. :        /        /CSR-PBI/${csrNum}/2023`, {
-    x: width / 2 - 110,
-    y: titleY - 25,
-    size: 11,
-    font: helvetica,
+  // CSR Number
+  const csrNum = sr?.reportNumber || maintenanceData.csrNumber || `575/CSR-PBI/90/2025`;
+  page.drawText(`No. : ${csrNum}`, {
+    x: width / 2 - 70,
+    y: titleY - 18,
+    size: 12,
+    font: helveticaBold,
     color: black
   });
   
   // --- Customer Information Section ---
-  const yStart = titleY - 65;
-  const leftColumnX = 70;
-  const rightColumnX = 320;
+  const infoStartY = titleY - 60;
+  const leftColX = contentX + 10;
+  const rightColX = contentX + contentWidth / 2 + 30;
   
-  // --- Left Column ---
+  // Labels and Values - Left Column
   page.drawText('Customer', {
-    x: leftColumnX,
-    y: yStart,
-    size: 11,
+    x: leftColX,
+    y: infoStartY,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + (sr?.customer ?? maintenanceData.item.customer?.name ?? '-'), {
-    x: leftColumnX + 90,
-    y: yStart,
-    size: 11,
+  page.drawText(`: ${sr?.customer || maintenanceData.item.customer?.name || 'N/A'}`, {
+    x: leftColX + 70,
+    y: infoStartY,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Location', {
-    x: leftColumnX,
-    y: yStart - 30,
-    size: 11,
+    x: leftColX,
+    y: infoStartY - 25,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + (sr?.location ?? '-'), {
-    x: leftColumnX + 90,
-    y: yStart - 30,
-    size: 11,
+  page.drawText(`: ${sr?.location || 'N/A'}`, {
+    x: leftColX + 70,
+    y: infoStartY - 25,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Brand', {
-    x: leftColumnX,
-    y: yStart - 60,
-    size: 11,
+    x: leftColX,
+    y: infoStartY - 50,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + (sr?.brand ?? '-'), {
-    x: leftColumnX + 90,
-    y: yStart - 60,
-    size: 11,
+  page.drawText(`: ${sr?.brand || 'N/A'}`, {
+    x: leftColX + 70,
+    y: infoStartY - 50,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Model', {
-    x: leftColumnX,
-    y: yStart - 90,
-    size: 11,
+    x: leftColX,
+    y: infoStartY - 75,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + (sr?.model ?? '-'), {
-    x: leftColumnX + 90,
-    y: yStart - 90,
-    size: 11,
+  page.drawText(`: ${sr?.model || 'N/A'}`, {
+    x: leftColX + 70,
+    y: infoStartY - 75,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  // --- Right Column ---
+  // Labels and Values - Right Column
   page.drawText('Serial Number', {
-    x: rightColumnX,
-    y: yStart,
-    size: 11,
+    x: rightColX,
+    y: infoStartY,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + (sr?.serialNumber ?? maintenanceData.itemSerial ?? '-'), {
-    x: rightColumnX + 100,
-    y: yStart,
-    size: 11,
+  page.drawText(`: ${sr?.serialNumber || maintenanceData.itemSerial || 'N/A'}`, {
+    x: rightColX + 90,
+    y: infoStartY,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   page.drawText('Date In', {
-    x: rightColumnX,
-    y: yStart - 30,
-    size: 11,
+    x: rightColX,
+    y: infoStartY - 25,
+    size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText(': ' + dateIn, {
-    x: rightColumnX + 100,
-    y: yStart - 30,
-    size: 11,
+  page.drawText(`: ${sr?.dateIn ? formatDateID(sr.dateIn) : formatDateID(maintenanceData.startDate)}`, {
+    x: rightColX + 90,
+    y: infoStartY - 25,
+    size: 10,
     font: helvetica,
     color: black
   });
   
   // --- Form Fields Section ---
-  const formY = yStart - 120;
-  const formWidth = width - 2 * (margin + 20);
+  const formStartY = infoStartY - 100;
   
   // Reason For Return
   page.drawRectangle({
-    x: margin + 20,
-    y: formY - 60,
-    width: formWidth,
-    height: 60,
+    x: contentX,
+    y: formStartY - 40,
+    width: contentWidth,
+    height: 40,
     borderColor: black,
     borderWidth: 1
   });
   
   page.drawText('Reason For Return :', {
-    x: margin + 30,
-    y: formY - 15,
+    x: contentX + 10,
+    y: formStartY - 20,
     size: 10,
     font: helvetica,
     color: black
   });
   
   if (sr?.reasonForReturn) {
-    // Draw multi-line text for reason for return
-    const reasonLines = splitTextToLines(sr.reasonForReturn, formWidth - 20, helvetica, 10);
-    let lineY = formY - 35;
-    
-    reasonLines.forEach((line) => {
-      if (lineY > formY - 55) { // Make sure we stay within the box
-        page.drawText(line, {
-          x: margin + 30,
-          y: lineY,
-          size: 10,
-          font: helvetica,
-          color: black
-        });
-        lineY -= 12;
-      }
+    page.drawText(sr.reasonForReturn, {
+      x: contentX + 130,
+      y: formStartY - 20,
+      size: 10,
+      font: helvetica,
+      color: black
     });
   }
   
   // Findings
   page.drawRectangle({
-    x: margin + 20,
-    y: formY - 140,
-    width: formWidth,
-    height: 80,
+    x: contentX,
+    y: formStartY - 110,
+    width: contentWidth,
+    height: 70,
     borderColor: black,
     borderWidth: 1
   });
   
   page.drawText('Findings :', {
-    x: margin + 30,
-    y: formY - 75,
+    x: contentX + 10,
+    y: formStartY - 60,
     size: 10,
     font: helvetica,
     color: black
   });
   
   if (sr?.findings) {
-    // Draw multi-line text for findings
-    const findingsLines = splitTextToLines(sr.findings, formWidth - 20, helvetica, 10);
-    let lineY = formY - 95;
+    const findingsLines = splitTextToLines(sr.findings, contentWidth - 140, helvetica, 10);
+    let lineY = formStartY - 60;
     
     findingsLines.forEach((line) => {
-      if (lineY > formY - 135) { // Make sure we stay within the box
+      if (lineY > formStartY - 100) { // Make sure we stay within the box
         page.drawText(line, {
-          x: margin + 30,
+          x: contentX + 70,
           y: lineY,
           size: 10,
           font: helvetica,
           color: black
         });
-        lineY -= 12;
+        lineY -= 15;
       }
     });
   }
   
   // Action
   page.drawRectangle({
-    x: margin + 20,
-    y: formY - 220,
-    width: formWidth,
-    height: 80,
+    x: contentX,
+    y: formStartY - 180,
+    width: contentWidth,
+    height: 70,
     borderColor: black,
     borderWidth: 1
   });
   
   page.drawText('Action :', {
-    x: margin + 30,
-    y: formY - 155,
+    x: contentX + 10,
+    y: formStartY - 130,
     size: 10,
     font: helvetica,
     color: black
   });
   
   if (sr?.action) {
-    // Draw multi-line text for action
-    const actionLines = splitTextToLines(sr.action, formWidth - 20, helvetica, 10);
-    let lineY = formY - 175;
+    const actionLines = splitTextToLines(sr.action, contentWidth - 140, helvetica, 10);
+    let lineY = formStartY - 130;
     
     actionLines.forEach((line) => {
-      if (lineY > formY - 215) { // Make sure we stay within the box
+      if (lineY > formStartY - 170) { // Make sure we stay within the box
         page.drawText(line, {
-          x: margin + 30,
+          x: contentX + 70,
           y: lineY,
           size: 10,
           font: helvetica,
           color: black
         });
-        lineY -= 12;
+        lineY -= 15;
       }
     });
   }
   
-  // Service Checklist
-  const checklistY = formY - 220;
+  // Service Checklist Section
+  const checklistY = formStartY - 180;
   
-  // Table for checklist
+  // Draw checklist table - match exactly with the image
   page.drawRectangle({
-    x: margin + 20,
-    y: checklistY - 80,
-    width: formWidth,
-    height: 80,
+    x: contentX,
+    y: checklistY - 70,
+    width: contentWidth,
+    height: 70,
     borderColor: black,
     borderWidth: 1
   });
   
-  // Draw dividing lines for the 4 columns
-  const column1Width = 130;
-  const column2Width = 180;
-  const column3Width = 150;
+  // Calculate column widths for checklist
+  const columnCount = 4;
+  const columnWidth = contentWidth / columnCount;
   
-  // Vertical dividers
-  page.drawLine({
-    start: { x: margin + 20 + column1Width, y: checklistY - 80 },
-    end: { x: margin + 20 + column1Width, y: checklistY },
-    thickness: 1,
-    color: black
-  });
+  // Draw vertical dividers for checklist
+  for (let i = 1; i < columnCount; i++) {
+    page.drawLine({
+      start: { x: contentX + i * columnWidth, y: checklistY - 70 },
+      end: { x: contentX + i * columnWidth, y: checklistY },
+      thickness: 1,
+      color: black
+    });
+  }
   
-  page.drawLine({
-    start: { x: margin + 20 + column1Width + column2Width, y: checklistY - 80 },
-    end: { x: margin + 20 + column1Width + column2Width, y: checklistY },
-    thickness: 1,
-    color: black
-  });
-  
-  page.drawLine({
-    start: { x: margin + 20 + column1Width + column2Width + column3Width, y: checklistY - 80 },
-    end: { x: margin + 20 + column1Width + column2Width + column3Width, y: checklistY },
-    thickness: 1,
-    color: black
-  });
-  
-  // Column headers
+  // Column Headers
   page.drawText('Sensor Replacement', {
-    x: margin + 25,
+    x: contentX + 10,
     y: checklistY - 15,
     size: 10,
     font: helvetica,
@@ -627,7 +603,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('Lamp Service', {
-    x: margin + 25 + column1Width + 5,
+    x: contentX + columnWidth + 10,
     y: checklistY - 15,
     size: 10,
     font: helvetica,
@@ -635,7 +611,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('Pump Service', {
-    x: margin + 25 + column1Width + column2Width + 5,
+    x: contentX + 2 * columnWidth + 10,
     y: checklistY - 15,
     size: 10,
     font: helvetica,
@@ -643,7 +619,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('Instrument Service', {
-    x: margin + 25 + column1Width + column2Width + column3Width + 5,
+    x: contentX + 3 * columnWidth + 10,
     y: checklistY - 15,
     size: 10,
     font: helvetica,
@@ -651,100 +627,100 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   // Sensor Replacement checkboxes
-  renderCheckbox(margin + 35, checklistY - 30, sr?.sensorCO || false, 'CO', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35, checklistY - 45, sr?.sensorH2S || false, 'H2S', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35, checklistY - 60, sr?.sensorO2 || false, 'O2', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35, checklistY - 75, sr?.sensorLEL || false, 'LEL', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 10, checklistY - 30, sr?.sensorCO || false, 'CO', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 10, checklistY - 42, sr?.sensorH2S || false, 'H2S', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 10, checklistY - 54, sr?.sensorO2 || false, 'O2', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 10, checklistY - 66, sr?.sensorLEL || false, 'LEL', page, black, helvetica, helveticaBold);
   
   // Lamp Service checkboxes
-  renderCheckbox(margin + 35 + column1Width, checklistY - 30, sr?.lampClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width, checklistY - 45, sr?.lampReplace || false, 'Replace', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + columnWidth + 10, checklistY - 30, sr?.lampClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + columnWidth + 10, checklistY - 42, sr?.lampReplace || false, 'Replace', page, black, helvetica, helveticaBold);
   
   // Pump Service checkboxes
-  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 30, sr?.pumpTested || false, 'Tested', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 45, sr?.pumpRebuilt || false, 'Rebuilt', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 60, sr?.pumpReplaced || false, 'Replaced', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width, checklistY - 75, sr?.pumpClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 30, sr?.pumpTested || false, 'Tested', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 42, sr?.pumpRebuilt || false, 'Rebuilt', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 54, sr?.pumpReplaced || false, 'Replaced', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 66, sr?.pumpClean || false, 'Clean', page, black, helvetica, helveticaBold);
   
   // Instrument Service checkboxes
-  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 30, sr?.instrumentCalibrate || false, 'Calibrate', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 45, sr?.instrumentUpgrade || false, 'Upgrade', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 60, sr?.instrumentCharge || false, 'Charge', page, black, helvetica, helveticaBold);
-  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 75, sr?.instrumentClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  
-  // Additional checkbox for Sensor Assembly
-  renderCheckbox(margin + 35 + column1Width + column2Width + column3Width, checklistY - 90, sr?.instrumentSensorAssembly || false, 'Sensor Assembly', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 30, sr?.instrumentCalibrate || false, 'Calibrate', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 3 * columnWidth + 80, checklistY - 30, sr?.instrumentUpgrade || false, 'Upgrade', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 42, sr?.instrumentCharge || false, 'Charge', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 54, sr?.instrumentClean || false, 'Clean', page, black, helvetica, helveticaBold);
+  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 66, sr?.instrumentSensorAssembly || false, 'Sensor Assembly', page, black, helvetica, helveticaBold);
   
   // Parts List
-  const partsY = checklistY - 90;
+  const partsY = checklistY - 70;
   
-  // Draw parts list header
-  page.drawText('Parts', {
-    x: margin + 20 + formWidth / 2 - 20,
+  // Parts List header center-aligned
+  const partsTextWidth = 70;
+  const partsTextX = contentX + (contentWidth / 2) - (partsTextWidth / 2);
+  
+  page.drawText('Parts List', {
+    x: partsTextX,
     y: partsY - 15,
     size: 10,
     font: helvetica,
     color: black
   });
   
-  page.drawText('List', {
-    x: margin + 20 + formWidth / 2 + 5,
-    y: partsY - 15,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  // Draw parts list table
-  const partsTableY = partsY - 30;
+  // Parts Table
+  const partsTableY = partsY - 25;
   const partsTableHeight = 130;
-  const colWidths = [60, 200, 140, 140];
   
-  // Draw the outer box of the table
+  // Draw table container
   page.drawRectangle({
-    x: margin + 20,
+    x: contentX,
     y: partsTableY - partsTableHeight,
-    width: formWidth,
+    width: contentWidth,
     height: partsTableHeight,
     borderColor: black,
     borderWidth: 1
   });
   
-  // Draw header row
+  // Calculate parts column widths
+  const partColWidths = [
+    contentWidth * 0.1, // Item
+    contentWidth * 0.4, // Description
+    contentWidth * 0.25, // SN/PN/OLD
+    contentWidth * 0.25  // SN/PN/NEW
+  ];
+  
+  // Draw table header
   page.drawRectangle({
-    x: margin + 20,
-    y: partsTableY - 25,
-    width: formWidth,
-    height: 25,
+    x: contentX,
+    y: partsTableY - 20,
+    width: contentWidth,
+    height: 20,
     borderColor: black,
     borderWidth: 1
   });
   
-  // Draw column dividers in header
-  let xOffset = margin + 20;
-  colWidths.forEach((colWidth, index) => {
-    if (index < colWidths.length - 1) {
-      xOffset += colWidth;
-      page.drawLine({
-        start: { x: xOffset, y: partsTableY - 25 },
-        end: { x: xOffset, y: partsTableY },
-        thickness: 1,
-        color: black
-      });
-      
-      // Also draw the vertical lines for the entire table height
-      page.drawLine({
-        start: { x: xOffset, y: partsTableY - partsTableHeight },
-        end: { x: xOffset, y: partsTableY - 25 },
-        thickness: 1,
-        color: black
-      });
-    }
-  });
+  // Draw column dividers
+  let partColX = contentX;
+  for (let i = 0; i < partColWidths.length - 1; i++) {
+    partColX += partColWidths[i];
+    
+    // Draw divider in header
+    page.drawLine({
+      start: { x: partColX, y: partsTableY - 20 },
+      end: { x: partColX, y: partsTableY },
+      thickness: 1,
+      color: black
+    });
+    
+    // Draw divider in table body
+    page.drawLine({
+      start: { x: partColX, y: partsTableY - partsTableHeight },
+      end: { x: partColX, y: partsTableY - 20 },
+      thickness: 1,
+      color: black
+    });
+  }
   
   // Draw header text
   page.drawText('Item', {
-    x: margin + 45,
+    x: contentX + partColWidths[0] / 2 - 10,
     y: partsTableY - 15,
     size: 10,
     font: helvetica,
@@ -752,7 +728,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('Description', {
-    x: margin + 140,
+    x: contentX + partColWidths[0] + partColWidths[1] / 2 - 30,
     y: partsTableY - 15,
     size: 10,
     font: helvetica,
@@ -760,7 +736,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('SN/PN/OLD', {
-    x: margin + 20 + colWidths[0] + colWidths[1] + 40,
+    x: contentX + partColWidths[0] + partColWidths[1] + partColWidths[2] / 2 - 30,
     y: partsTableY - 15,
     size: 10,
     font: helvetica,
@@ -768,48 +744,51 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('SN/PN/NEW', {
-    x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 40,
+    x: contentX + partColWidths[0] + partColWidths[1] + partColWidths[2] + partColWidths[3] / 2 - 30,
     y: partsTableY - 15,
     size: 10,
     font: helvetica,
     color: black
   });
   
-  // Draw rows for parts (5 rows)
-  const rowHeight = 21;
+  // Draw rows
+  const rowHeight = 22;
+  const rowCount = 5;
+  const parts = sr?.parts || [];
   
-  // Draw 5 horizontal lines for rows
-  for (let i = 0; i < 5; i++) {
-    const yPos = partsTableY - 25 - (i + 1) * rowHeight;
+  for (let i = 0; i < rowCount; i++) {
+    const rowY = partsTableY - 20 - (i * rowHeight);
     
-    // Draw horizontal line for row
-    page.drawLine({
-      start: { x: margin + 20, y: yPos },
-      end: { x: margin + 20 + formWidth, y: yPos },
-      thickness: 1,
-      color: black
-    });
+    // Draw horizontal line except for the last row
+    if (i < rowCount - 1) {
+      page.drawLine({
+        start: { x: contentX, y: rowY - rowHeight },
+        end: { x: contentX + contentWidth, y: rowY - rowHeight },
+        thickness: 1,
+        color: black
+      });
+    }
     
-    // Fill in part data if available
-    if (sr?.parts && i < sr.parts.length) {
-      const part = sr.parts[i];
+    // Add parts data if available
+    if (i < parts.length) {
+      const part = parts[i];
       
       // Item number
-      page.drawText(`${part.itemNumber || i + 1}`, {
-        x: margin + 45,
-        y: yPos + 5,
+      page.drawText(part.itemNumber.toString(), {
+        x: contentX + 15,
+        y: rowY - (rowHeight / 2),
         size: 9,
         font: helvetica,
         color: black
       });
       
-      // Description (truncate if too long)
+      // Description
       const description = part.description || '';
-      const truncatedDesc = description.length > 25 ? description.substring(0, 22) + '...' : description;
+      const truncDesc = description.length > 40 ? description.substring(0, 37) + '...' : description;
       
-      page.drawText(truncatedDesc, {
-        x: margin + 85,
-        y: yPos + 5,
+      page.drawText(truncDesc, {
+        x: contentX + partColWidths[0] + 10,
+        y: rowY - (rowHeight / 2),
         size: 9,
         font: helvetica,
         color: black
@@ -817,11 +796,11 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
       
       // SN/PN/OLD
       const oldSN = part.snPnOld || '';
-      const truncatedOldSN = oldSN.length > 15 ? oldSN.substring(0, 12) + '...' : oldSN;
+      const truncOldSN = oldSN.length > 20 ? oldSN.substring(0, 17) + '...' : oldSN;
       
-      page.drawText(truncatedOldSN, {
-        x: margin + 20 + colWidths[0] + colWidths[1] + 40,
-        y: yPos + 5,
+      page.drawText(truncOldSN, {
+        x: contentX + partColWidths[0] + partColWidths[1] + 10,
+        y: rowY - (rowHeight / 2),
         size: 9,
         font: helvetica,
         color: black
@@ -829,11 +808,11 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
       
       // SN/PN/NEW
       const newSN = part.snPnNew || '';
-      const truncatedNewSN = newSN.length > 15 ? newSN.substring(0, 12) + '...' : newSN;
+      const truncNewSN = newSN.length > 20 ? newSN.substring(0, 17) + '...' : newSN;
       
-      page.drawText(truncatedNewSN, {
-        x: margin + 20 + colWidths[0] + colWidths[1] + colWidths[2] + 40,
-        y: yPos + 5,
+      page.drawText(truncNewSN, {
+        x: contentX + partColWidths[0] + partColWidths[1] + partColWidths[2] + 10,
+        y: rowY - (rowHeight / 2),
         size: 9,
         font: helvetica,
         color: black
@@ -842,10 +821,10 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   }
   
   // Signature section
-  const signatureY = partsTableY - partsTableHeight - 50;
+  const signatureY = partsTableY - partsTableHeight - 30;
   
   page.drawText('Services/Maintenance by,', {
-    x: margin + 70,
+    x: contentX + 50,
     y: signatureY,
     size: 10,
     font: helvetica,
@@ -853,7 +832,7 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   });
   
   page.drawText('Mengetahui,', {
-    x: width - margin - 150,
+    x: contentX + contentWidth - 70,
     y: signatureY,
     size: 10,
     font: helvetica,
@@ -863,10 +842,10 @@ async function generateServiceReportPDF(maintenanceData: ServiceReportMaintenanc
   // Create PDF
   const pdfResult = await pdfDoc.save();
   
-  return { reportNumber: reportNum, pdfResult };
+  return { reportNumber: csrNum, pdfResult };
 }
 
-// Function to generate Technical Report PDF
+// Function to generate Technical Report2 PDF
 async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMaintenanceData) {
   const tr = maintenanceData.technicalReport;
   
@@ -888,10 +867,11 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   const { width, height } = page.getSize();
   const margin = 40;
   
+  // --- BLACK HEADER FOR TITLE ---
   // Black background for title
   page.drawRectangle({
     x: margin,
-    y: height - 50,
+    y: height - 40,
     width: width - 2 * margin,
     height: 20,
     color: black
@@ -899,44 +879,52 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   // Title with white text
   page.drawText('Customer Service Report', {
-    x: width / 2 - 100,
-    y: height - 40,
+    x: width / 2 - 80,
+    y: height - 30,
     size: 14,
     font: helveticaBold,
     color: white
   });
   
-  // Draw the main table grid
-  // Top section with 3 columns
-  const tableTop = height - 80;
+  // --- MAIN GRID LAYOUT ---
   const tableWidth = width - 2 * margin;
-  const column1Width = tableWidth * 0.4;
-  const column2Width = tableWidth * 0.3;
-  const column3Width = tableWidth * 0.3;
-  const topRowHeight = 160;
   
-  // Draw table borders
+  // Top row with three columns
+  
+  // Column 1 - Company info (left)
   page.drawRectangle({
     x: margin,
-    y: tableTop - topRowHeight,
-    width: tableWidth,
-    height: topRowHeight,
+    y: height - 160,
+    width: tableWidth * 0.33,
+    height: 120,
     borderColor: black,
     borderWidth: 1
   });
   
-  // Draw the horizontal line in the rightmost column
-  page.drawLine({
-    start: { x: margin + column1Width + column2Width, y: tableTop - 80 },
-    end: { x: margin + tableWidth, y: tableTop - 80 },
-    thickness: 1,
-    color: black
+  // Column 2 - Delivery info (middle)
+  page.drawRectangle({
+    x: margin + tableWidth * 0.33,
+    y: height - 160,
+    width: tableWidth * 0.36,
+    height: 120,
+    borderColor: black,
+    borderWidth: 1
   });
   
-  // Draw the horizontal line for the technical support section
+  // Column 3 - CSR info (right)
+  page.drawRectangle({
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36,
+    y: height - 160,
+    width: tableWidth * 0.31,
+    height: 120,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  // Divide the right box horizontally - create Technical Support section
   page.drawLine({
-    start: { x: margin + column1Width + column2Width, y: tableTop - 120 },
-    end: { x: margin + tableWidth, y: tableTop - 120 },
+    start: { x: margin + tableWidth * 0.33 + tableWidth * 0.36, y: height - 100 },
+    end: { x: margin + tableWidth, y: height - 100 },
     thickness: 1,
     color: black
   });
@@ -946,11 +934,11 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     const logoPath = path.join(process.cwd(), 'public', 'logo1.png');
     const logoImageBytes = fs.readFileSync(logoPath);
     const logoImage = await pdfDoc.embedPng(logoImageBytes);
-    const logoDims = logoImage.scale(0.3);
+    const logoDims = logoImage.scale(0.15);
     
     page.drawImage(logoImage, {
-      x: margin + 20,
-      y: tableTop - 50,
+      x: margin + 10,
+      y: height - 70,
       width: logoDims.width,
       height: logoDims.height
     });
@@ -961,7 +949,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   // Company address
   page.drawText('Komplek Palem Ganda', {
     x: margin + 10,
-    y: tableTop - 90,
+    y: height - 90,
     size: 8,
     font: helvetica,
     color: black
@@ -969,7 +957,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Asri 1 Blok A3 No.8,', {
     x: margin + 10,
-    y: tableTop - 100,
+    y: height - 100,
     size: 8,
     font: helvetica,
     color: black
@@ -977,7 +965,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Karang Tengah', {
     x: margin + 10,
-    y: tableTop - 110,
+    y: height - 110,
     size: 8,
     font: helvetica,
     color: black
@@ -985,7 +973,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Ciledug – Tangerang 15157', {
     x: margin + 10,
-    y: tableTop - 120,
+    y: height - 120,
     size: 8,
     font: helvetica,
     color: black
@@ -993,424 +981,317 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('021-7306424', {
     x: margin + 10,
-    y: tableTop - 130,
+    y: height - 130,
     size: 8,
     font: helvetica,
     color: black
   });
   
-  // Column headers
+  // Delivery Information (middle column)
   page.drawText('DELIVERY TO :', {
-    x: margin + column1Width + 10,
-    y: tableTop - 20,
-    size: 10,
+    x: margin + tableWidth * 0.33 + 10,
+    y: height - 60,
+    size: 9,
     font: helveticaBold,
     color: black
   });
   
   page.drawText('To :', {
-    x: margin + column1Width + 10,
-    y: tableTop - 35,
-    size: 10,
+    x: margin + tableWidth * 0.33 + 10,
+    y: height - 75,
+    size: 9,
     font: helveticaBold,
     color: black
   });
   
-  // Customer name (from delivered to)
-  page.drawText(tr?.deliveryTo || maintenanceData.item.customer?.name || '-', {
-    x: margin + column1Width + 10,
-    y: tableTop - 50,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  // CSR number
-  // Use default CSR pattern if tr doesn't have csrNumber property
-  const defaultCsr = `TR-${new Date().getDate()}/${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
-  // Use type assertion to handle potential undefined csrNumber
-  const csrNum = (tr && 'csrNumber' in tr ? tr.csrNumber ?? defaultCsr : defaultCsr).toString();
-  page.drawText('CSR NO :', {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 20,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  page.drawText(csrNum || '', {
-    x: margin + column1Width + column2Width + column3Width - 120,
-    y: tableTop - 150,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // Date
-  page.drawText('DATE :', {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 80,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  const dateIn = tr?.dateIn ? formatDateID(tr.dateIn) : formatDateID(maintenanceData.startDate);
-  page.drawText(dateIn, {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 95,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  // Technical Support
-  page.drawText('Technical Support', {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 120,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  page.drawText(tr?.techSupport || maintenanceData.user.name || '-', {
-    x: margin + column1Width + column2Width + 10,
-    y: tableTop - 155,
-    size: 10,
+  // Customer name
+  page.drawText(tr?.deliveryTo || maintenanceData.item.customer?.name || 'N/A', {
+    x: margin + tableWidth * 0.33 + 35,
+    y: height - 75,
+    size: 9,
     font: helvetica,
     color: black
   });
   
   // QUO information
   page.drawText('QUO No:', {
-    x: margin + column1Width + 10,
-    y: tableTop - 95,
-    size: 10,
+    x: margin + tableWidth * 0.33 + 10,
+    y: height - 120,
+    size: 9,
     font: helveticaBold,
     color: black
   });
   
-  // Add the content sections below the header table
-  const contentY = tableTop - topRowHeight;
-  
-  // Reason for Return section
-  // Draw rectangle for section
-  page.drawRectangle({
-    x: margin,
-    y: contentY - 35,
-    width: tableWidth,
-    height: 35,
-    borderColor: black,
-    borderWidth: 1
-  });
-  
-  // Add Date In and Estimate Work in a row
-  page.drawText('Reason For Return :', {
-    x: margin + 10,
-    y: contentY - 15,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // Draw date in box
-  page.drawRectangle({
-    x: margin + tableWidth * 0.7,
-    y: contentY - 35,
-    width: tableWidth * 0.3,
-    height: 35,
-    borderColor: black,
-    borderWidth: 1
-  });
-  
-  page.drawText(dateIn, {
-    x: margin + tableWidth * 0.7 + 10,
-    y: contentY - 30,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  // Estimate work box
-  page.drawRectangle({
-    x: margin + tableWidth * 0.7,
-    y: contentY - 70,
-    width: tableWidth * 0.3,
-    height: 35,
-    borderColor: black,
-    borderWidth: 1
-  });
-  
-  page.drawText('Estimate Work :', {
-    x: margin + tableWidth * 0.7 + 10,
-    y: contentY - 50,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // Add reason text
-  if (tr?.reasonForReturn) {
-    page.drawText(tr.reasonForReturn, {
-      x: margin + 170,
-      y: contentY - 15,
-      size: 10,
-      font: helvetica,
-      color: black
-    });
-  } else {
-    page.drawText('Maintenance & calibration', {
-      x: margin + 170,
-      y: contentY - 15,
-      size: 10,
-      font: helvetica,
-      color: black
-    });
-  }
-  
-  // Findings section
-  const findingsY = contentY - 35;
-  page.drawRectangle({
-    x: margin,
-    y: findingsY - 35,
-    width: tableWidth, 
-    height: 35,
-    borderColor: black,
-    borderWidth: 1
-  });
-  
-  page.drawText('Findings :', {
-    x: margin + 10,
-    y: findingsY - 15,
-    size: 10,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // Add findings content
-  if (tr?.findings) {
-    // Truncate if too long
-    const maxLength = 80;
-    const findings = tr.findings.length > maxLength ? 
-      tr.findings.substring(0, maxLength) + '...' : 
-      tr.findings;
-    
-    page.drawText(findings, {
-      x: margin + 80,
-      y: findingsY - 15,
+  // QUO Number if available
+  if (tr?.quoNumber) {
+    page.drawText(tr.quoNumber, {
+      x: margin + tableWidth * 0.33 + 70,
+      y: height - 120,
       size: 9,
       font: helvetica,
       color: black
     });
   }
   
-  // Before / After photos section
-  const photosY = findingsY - 35;
+  // Right column information
+  const csrNum = tr?.csrNumber || maintenanceData.csrNumber || '090/CSR-PBI/IX/24';
+  page.drawText('CSR NO :', {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 10,
+    y: height - 60,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
   
-  // Draw container for photos
+  page.drawText(csrNum, {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 70,
+    y: height - 60,
+    size: 9,
+    font: helvetica,
+    color: black
+  });
+  
+  // Date
+  page.drawText('DATE :', {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 10,
+    y: height - 80,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  // Report date
+  const reportDate = tr?.dateReport ? formatDateID(tr.dateReport) : "17 Sept 2024";
+  page.drawText(reportDate, {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 70,
+    y: height - 80,
+    size: 9,
+    font: helvetica,
+    color: black
+  });
+  
+  // Technical Support
+  page.drawText('Technical Support', {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 50,
+    y: height - 110,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  page.drawText(tr?.techSupport || 'N/A', {
+    x: margin + tableWidth * 0.33 + tableWidth * 0.36 + 50,
+    y: height - 150,
+    size: 9,
+    font: helvetica,
+    color: black
+  });
+  
+  // --- SECOND SECTION - REASON & DATE ---
+  const reasonY = height - 160;
+  
+  // Reason for Return section - Left box
   page.drawRectangle({
     x: margin,
-    y: photosY - 180,
-    width: tableWidth,
-    height: 180,
+    y: reasonY - 35,
+    width: tableWidth * 0.69,
+    height: 35,
     borderColor: black,
     borderWidth: 1
   });
   
-  // Add photos side by side
-  // First photo (Before)
+  page.drawText('Reason For Return :', {
+    x: margin + 10,
+    y: reasonY - 15,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  // Add reason text
+  page.drawText(tr?.reasonForReturn || 'Maintenance & calibration', {
+    x: margin + 120,
+    y: reasonY - 15,
+    size: 9,
+    font: helvetica,
+    color: black
+  });
+  
+  // Date In box - Right box
+  page.drawRectangle({
+    x: margin + tableWidth * 0.69,
+    y: reasonY - 35,
+    width: tableWidth * 0.31,
+    height: 35,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  page.drawText('Date In :', {
+    x: margin + tableWidth * 0.69 + 10,
+    y: reasonY - 15,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  const dateIn = tr?.dateIn ? formatDateID(tr.dateIn) : formatDateID(maintenanceData.startDate);
+  page.drawText(dateIn, {
+    x: margin + tableWidth * 0.69 + 55,
+    y: reasonY - 15,
+    size: 9,
+    font: helvetica,
+    color: black
+  });
+  
+  // Estimate Work box - Right
+  page.drawRectangle({
+    x: margin + tableWidth * 0.69,
+    y: reasonY - 70,
+    width: tableWidth * 0.31,
+    height: 35,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  page.drawText('Estimate Work :', {
+    x: margin + tableWidth * 0.69 + 10,
+    y: reasonY - 55,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  if (tr?.estimateWork) {
+    page.drawText(tr.estimateWork, {
+      x: margin + tableWidth * 0.69 + 90,
+      y: reasonY - 55,
+      size: 9,
+      font: helvetica,
+      color: black
+    });
+  }
+  
+  // Third section - Findings details
+  page.drawRectangle({
+    x: margin,
+    y: reasonY - 115,
+    width: tableWidth,
+    height: 45,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  // Add detailed findings content if available
+  if (tr?.findings) {
+    const findingsLines = splitTextToLines(tr.findings, tableWidth - 20, helvetica, 9);
+    let lineY = reasonY - 90;
+    
+    findingsLines.forEach((line, idx) => {
+      if (lineY > reasonY - 110 && idx < 2) { // Show max 2 lines
+        page.drawText(idx === 0 ? `1. ${line}` : `2. ${line}`, {
+          x: margin + 10,
+          y: lineY,
+          size: 9,
+          font: helvetica,
+          color: black
+        });
+        lineY -= 15;
+      }
+    });
+  }
+  
+  // --- FOURTH SECTION - DEVICE IMAGES ---
+  const photosY = reasonY - 115;
+  
+  // Draw container for photos
+  page.drawRectangle({
+    x: margin,
+    y: photosY - 150,
+    width: tableWidth,
+    height: 150,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  // If sample images are available, include them
   try {
-    if (tr?.beforePhotoUrl) {
-      console.log('Before photo URL:', tr.beforePhotoUrl);
-      
-      let imagePath = '';
-      
-      // Handle various URL formats
-      if (tr.beforePhotoUrl.startsWith('http')) {
-        // Full URL: extract pathname
-        try {
-          const url = new URL(tr.beforePhotoUrl);
-          imagePath = url.pathname;
-        } catch (e) {
-          console.error('Error parsing URL:', e);
-          imagePath = tr.beforePhotoUrl;
-        }
-      } else {
-        // Relative path or just filename
-        imagePath = tr.beforePhotoUrl;
-      }
-      
-      // Remove leading slash if present
-      if (imagePath.startsWith('/')) {
-        imagePath = imagePath.substring(1);
-      }
-      
-      // Get the filename only if it's a path
-      const filename = imagePath.split('/').pop() ?? '';
-      
-      // Try multiple paths to find the image
-      const possiblePaths = [
-        path.join(process.cwd(), 'public', imagePath),
-        path.join(process.cwd(), 'public', 'uploads', filename),
-        path.join(process.cwd(), 'public', 'uploads', imagePath)
-      ];
-      
-      console.log('Possible paths for before photo:');
-      possiblePaths.forEach(p => console.log('- ' + p));
-      
-      let photoExists = false;
-      let fullBeforePhotoPath = '';
-      
-      for (const testPath of possiblePaths) {
-        if (fs.existsSync(testPath)) {
-          photoExists = true;
-          fullBeforePhotoPath = testPath;
-          console.log('Found before photo at:', fullBeforePhotoPath);
-          break;
-        }
-      }
-      
-      if (photoExists) {
-        const beforePhotoBytes = fs.readFileSync(fullBeforePhotoPath);
+    if (tr?.beforePhotoUrl && tr?.afterPhotoUrl) {
+      // Attempt to load images from various possible paths
+      const tryLoadImage = async (url: string) => {
+        const possiblePaths = [
+          path.join(process.cwd(), 'public', url),
+          path.join(process.cwd(), 'public', 'uploads', url),
+          url
+        ];
         
-        let beforeImage;
-        if (fullBeforePhotoPath.toLowerCase().endsWith('.png')) {
-          beforeImage = await pdfDoc.embedPng(beforePhotoBytes);
-        } else if (fullBeforePhotoPath.toLowerCase().endsWith('.jpg') || 
-                  fullBeforePhotoPath.toLowerCase().endsWith('.jpeg')) {
-          beforeImage = await pdfDoc.embedJpg(beforePhotoBytes);
+        for (const path of possiblePaths) {
+          try {
+            if (fs.existsSync(path)) {
+              const bytes = fs.readFileSync(path);
+              if (path.toLowerCase().endsWith('.png')) {
+                return await pdfDoc.embedPng(bytes);
+              } else if (path.toLowerCase().endsWith('.jpg') || path.toLowerCase().endsWith('.jpeg')) {
+                return await pdfDoc.embedJpg(bytes);
+              }
+            }
+          } catch (e) {
+            console.error(`Error loading image from ${path}:`, e);
+          }
         }
+        return null;
+      };
+      
+      const beforeImage = await tryLoadImage(tr.beforePhotoUrl);
+      const afterImage = await tryLoadImage(tr.afterPhotoUrl);
         
-        if (beforeImage) {
-          const maxWidth = tableWidth / 2 - 20;
-          const maxHeight = 170;
-          
-          const beforeDims = beforeImage.scale(
-            Math.min(maxWidth / beforeImage.width, maxHeight / beforeImage.height)
-          );
-          
-          const xCenter = margin + maxWidth / 2 - beforeDims.width / 2;
-          const yCenter = photosY - 90 - (beforeDims.height / 2);
-          
-          page.drawImage(beforeImage, {
-            x: xCenter,
-            y: yCenter,
-            width: beforeDims.width,
-            height: beforeDims.height
-          });
-        }
-      } else {
-        console.error('Before photo not found. Tried paths:', possiblePaths);
+      if (beforeImage) {
+        const maxDim = Math.min(tableWidth / 2 - 30, 140);
+        const beforeDims = beforeImage.scale(
+          Math.min(maxDim / beforeImage.width, maxDim / beforeImage.height)
+        );
+        
+        page.drawImage(beforeImage, {
+          x: margin + (tableWidth / 4) - (beforeDims.width / 2),
+          y: photosY - 75 - (beforeDims.height / 2),
+          width: beforeDims.width,
+          height: beforeDims.height
+        });
+      }
+      
+      if (afterImage) {
+        const maxDim = Math.min(tableWidth / 2 - 30, 140);
+        const afterDims = afterImage.scale(
+          Math.min(maxDim / afterImage.width, maxDim / afterImage.height)
+        );
+        
+        page.drawImage(afterImage, {
+          x: margin + (tableWidth * 3 / 4) - (afterDims.width / 2),
+          y: photosY - 75 - (afterDims.height / 2),
+          width: afterDims.width,
+          height: afterDims.height
+        });
       }
     }
   } catch (err) {
-    console.error('Error embedding before photo:', err);
+    console.error('Error loading device images:', err);
   }
   
-  // Second photo (After)
-  try {
-    if (tr?.afterPhotoUrl) {
-      console.log('After photo URL:', tr.afterPhotoUrl);
-      
-      let imagePath = '';
-      
-      // Handle various URL formats
-      if (tr.afterPhotoUrl.startsWith('http')) {
-        // Full URL: extract pathname
-        try {
-          const url = new URL(tr.afterPhotoUrl);
-          imagePath = url.pathname;
-        } catch (e) {
-          console.error('Error parsing URL:', e);
-          imagePath = tr.afterPhotoUrl;
-        }
-      } else {
-        // Relative path or just filename
-        imagePath = tr.afterPhotoUrl;
-      }
-      
-      // Remove leading slash if present
-      if (imagePath.startsWith('/')) {
-        imagePath = imagePath.substring(1);
-      }
-      
-      // Get the filename only if it's a path
-      const filename = imagePath.split('/').pop() ?? '';
-      
-      // Try multiple paths to find the image
-      const possiblePaths = [
-        path.join(process.cwd(), 'public', imagePath),
-        path.join(process.cwd(), 'public', 'uploads', filename),
-        path.join(process.cwd(), 'public', 'uploads', imagePath)
-      ];
-      
-      console.log('Possible paths for after photo:');
-      possiblePaths.forEach(p => console.log('- ' + p));
-      
-      let photoExists = false;
-      let fullAfterPhotoPath = '';
-      
-      for (const testPath of possiblePaths) {
-        if (fs.existsSync(testPath)) {
-          photoExists = true;
-          fullAfterPhotoPath = testPath;
-          console.log('Found after photo at:', fullAfterPhotoPath);
-          break;
-        }
-      }
-      
-      if (photoExists) {
-        const afterPhotoBytes = fs.readFileSync(fullAfterPhotoPath);
-        
-        let afterImage;
-        if (fullAfterPhotoPath.toLowerCase().endsWith('.png')) {
-          afterImage = await pdfDoc.embedPng(afterPhotoBytes);
-        } else if (fullAfterPhotoPath.toLowerCase().endsWith('.jpg') || 
-                  fullAfterPhotoPath.toLowerCase().endsWith('.jpeg')) {
-          afterImage = await pdfDoc.embedJpg(afterPhotoBytes);
-        }
-        
-        if (afterImage) {
-          const maxWidth = tableWidth / 2 - 20;
-          const maxHeight = 170;
-          
-          const afterDims = afterImage.scale(
-            Math.min(maxWidth / afterImage.width, maxHeight / afterImage.height)
-          );
-          
-          const xCenter = margin + tableWidth / 2 + maxWidth / 2 - afterDims.width / 2;
-          const yCenter = photosY - 90 - (afterDims.height / 2);
-          
-          page.drawImage(afterImage, {
-            x: xCenter,
-            y: yCenter,
-            width: afterDims.width,
-            height: afterDims.height
-          });
-        }
-      } else {
-        console.error('After photo not found. Tried paths:', possiblePaths);
-      }
-    }
-  } catch (err) {
-    console.error('Error embedding after photo:', err);
-  }
-  
-  // Parts list table
-  const partsY = photosY - 180;
+  // --- FIFTH SECTION - PARTS TABLE ---
+  const partsY = photosY - 150;
   
   // Table headers
-  const partsTableHeaders = [
-    { text: 'NO', width: tableWidth * 0.08 },
-    { text: 'Nama Unit', width: tableWidth * 0.22 },
-    { text: 'DESCRIPTION', width: tableWidth * 0.3 },
-    { text: 'QTY', width: tableWidth * 0.1 },
-    { text: 'UNIT PRICE', width: tableWidth * 0.15 },
-    { text: 'TOTAL PRICE', width: tableWidth * 0.15 }
+  const columnHeaders = ['NO', 'Nama Unit', 'DESCRIPTION', 'QTY', 'UNIT PRICE', 'TOTAL PRICE'];
+  const columnWidths = [
+    tableWidth * 0.08,  // NO
+    tableWidth * 0.17,  // Nama Unit
+    tableWidth * 0.30,  // DESCRIPTION
+    tableWidth * 0.10,  // QTY
+    tableWidth * 0.17,  // UNIT PRICE
+    tableWidth * 0.18   // TOTAL PRICE
   ];
   
   // Draw header row
-  let headerX = margin;
   page.drawRectangle({
     x: margin,
     y: partsY - 25,
@@ -1420,34 +1301,40 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     borderWidth: 1
   });
   
-  partsTableHeaders.forEach(header => {
-    // Draw vertical divider
-    if (headerX > margin) {
-      page.drawLine({
-        start: { x: headerX, y: partsY },
-        end: { x: headerX, y: partsY - 25 },
-        thickness: 1,
-        color: black
-      });
-    }
-    
+  // Draw column dividers and headers
+  let xOffset = margin;
+  columnHeaders.forEach((header, i) => {
     // Draw header text
-    page.drawText(header.text, {
-      x: headerX + header.width / 2 - header.text.length * 2.5,
+    const textX = xOffset + columnWidths[i] / 2 - header.length * 2.5;
+    page.drawText(header, {
+      x: textX,
       y: partsY - 15,
-      size: 10,
+      size: 9,
       font: helveticaBold,
       color: black
     });
     
-    headerX += header.width;
+    xOffset += columnWidths[i];
+    
+    // Draw vertical divider except after last column
+    if (i < columnHeaders.length - 1) {
+      page.drawLine({
+        start: { x: xOffset, y: partsY },
+        end: { x: xOffset, y: partsY - 25 },
+        thickness: 1,
+        color: black
+      });
+    }
   });
   
-  // Draw 5 rows for parts
+  // Draw data rows (5 rows)
+  const rowCount = 5;
   const rowHeight = 25;
-  const partsList = tr?.partsList || [];
   
-  for (let i = 0; i < 5; i++) {
+  // Parts data - use either from the report or empty rows
+  const parts = tr?.partsList || [];
+  
+  for (let i = 0; i < rowCount; i++) {
     const rowY = partsY - 25 - (i * rowHeight);
     
     // Draw row rectangle
@@ -1460,108 +1347,147 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
       borderWidth: 1
     });
     
-    // Draw vertical dividers
-    let colX = margin;
-    partsTableHeaders.forEach(header => {
-      colX += header.width;
-      if (colX < margin + tableWidth) {
-        page.drawLine({
-          start: { x: colX, y: rowY },
-          end: { x: colX, y: rowY - rowHeight },
-          thickness: 1,
+    // Draw column dividers
+    xOffset = margin;
+    for (let j = 0; j < columnWidths.length - 1; j++) {
+      xOffset += columnWidths[j];
+      page.drawLine({
+        start: { x: xOffset, y: rowY },
+        end: { x: xOffset, y: rowY - rowHeight },
+        thickness: 1,
+        color: black
+      });
+    }
+    
+    // Fill in data if available
+    if (i < parts.length) {
+      const part = parts[i];
+      
+      // NO column
+      page.drawText((i + 1) + '.', {
+        x: margin + 10,
+        y: rowY - rowHeight/2 - 4,
+        size: 9,
+        font: helvetica,
+        color: black
+      });
+      
+      // Nama Unit
+      const namaUnit = part.namaUnit || '';
+      page.drawText(namaUnit, {
+        x: margin + columnWidths[0] + 5,
+        y: rowY - rowHeight/2 - 4,
+        size: 9,
+        font: helvetica,
+        color: black
+      });
+      
+      // Description
+      const description = part.description || '';
+      page.drawText(description, {
+        x: margin + columnWidths[0] + columnWidths[1] + 5,
+        y: rowY - rowHeight/2 - 4,
+        size: 9,
+        font: helvetica,
+        color: black
+      });
+      
+      // QTY
+      page.drawText(part.quantity.toString(), {
+        x: margin + columnWidths[0] + columnWidths[1] + columnWidths[2] + 15,
+        y: rowY - rowHeight/2 - 4,
+        size: 9,
+        font: helvetica,
+        color: black
+      });
+      
+      // Unit Price
+      if (part.unitPrice) {
+        const formattedPrice = new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0
+        }).format(part.unitPrice);
+        
+        page.drawText(formattedPrice, {
+          x: margin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + 5,
+          y: rowY - rowHeight/2 - 4,
+          size: 9,
+          font: helvetica,
           color: black
         });
       }
-    });
-    
-    // Fill in data if available
-    if (i < partsList.length) {
-      const part = partsList[i];
       
-      // NO column
-      page.drawText((i + 1).toString() + '.', {
-        x: margin + 10,
-        y: rowY - rowHeight + 10,
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-      
-      // Nama Unit column
-      const namaUnit = part.namaUnit || '';
-      page.drawText(namaUnit.length > 20 ? namaUnit.substring(0, 17) + '...' : namaUnit, {
-        x: margin + partsTableHeaders[0].width + 5,
-        y: rowY - rowHeight + 10,
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-      
-      // Description column
-      const description = part.description || '';
-      page.drawText(description.length > 25 ? description.substring(0, 22) + '...' : description, {
-        x: margin + partsTableHeaders[0].width + partsTableHeaders[1].width + 5,
-        y: rowY - rowHeight + 10,
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-      
-      // QTY column
-      page.drawText(part.quantity.toString(), {
-        x: margin + partsTableHeaders[0].width + partsTableHeaders[1].width + 
-           partsTableHeaders[2].width + 15,
-        y: rowY - rowHeight + 10,
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-      
-      // Unit Price column
-      const unitPrice = part.unitPrice ? part.unitPrice.toLocaleString('id-ID') : '';
-      page.drawText(unitPrice, {
-        x: margin + partsTableHeaders[0].width + partsTableHeaders[1].width + 
-           partsTableHeaders[2].width + partsTableHeaders[3].width + 5,
-        y: rowY - rowHeight + 10,
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-      
-      // We're not calculating total price in this example
+      // Total Price
+      if (part.totalPrice || (part.quantity && part.unitPrice)) {
+        const total = part.totalPrice || (part.quantity * (part.unitPrice || 0));
+        const formattedTotal = new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0
+        }).format(total);
+        
+        page.drawText(formattedTotal, {
+          x: margin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + columnWidths[4] + 5,
+          y: rowY - rowHeight/2 - 4,
+          size: 9,
+          font: helvetica,
+          color: black
+        });
+      }
     }
   }
   
-  // Terms and conditions section
-  const termsY = partsY - 25 - (5 * rowHeight);
+  // --- SIXTH SECTION - TERMS & CONDITIONS ---
+  const termsY = partsY - 25 - (rowCount * rowHeight);
   
+  // Terms and conditions title
   page.drawText('Terms and Condition :', {
     x: margin,
     y: termsY - 20,
-    size: 10,
+    size: 9,
     font: helveticaBold,
     color: black
   });
   
-  // Standard terms
-  const terms = [
-    '1. Price above exclude PPN 11 %',
-    '2. Delivery                       : 2 weeks',
-    '3. Payment                      :',
-    '4. Franco                        :'
-  ];
-  
-  terms.forEach((term, i) => {
-    page.drawText(term, {
-      x: margin,
-      y: termsY - 40 - (i * 15),
-      size: 9,
-      font: helvetica,
-      color: black
+  // Terms content - use form data if available, otherwise default 
+  if (tr?.termsConditions) {
+    const termsLines = splitTextToLines(tr.termsConditions, tableWidth - 20, helvetica, 9);
+    let lineY = termsY - 40;
+    
+    termsLines.forEach((line, idx) => {
+      if (lineY > termsY - 100 && idx < 4) { // Show max 4 lines
+        page.drawText(`${idx + 1}. ${line}`, {
+          x: margin,
+          y: lineY,
+          size: 9,
+          font: helvetica,
+          color: black
+        });
+        lineY -= 15;
+      }
     });
-  });
+  } else {
+    // Default terms
+    const terms = [
+      'Price above exclude PPN 11 %',
+      'Delivery                       : 2 weeks',
+      'Payment                      :',
+      'Franco                        :'
+    ];
+    
+    terms.forEach((term, i) => {
+      page.drawText(`${i + 1}. ${term}`, {
+        x: margin,
+        y: termsY - 40 - (i * 15),
+        size: 9,
+        font: helvetica,
+        color: black
+      });
+    });
+  }
   
-  // Footer text
+  // --- FOOTER TEXT ---
   page.drawText('We hope above are acceptable for your needs. We look further for your order.', {
     x: margin,
     y: termsY - 100,
@@ -1586,10 +1512,10 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     color: black
   });
   
-  // Signature section
+  // Signature
   page.drawText('Gerhan M.Y', {
     x: margin,
-    y: termsY - 180,
+    y: termsY - 160,
     size: 9,
     font: helveticaBold,
     color: black
@@ -1597,7 +1523,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Director', {
     x: margin,
-    y: termsY - 195,
+    y: termsY - 175,
     size: 9,
     font: helvetica,
     color: black
@@ -1641,7 +1567,7 @@ function renderCheckbox(x: number, y: number, isChecked: boolean, label: string,
   });
 }
 
-// Helper function to safely handle undefined text in splitTextToLines
+// Utility functions that help with PDF generation
 function splitTextToLines(text: string | undefined | null, maxWidth: number, font: PDFFont, fontSize: number): string[] {
   if (!text) return [];
   

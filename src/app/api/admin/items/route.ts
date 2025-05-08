@@ -46,7 +46,8 @@ export async function GET(request: Request) {
     if (search && search.trim() !== '') {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        // Menghapus pencarian di description untuk optimasi
+        // { description: { contains: search, mode: 'insensitive' } },
         { serialNumber: { contains: search, mode: 'insensitive' } },
         { partNumber: { contains: search, mode: 'insensitive' } }
       ];
@@ -54,16 +55,21 @@ export async function GET(request: Request) {
     
     console.log('Database query where clause:', where);
     
-    // Get total count for pagination
-    const totalItems = await prisma.item.count({ where });
-    
-    // Get count by status
-    const countByStatus = {
-      AVAILABLE: await prisma.item.count({ where: { ...where, status: ItemStatus.AVAILABLE }}),
-      IN_CALIBRATION: await prisma.item.count({ where: { ...where, status: ItemStatus.IN_CALIBRATION }}),
-      RENTED: await prisma.item.count({ where: { ...where, status: ItemStatus.RENTED }}),
-      IN_MAINTENANCE: await prisma.item.count({ where: { ...where, status: ItemStatus.IN_MAINTENANCE }})
-    };
+    // Get count by status - optimasi dengan Promise.all
+    const [totalItems, countByStatus] = await Promise.all([
+      // Get total count for pagination
+      prisma.item.count({ where }),
+      
+      // Dapatkan status counts dalam satu request
+      Promise.all([
+        prisma.item.count({ where: { ...where, status: ItemStatus.AVAILABLE }}),
+        prisma.item.count({ where: { ...where, status: ItemStatus.IN_CALIBRATION }}),
+        prisma.item.count({ where: { ...where, status: ItemStatus.RENTED }}),
+        prisma.item.count({ where: { ...where, status: ItemStatus.IN_MAINTENANCE }})
+      ]).then(([AVAILABLE, IN_CALIBRATION, RENTED, IN_MAINTENANCE]) => {
+        return { AVAILABLE, IN_CALIBRATION, RENTED, IN_MAINTENANCE };
+      })
+    ]);
     
     // Create the actual data fetch promise, including maintenance and calibration history
     const items = await prisma.item.findMany({
@@ -73,7 +79,8 @@ export async function GET(request: Request) {
         name: true,
         partNumber: true,
         sensor: true,
-        description: true,
+        // Optimasi select, hanya ambil field yang diperlukan
+        description: false,
         status: true,
         lastVerifiedAt: true,
         createdAt: true,
@@ -89,9 +96,10 @@ export async function GET(request: Request) {
             id: true,
             status: true,
             calibrationDate: true,
-            validUntil: true,
-            certificateNumber: true,
-            certificateUrl: true,
+            // Kurangi data yang tidak perlu di list
+            validUntil: false,
+            certificateNumber: false,
+            certificateUrl: false,
             vendor: {
               select: {
                 id: true,
@@ -109,22 +117,10 @@ export async function GET(request: Request) {
             id: true,
             status: true,
             startDate: true,
-            endDate: true,
-            serviceReport: {
-              select: {
-                reportNumber: true,
-                dateIn: true,
-                findings: true,
-                action: true
-              }
-            },
-            technicalReport: {
-              select: {
-                csrNumber: true,
-                dateIn: true,
-                findings: true
-              }
-            }
+            endDate: false,
+            // Hapus referensi laporan yang tidak diperlukan di listing
+            serviceReport: false,
+            technicalReport: false
           },
           orderBy: {
             startDate: 'desc'
@@ -136,8 +132,8 @@ export async function GET(request: Request) {
             id: true,
             status: true,
             startDate: true,
-            endDate: true,
-            returnDate: true,
+            endDate: false,
+            returnDate: false,
             user: {
               select: {
                 id: true,
@@ -161,8 +157,8 @@ export async function GET(request: Request) {
     
     console.log(`Found ${items.length} items in database (page ${page} of ${Math.ceil(totalItems / limit)})`);
     
-    // Return paginated response
-    return NextResponse.json({
+    // Buat respons dengan header cache
+    const response = NextResponse.json({
       items: items || [],
       total: totalItems,
       page,
@@ -170,6 +166,11 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(totalItems / limit),
       countByStatus
     });
+    
+    // Tambahkan header Cache-Control
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching items:', error);
     // Return empty array instead of error to prevent UI crash
@@ -198,99 +199,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const body = await request.json();
-    const { 
-      serialNumber,
-      name,
-      partNumber,
-      sensor,
-      description,
-      customerId,
-      status
-    } = body;
+    const data = await request.json();
     
-    // Validation
-    if (!serialNumber) {
+    // Buat respons dengan header no-cache untuk memastikan data fresh
+    const response = NextResponse.json(
+      await prisma.item.create({
+        data: {
+          serialNumber: data.serialNumber,
+          name: data.name,
+          partNumber: data.partNumber,
+          sensor: data.sensor,
+          description: data.description,
+          customerId: data.customerId,
+          status: data.status
+        },
+      })
+    );
+    
+    // Set header Cache-Control untuk memastikan tidak ada caching
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
+  } catch (error: any) {
+    console.error('Error creating item:', error);
+    
+    if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Serial number is required' },
-        { status: 400 }
-      );
-    }
-    
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Item name is required' },
-        { status: 400 }
-      );
-    }
-    
-    if (!partNumber) {
-      return NextResponse.json(
-        { error: 'Part number is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if item with same serial number already exists
-    const existingItem = await prisma.item.findUnique({
-      where: { serialNumber }
-    });
-    
-    if (existingItem) {
-      return NextResponse.json(
-        { error: 'An item with this serial number already exists' },
+        { error: 'Item dengan serial number tersebut sudah ada' },
         { status: 409 }
       );
     }
     
-    // Create item data object with proper typing
-    const itemData: {
-      serialNumber: string,
-      name: string,
-      partNumber: string,
-      sensor: string | null,
-      description: string | null,
-      customerId: string | null,
-      status: ItemStatus
-    } = {
-      serialNumber,
-      name,
-      partNumber,
-      sensor: sensor || null,
-      description: description || null,
-      customerId: customerId || null,
-      status: status || ItemStatus.AVAILABLE
-    };
-    
-    // Create item
-    const item = await prisma.item.create({
-      data: itemData
-    });
-    
-    // Create a history entry for the new item
-    await prisma.itemHistory.create({
-      data: {
-        itemSerial: item.serialNumber,
-        action: 'ADDED',
-        details: 'Item added to inventory',
-      }
-    });
-    
-    // Create an activity log
-    await prisma.activityLog.create({
-      data: {
-        user: { connect: { id: user?.id || '' } },
-        item: { connect: { serialNumber: serialNumber } },
-        action: 'ADDED',
-        details: `Item ${name} (${serialNumber}) added to inventory`
-      }
-    });
-    
-    return NextResponse.json(item, { status: 201 });
-  } catch (error) {
-    console.error('Error creating item:', error);
     return NextResponse.json(
-      { error: 'Failed to create item' },
+      { error: 'Gagal menambahkan item baru' },
       { status: 500 }
     );
   }

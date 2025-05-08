@@ -57,8 +57,8 @@ export default function UserItemsPage() {
   
   // Function to fetch items with pagination
   const fetchItems = async (page: number, search: string = '') => {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
       
       // Build query params
       const params = new URLSearchParams();
@@ -68,19 +68,39 @@ export default function UserItemsPage() {
       params.append('page', page.toString());
       params.append('limit', itemsPerPage.toString());
       
+      // Cek apakah data ada di cache dan masih valid (tidak lebih dari 1 menit)
+      const cacheKey = `items_${params.toString()}`;
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_time`);
+      const now = Date.now();
+      
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < 60000) {
+        // Gunakan data dari cache jika masih valid
+        const data = JSON.parse(cachedData);
+        setItems(data.items || []);
+        setTotalItems(data.total || 0);
+        setLoading(false);
+        setIsSearching(false);
+        return;
+      }
+      
       const response = await fetch(`/api/user/items?${params.toString()}`);
       
       if (!response.ok) {
-              throw new Error('Failed to fetch items');
-            }
+        throw new Error('Failed to fetch items');
+      }
       
       const data = await response.json();
+      
+      // Simpan data ke cache
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}_time`, now.toString());
       
       // If API returns paginated data
       if (data.items && typeof data.total === 'number') {
         setItems(data.items);
         setTotalItems(data.total);
-          } else {
+      } else {
         // Fallback if API doesn't support pagination yet
         setItems(data);
         setTotalItems(data.length);
@@ -88,20 +108,20 @@ export default function UserItemsPage() {
       
       setLoading(false);
       setIsSearching(false);
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching items:', error);
       setError('Failed to load items. Please try again.');
-        setLoading(false);
+      setLoading(false);
       setIsSearching(false);
-      }
-    };
+    }
+  };
     
   // Fetch items on initial load and when page changes
   useEffect(() => {
     if (searchQuery) {
       debouncedFetch(currentPage, searchQuery);
     } else {
-    fetchItems(currentPage, searchQuery);
+      fetchItems(currentPage, searchQuery);
     }
   }, [currentPage, searchQuery, debouncedFetch]);
   
@@ -143,6 +163,14 @@ export default function UserItemsPage() {
       }
       
       toast.success('Maintenance berhasil dimulai');
+      
+      // Hapus cache setelah melakukan perubahan status item
+      Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('items_')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
       router.push(`/user/maintenance/${data.id}`);
     } catch (error: unknown) {
       console.error('Error starting maintenance:', error);

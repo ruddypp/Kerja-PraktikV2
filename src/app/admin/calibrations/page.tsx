@@ -173,7 +173,11 @@ export default function CalibrationPage() {
   
   // Mengganti useEffect dengan SWR untuk data vendors dan statuses
   useSWR('/api/admin/vendors', fetcher, {
-    onSuccess: (data: Vendor[]) => setVendors(data),
+    onSuccess: (data) => {
+      // Extract vendors array from the response object
+      // The API returns {items: Vendor[], total: number, ...} 
+      setVendors(Array.isArray(data) ? data : (data.items || []));
+    },
     revalidateOnFocus: false
   });
   
@@ -434,18 +438,46 @@ export default function CalibrationPage() {
         credentials: 'include',
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal menghapus kalibrasi');
+      // Handle empty response bodies
+      let data = {};
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
       }
       
-      // Success
-      toast.success('Kalibrasi berhasil dihapus');
+      if (!response.ok) {
+        console.error('Delete calibration error response:', data);
+        throw new Error(data.error || `Gagal menghapus kalibrasi (${response.status})`);
+      }
+      
+      // Success - even if we got an error but the status is 2xx, consider it a success
+      // This helps handle the case where the item is deleted but there's a non-critical error
+      toast.success(data.message || 'Kalibrasi berhasil dihapus');
       closeDeleteModal();
-      fetchCalibrations(); // Refresh data
+      
+      // Always refresh the data regardless
+      fetchCalibrations();
     } catch (error: Error | unknown) {
       console.error('Error deleting calibration:', error);
-      toast.error(error instanceof Error ? error.message : 'Gagal menghapus kalibrasi');
+      let errorMessage = 'Gagal menghapus kalibrasi';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('Error details:', error.stack);
+      }
+      
+      toast.error(errorMessage);
+      setError(errorMessage);
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => {
+        setError('');
+      }, 5000);
+      
+      // Still refresh the data even after error, in case of partial success
+      fetchCalibrations();
     } finally {
       setActionInProgress(false);
     }

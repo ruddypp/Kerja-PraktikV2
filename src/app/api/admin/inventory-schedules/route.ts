@@ -22,16 +22,35 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Select hanya kolom yang diperlukan untuk list view
     const schedules = await prisma.inventoryCheck.findMany({
       where: {
         completedDate: null // Only get scheduled checks that haven't been completed
       },
+      select: {
+        id: true,
+        notes: true,
+        scheduledDate: true,
+        completedDate: true,
+        // Tidak perlu user detail di list view
+        userId: true,
+        createdAt: true,
+      },
       orderBy: {
         scheduledDate: 'asc'
-      }
+      },
+      // Batasi hasil query untuk performa
+      take: 100
     });
     
-    return NextResponse.json(schedules);
+    // Buat response dengan header cache
+    const response = NextResponse.json(schedules);
+    
+    // Set header Cache-Control untuk memungkinkan browser caching
+    // max-age=60 berarti cache akan valid selama 60 detik
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching inventory schedules:', error);
     return NextResponse.json(
@@ -86,7 +105,13 @@ export async function POST(request: Request) {
       }
     });
     
-    return NextResponse.json(schedule, { status: 201 });
+    // Buat response dengan header no-cache
+    const response = NextResponse.json(schedule, { status: 201 });
+    
+    // Set header Cache-Control untuk memastikan data tidak di-cache
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error creating inventory schedule:', error);
     return NextResponse.json(
@@ -116,9 +141,10 @@ export async function PATCH(request: Request) {
       );
     }
     
-    // Verify schedule exists
+    // Verify schedule exists - gunakan select untuk mengoptimasi query
     const existingSchedule = await prisma.inventoryCheck.findUnique({
-      where: { id }
+      where: { id },
+      select: { id: true }
     });
     
     if (!existingSchedule) {
@@ -164,7 +190,13 @@ export async function PATCH(request: Request) {
       }
     });
     
-    return NextResponse.json(updatedSchedule);
+    // Buat response dengan header no-cache
+    const response = NextResponse.json(updatedSchedule);
+    
+    // Set header Cache-Control untuk memastikan data tidak di-cache
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error updating inventory schedule:', error);
     return NextResponse.json(
@@ -194,9 +226,10 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Verify schedule exists
+    // Verify schedule exists - gunakan select untuk mengoptimasi query
     const existingSchedule = await prisma.inventoryCheck.findUnique({
-      where: { id }
+      where: { id },
+      select: { id: true }
     });
     
     if (!existingSchedule) {
@@ -216,11 +249,17 @@ export async function DELETE(request: Request) {
       data: {
         userId: user.id,
         action: 'DELETED_SCHEDULE',
-        details: `Deleted inventory check scheduled for ${new Date(existingSchedule.scheduledDate).toLocaleDateString()}`
+        details: `Deleted inventory check schedule with ID ${id}`
       }
     });
     
-    return NextResponse.json({ success: true });
+    // Buat response dengan header no-cache
+    const response = NextResponse.json({ success: true });
+    
+    // Set header Cache-Control untuk memastikan data tidak di-cache
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error deleting inventory schedule:', error);
     return NextResponse.json(

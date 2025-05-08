@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { decodeToken } from '@/lib/auth';
 
 // Helper function to get user ID from token
-async function getUserId(request: Request): Promise<number | null> {
+async function getUserId(request: Request): Promise<string | null> {
   try {
     // Get token from cookies manually
     const cookieHeader = request.headers.get('cookie') || '';
@@ -14,7 +14,8 @@ async function getUserId(request: Request): Promise<number | null> {
       })
     );
     
-    const token = cookies['auth_token'];
+    const token = cookies['auth_token'] || 
+                  request.headers.get('authorization')?.replace('Bearer ', '');
     
     if (token) {
       const userData = decodeToken(token);
@@ -32,7 +33,7 @@ async function getUserId(request: Request): Promise<number | null> {
 // GET a single calibration by ID for user
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get user ID from token
@@ -41,11 +42,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: calibrationIdString } = context.params;
-    const id = parseInt(calibrationIdString);
+    // Await params to get id
+    const { id } = await params;
     
-    if (isNaN(id)) {
+    if (!id) {
       return NextResponse.json(
         { error: 'Invalid calibration ID' },
         { status: 400 }
@@ -55,25 +55,12 @@ export async function GET(
     const calibration = await prisma.calibration.findUnique({
       where: { id },
       include: {
-        request: {
-          include: {
-            item: {
-              include: {
-                category: true
-              }
-            },
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            },
-            status: true
-          }
-        },
-        status: true,
-        vendor: true
+        item: true,
+        user: true,
+        vendor: true,
+        statusLogs: true,
+        certificate: true,
+        activityLogs: true
       }
     });
     
@@ -85,7 +72,7 @@ export async function GET(
     }
     
     // Verify this calibration belongs to the user
-    if (calibration.request.userId !== userId) {
+    if (calibration.userId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -102,7 +89,7 @@ export async function GET(
 // PATCH update a calibration (limited capabilities for user)
 export async function PATCH(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get user ID from token
@@ -111,11 +98,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use params asynchronously as required by Next.js App Router
-    const { id: calibrationIdString } = context.params;
-    const id = parseInt(calibrationIdString);
+    // Await params to get id
+    const { id } = await params;
     
-    if (isNaN(id)) {
+    if (!id) {
       return NextResponse.json(
         { error: 'Invalid calibration ID' },
         { status: 400 }
@@ -126,11 +112,7 @@ export async function PATCH(
     const existingCalibration = await prisma.calibration.findUnique({
       where: { id },
       include: {
-        request: {
-          include: {
-            item: true
-          }
-        }
+        item: true
       }
     });
     
@@ -142,36 +124,27 @@ export async function PATCH(
     }
     
     // Verify this calibration belongs to the user
-    if (existingCalibration.request.userId !== userId) {
+    if (existingCalibration.userId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Parse request body
     const body = await request.json();
-    const { result } = body;
+    const { notes } = body;
     
-    // Users can only update limited fields like result notes
+    // Users can only update limited fields like notes
     const updatedCalibration = await prisma.calibration.update({
       where: { id },
       data: {
-        result
+        notes
       },
       include: {
-        request: {
-          include: {
-            item: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            },
-            status: true
-          }
-        },
-        status: true,
-        vendor: true
+        item: true,
+        user: true,
+        vendor: true,
+        statusLogs: true,
+        certificate: true,
+        activityLogs: true
       }
     });
     

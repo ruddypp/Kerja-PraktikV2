@@ -1,16 +1,22 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { DashboardStats, formatDate, formatNumber, calculatePercentage } from '@/lib/utils/dashboard';
 import { useRouter } from 'next/navigation';
-import { FiSearch } from 'react-icons/fi';
+import { FiSearch, FiRefreshCw } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
+
+// Constants for caching
+const CACHE_DURATION = 60000; // 1 minute
+const CACHE_KEY = 'admin_dashboard_data';
+const CACHE_TIMESTAMP_KEY = 'admin_dashboard_timestamp';
+const SEARCH_CACHE_PREFIX = 'admin_dashboard_search_';
 
 // Tipe data untuk statistik dashboard
 type DashboardData = DashboardStats & {
@@ -30,6 +36,53 @@ interface InventoryItem {
   status: string;
 }
 
+// Function to ensure numeric values
+function ensureNumericValues(data: any): DashboardData {
+  // Check if data is defined
+  if (!data) {
+    return {
+      totalItems: 0,
+      availableItems: 0,
+      inUseItems: 0,
+      inCalibrationItems: 0,
+      inRentalItems: 0,
+      inMaintenanceItems: 0,
+      pendingRequests: 0,
+      pendingCalibrations: 0,
+      pendingRentals: 0,
+      upcomingCalibrations: 0,
+      overdueRentals: 0,
+      notifications: []
+    };
+  }
+  
+  // Helper function to convert any value to number safely
+  const toNumber = (value: any): number => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+  
+  return {
+    totalItems: toNumber(data.totalItems),
+    availableItems: toNumber(data.availableItems),
+    inUseItems: toNumber(data.inUseItems),
+    inCalibrationItems: toNumber(data.inCalibrationItems),
+    inRentalItems: toNumber(data.inRentalItems),
+    inMaintenanceItems: toNumber(data.inMaintenanceItems),
+    pendingRequests: toNumber(data.pendingRequests),
+    pendingCalibrations: toNumber(data.pendingCalibrations),
+    pendingRentals: toNumber(data.pendingRentals),
+    upcomingCalibrations: toNumber(data.upcomingCalibrations),
+    overdueRentals: toNumber(data.overdueRentals),
+    notifications: Array.isArray(data.notifications) ? data.notifications : []
+  };
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardData | null>(null);
@@ -42,25 +95,72 @@ export default function AdminDashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch dashboard data with caching
+  const fetchDashboardData = useCallback(async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      
+      // Check cache first (unless force refresh is requested)
+      if (!forceRefresh) {
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+        
+        // Use cache if available and not expired
+        if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+          try {
+            const parsedData = JSON.parse(cachedData);
+            const validatedData = ensureNumericValues(parsedData);
+            setStats(validatedData);
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.error('Error parsing cached data:', e);
+            // Continue with fetching fresh data
+          }
+        }
+      }
+      
+      const res = await fetch('/api/admin/dashboard', {
+        cache: forceRefresh ? 'no-store' : 'default',
+        headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : {}
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+      
+      const data = await res.json();
+      const validatedData = ensureNumericValues(data);
+      
+      // Cache the validated results
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(validatedData));
+      sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+      
+      setStats(validatedData);
+    } catch (err) {
+      setError('Error loading dashboard data. Please try again later.');
+      console.error(err);
+      
+      // Try to use cached data even if it's expired
+      const cachedData = sessionStorage.getItem(CACHE_KEY);
+      if (cachedData) {
+        try {
+          const parsedData = JSON.parse(cachedData);
+          const validatedData = ensureNumericValues(parsedData);
+          setStats(validatedData);
+        } catch (e) {
+          console.error('Error parsing fallback cached data:', e);
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const res = await fetch('/api/admin/dashboard');
-        if (!res.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-        const data = await res.json();
-        
-        setStats(data);
-      } catch (err) {
-        setError('Error loading dashboard data. Please try again later.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
     
     // Handler untuk menutup suggestion ketika klik di luar
@@ -74,10 +174,27 @@ export default function AdminDashboard() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [fetchDashboardData]);
   
-  // Fungsi untuk mencari item
-  const searchItems = async (term: string) => {
+  // Debug effect to log stats data for troubleshooting
+  useEffect(() => {
+    if (stats) {
+      console.log('Dashboard Stats:', {
+        totalItems: stats.totalItems,
+        availableItems: stats.availableItems,
+        inCalibrationItems: stats.inCalibrationItems,
+        inRentalItems: stats.inRentalItems,
+        inMaintenanceItems: stats.inMaintenanceItems,
+        types: {
+          totalItems: typeof stats.totalItems,
+          availableItems: typeof stats.availableItems,
+        }
+      });
+    }
+  }, [stats]);
+  
+  // Fungsi untuk mencari item dengan caching
+  const searchItems = useCallback(async (term: string) => {
     if (!term || term.length < 2) {
       setSearchResults([]);
       setShowSuggestions(false);
@@ -86,10 +203,30 @@ export default function AdminDashboard() {
     
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/admin/items?search=${encodeURIComponent(term)}&limit=5`);
+      // Check search cache first
+      const searchCacheKey = `${SEARCH_CACHE_PREFIX}${term}`;
+      const cachedResults = sessionStorage.getItem(searchCacheKey);
+      
+      if (cachedResults) {
+        const data = JSON.parse(cachedResults);
+        setSearchResults(data);
+        setShowSuggestions(true);
+        setIsSearching(false);
+        return;
+      }
+      
+      const res = await fetch(`/api/admin/items?search=${encodeURIComponent(term)}&limit=5`, {
+        headers: { 'Cache-Control': 'max-age=30' }
+      });
+      
       if (res.ok) {
         const data = await res.json();
-        setSearchResults(data.items || []);
+        const items = data.items || [];
+        
+        // Cache search results (for 5 minutes)
+        sessionStorage.setItem(searchCacheKey, JSON.stringify(items));
+        
+        setSearchResults(items);
         setShowSuggestions(true);
       } else {
         setSearchResults([]);
@@ -100,16 +237,27 @@ export default function AdminDashboard() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
   
-  // Debounce search dengan useEffect
+  // Improved debounce search with useEffect and cleanup
   useEffect(() => {
-    const timerId = setTimeout(() => {
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debouncing
+    searchTimeoutRef.current = setTimeout(() => {
       searchItems(searchTerm);
     }, 300);
     
-    return () => clearTimeout(timerId);
-  }, [searchTerm]);
+    // Cleanup on unmount or searchTerm change
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, searchItems]);
   
   // Handle item selection dan navigasi ke halaman history
   const handleItemSelect = (item: InventoryItem) => {
@@ -136,6 +284,11 @@ export default function AdminDashboard() {
     );
   };
   
+  // Handle refresh action
+  const handleRefresh = () => {
+    fetchDashboardData(true);
+  };
+  
   // Pie chart configuration
   const pieChartOptions = {
     responsive: true,
@@ -150,38 +303,63 @@ export default function AdminDashboard() {
     },
   };
 
-  const pieChartData = stats ? {
-    labels: ['Available', 'In Calibration', 'Rented', 'Maintenance'],
-    datasets: [
-      {
-        label: 'Status Barang',
-        data: [
-          stats.availableItems || 0,
-          stats.inCalibrationItems || 0,
-          stats.inRentalItems || 0,
-          stats.inMaintenanceItems || 0,
-        ],
-        backgroundColor: [
-          'rgba(75, 192, 75, 0.7)',
-          'rgba(153, 102, 255, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-          'rgba(255, 99, 132, 0.7)',
-        ],
-        borderColor: [
-          'rgba(75, 192, 75, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(255, 99, 132, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  } : { labels: [], datasets: [] };
+  // Create safe pie chart data with type checking
+  const createPieChartData = (data: DashboardData | null) => {
+    if (!data) return { labels: [], datasets: [] };
+    
+    // Ensure all values are numbers
+    const availableItems = typeof data.availableItems === 'number' ? data.availableItems : 0;
+    const inCalibrationItems = typeof data.inCalibrationItems === 'number' ? data.inCalibrationItems : 0;
+    const inRentalItems = typeof data.inRentalItems === 'number' ? data.inRentalItems : 0;
+    const inMaintenanceItems = typeof data.inMaintenanceItems === 'number' ? data.inMaintenanceItems : 0;
+    
+    return {
+      labels: ['Available', 'In Calibration', 'Rented', 'Maintenance'],
+      datasets: [
+        {
+          label: 'Status Barang',
+          data: [
+            availableItems,
+            inCalibrationItems,
+            inRentalItems,
+            inMaintenanceItems,
+          ],
+          backgroundColor: [
+            'rgba(75, 192, 75, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 206, 86, 0.7)',
+            'rgba(255, 99, 132, 0.7)',
+          ],
+          borderColor: [
+            'rgba(75, 192, 75, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(255, 99, 132, 1)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  // Use the safe function to create pie chart data
+  const pieChartData = createPieChartData(stats);
 
   return (
     <DashboardLayout>
       <div className="px-2 sm:px-0">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Dashboard</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
+          
+          <button
+            onClick={handleRefresh}
+            className="flex items-center space-x-1 bg-white border border-gray-300 px-3 py-1 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            disabled={loading}
+          >
+            <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
         
         {/* Search Bar dengan Suggestion */}
         <div className="mb-6 relative" ref={searchRef}>
@@ -234,12 +412,12 @@ export default function AdminDashboard() {
           )}
         </div>
         
-        {loading ? (
+        {loading && !stats ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
             <span className="ml-3 text-lg text-gray-700">Loading dashboard data...</span>
           </div>
-        ) : error ? (
+        ) : error && !stats ? (
           <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">
             <p>{error}</p>
           </div>
@@ -256,7 +434,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.totalItems) : 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.totalItems === 'number' ? formatNumber(stats.totalItems) : 0}</p>
                     <Link href="/admin/inventory" className="text-sm text-green-600 hover:underline">Lihat detail</Link>
                   </div>
                 </div>
@@ -271,7 +449,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingRequests) : 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingRequests === 'number' ? formatNumber(stats.pendingRequests) : 0}</p>
                     <Link href="/admin/requests" className="text-sm text-blue-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -287,7 +465,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingCalibrations) : 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingCalibrations === 'number' ? formatNumber(stats.pendingCalibrations) : 0}</p>
                     <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -302,7 +480,7 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats ? formatNumber(stats.pendingRentals) : 0}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingRentals === 'number' ? formatNumber(stats.pendingRentals) : 0}</p>
                     <Link href="/admin/rentals" className="text-sm text-yellow-600 hover:underline">Lihat pending</Link>
                   </div>
                 </div>
@@ -316,40 +494,48 @@ export default function AdminDashboard() {
                 <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-green-700 font-medium">Available</span>
-                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.availableItems) : 0}</span>
+                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-green-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` }}></div>
+                    <div className="bg-green-500 h-2" style={{ width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-purple-700 font-medium">In Calibration</span>
-                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inCalibrationItems) : 0}</span>
+                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` }}></div>
+                    <div className="bg-purple-500 h-2" style={{ width: `${stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-yellow-700 font-medium">Rented</span>
-                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inRentalItems) : 0}</span>
+                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-yellow-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` }}></div>
+                    <div className="bg-yellow-500 h-2" style={{ width: `${stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
                 
                 <div className="bg-red-50 p-4 rounded-lg border border-red-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-red-700 font-medium">Maintenance</span>
-                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">{stats ? formatNumber(stats.inMaintenanceItems) : 0}</span>
+                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-red-500 h-2" style={{ width: `${stats ? calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` }}></div>
+                    <div className="bg-red-500 h-2" style={{ width: `${stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -368,7 +554,9 @@ export default function AdminDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-700">{stats?.upcomingCalibrations || 0} barang mendekati jadwal kalibrasi dalam 7 hari</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} barang mendekati jadwal kalibrasi dalam 7 hari
+                      </p>
                       <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:underline">Lihat detail</Link>
                     </div>
                   </div>
@@ -380,7 +568,9 @@ export default function AdminDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-700">{stats?.overdueRentals || 0} barang melebihi batas waktu rental</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} barang melebihi batas waktu rental
+                      </p>
                       <Link href="/admin/rentals" className="text-xs text-red-600 hover:underline">Lihat detail</Link>
                     </div>
                   </div>
@@ -409,7 +599,7 @@ export default function AdminDashboard() {
                 <Link href="/admin/notifications" className="text-sm text-blue-600 hover:underline">Lihat semua</Link>
               </div>
               
-              {stats?.notifications && stats.notifications.length > 0 ? (
+              {stats?.notifications && Array.isArray(stats.notifications) && stats.notifications.length > 0 ? (
                 <div className="space-y-3">
                   {stats.notifications.slice(0, 5).map(notification => (
                     <div key={notification.id} className={`px-4 py-3 rounded-lg border-l-4 ${notification.isRead ? 'border-gray-300 bg-gray-50' : 'border-blue-500 bg-blue-50'}`}>

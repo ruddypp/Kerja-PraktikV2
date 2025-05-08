@@ -174,27 +174,41 @@ export async function GET(
     
     // Koordinat
     const { width, height } = page.getSize();
-    const centerX = width / 2;
+    const margin = 6;
     
-    // --- Header dengan border hijau ---
+    // --- Double Border around the entire page ---
+    // Outer border
     page.drawRectangle({
-      x: 20,
-      y: height - 140,
-      width: width - 40,
-      height: 120,
+      x: margin,
+      y: margin,
+      width: width - 2 * margin,
+      height: height - 2 * margin,
       borderColor: darkGreen,
       borderWidth: 2,
     });
-
-  // --- Add border around entire page ---
-  page.drawRectangle({
-    x: 20,
-    y: 20,
-    width: width - 40,
-    height: height - 40,
-    borderColor: darkGreen,
-    borderWidth: 1.5,
-    });  
+    
+    // Inner border (slightly smaller)
+    page.drawRectangle({
+      x: margin + 5,
+      y: margin + 5,
+      width: width - 2 * (margin + 5),
+      height: height - 2 * (margin + 5),
+      borderColor: darkGreen,
+      borderWidth: 1,
+    });
+    
+    // --- Header box ---
+    const headerY = height - 110;
+    
+    // Header box rectangle
+    page.drawRectangle({
+      x: margin + 5,
+      y: headerY,
+      width: width - 2 * (margin + 5),
+      height: 100,
+      borderColor: black,
+      borderWidth: 1,
+    });
     
 // --- Logo Perusahaan (PNG dari public/logo1.png) ---
 const logoPath = path.join(process.cwd(), 'public', 'logo1.png');
@@ -204,7 +218,7 @@ const logoDims = logoImage.scale(1.2); // Sesuaikan skala sesuai ukuran logo
 
 page.drawImage(logoImage, {
   x: 25,
-  y: height - 125, // Sesuaikan posisi Y agar sejajar dengan teks header
+  y: height - 110, // Sesuaikan posisi Y agar sejajar dengan teks header
   width: logoDims.width,
   height: logoDims.height
 });
@@ -212,70 +226,75 @@ page.drawImage(logoImage, {
     
     // --- Informasi Perusahaan ---
     page.drawText('PT. PARAMATA BARAYA INTERNATIONAL', {
-      x: 150,
-      y: height - 60,
+      x: width / 2 - 155,
+      y: headerY + 80,
       size: 14,
       font: helveticaBold,
       color: black
     });
     
     page.drawText('Kompleks Palem Ganda Asri 1 Blok A3 No. 8', {
-      x: 150,
-      y: height - 75,
+      x: width / 2 - 135,
+      y: headerY + 60,
       size: 10,
       font: helvetica,
       color: black
     });
     
     page.drawText('Karang Tengah, Ciledug - Tangerang 15157', {
-      x: 150,
-      y: height - 90,
+      x: width / 2 - 130,
+      y: headerY + 45,
       size: 10,
       font: helvetica,
       color: black
     });
     
     page.drawText('Telp. 62-21 730 6424, 733 1150 / Faks. 62-21 733 1150', {
-      x: 150,
-      y: height - 105,
+      x: width / 2 - 155,
+      y: headerY + 30,
       size: 10,
       font: helvetica,
       color: black
     });
     
     page.drawText('Email : paramata@indosat.net.id', {
-      x: 150,
-      y: height - 120,
+      x: width / 2 - 90,
+      y: headerY + 15,
       size: 10,
       font: helvetica,
       color: black
     });
     
   // --- Judul Sertifikat ---
-page.drawText('CALIBRATION AND TEST CERTIFICATE', {
-  x: centerX - 150,
-  y: height - 180,
-  size: 16,
-  font: helveticaBold,
-  color: black
-});
+  const titleY = headerY - 35;
+  page.drawText('CALIBRATION AND TEST CERTIFICATE', {
+    x: width / 2 - 130,
+    y: titleY,
+    size: 16,
+    font: helveticaBold,
+    color: black
+  });
 
-// Add the underline
-const textWidth = helveticaBold.widthOfTextAtSize('CALIBRATION AND TEST CERTIFICATE', 16);
-page.drawLine({
-  start: { x: centerX - 150, y: height - 185 }, // Position slightly below the text
-  end: { x: centerX - 150 + textWidth, y: height - 185 },
-  thickness: 1.5,
-  color: black
-});
+  // Add the underline
+  const textWidth = helveticaBold.widthOfTextAtSize('CALIBRATION AND TEST CERTIFICATE', 16);
+  page.drawLine({
+    start: { x: width / 2 - 130, y: titleY - 5 }, // Position slightly below the text
+    end: { x: width / 2 - 130 + textWidth, y: titleY - 5 },
+    thickness: 1.5,
+    color: black
+  });
 
     // --- Informasi Sertifikat dan Pelanggan ---
+    const infoStartY = titleY - 40;
+    const leftColX = margin + 30;
+    const rightColX = width / 2 + 30;
+
     const certNumber = (calibration.certificateNumber || '').toString() !== '' ? 
       calibration.certificateNumber as string : '-';
 
     page.drawText(`Certificate No : ${certNumber}`, {
-      x: 40,
-      y: height - 220,
+      x: leftColX,
+      y: infoStartY,
       size: 12,
       font: helveticaBold,
       color: black
@@ -287,8 +306,8 @@ page.drawLine({
     const vendorPhone = (calibration.vendor && calibration.vendor.contactPhone) ? calibration.vendor.contactPhone : '-';
 
     page.drawText(`Company : ${vendorName}`, {
-      x: 40,
-      y: height - 240,
+      x: leftColX,
+      y: infoStartY - 25,
       size: 12,
       font: helvetica,
       color: black
@@ -296,8 +315,8 @@ page.drawLine({
 
     // Alamat vendor (selalu tampilkan)
     page.drawText(`Address : ${vendorAddress}`, {
-      x: 40,
-      y: height - 270,
+      x: leftColX,
+      y: infoStartY - 50,
       size: 12,
       font: helvetica,
       color: black
@@ -305,16 +324,16 @@ page.drawLine({
 
     // --- Informasi Kontak ---
     page.drawText(`Phone : ${vendorPhone}`, {
-      x: 40,
-      y: height - 300,
+      x: leftColX,
+      y: infoStartY - 75,
       size: 12,
       font: helvetica,
       color: black
     });
 
     page.drawText(`Fax : ${vendorPhone}`, {
-      x: 40,
-      y: height - 320,
+      x: leftColX,
+      y: infoStartY - 100,
       size: 12,
       font: helvetica,
       color: black
@@ -336,40 +355,40 @@ page.drawLine({
       calibration.item.serialNumber : '-';
 
     page.drawText(`Manufacturer : ${manufacturer}`, {
-      x: width - 230,
-      y: height - 220,
+      x: rightColX,
+      y: infoStartY,
       size: 12,
       font: helvetica,
       color: black
     });
 
     page.drawText(`Instrument : ${instrumentName}`, {
-      x: width - 230,
-      y: height - 240,
+      x: rightColX,
+      y: infoStartY - 25,
       size: 12,
       font: helvetica,
       color: black
     });
 
     page.drawText(`Model : ${modelNumber}`, {
-      x: width - 230,
-      y: height - 260,
+      x: rightColX,
+      y: infoStartY - 50,
       size: 12,
       font: helvetica,
       color: black
     });
 
     page.drawText(`Configuration : ${configuration}`, {
-      x: width - 230,
-      y: height - 280,
+      x: rightColX,
+      y: infoStartY - 75,
       size: 12,
       font: helvetica,
       color: black
     });
 
     page.drawText(`Serial No : ${serialNumber}`, {
-      x: width - 230,
-      y: height - 300,
+      x: rightColX,
+      y: infoStartY - 100,
       size: 12,
       font: helvetica,
       color: black
@@ -380,35 +399,38 @@ page.drawLine({
       formatDateID(new Date(calibration.calibrationDate)) : '-';
     
     page.drawText(`Calibration Date : ${calibrationDateStr}`, {
-      x: width - 230,
-      y: height - 320,
+      x: rightColX,
+      y: infoStartY - 125,
       size: 12,
       font: helvetica,
       color: black
     });
     
     // --- Informasi Gas Kalibrasi ---
+    const gasY = infoStartY - 160;
     page.drawText('Calibration Gases :', {
-      x: 40,
-      y: height - 360,
+      x: leftColX,
+      y: gasY,
       size: 12,
       font: helveticaBold,
       color: black
     });
     
     // Tabel Gas Kalibrasi
-    const tableTop = height - 400;
+    const tableTop = gasY - 30;
+    const tableWidth = width - 2 * (margin + 30);
+    
     // Header tabel
     page.drawRectangle({
-      x: 40,
+      x: leftColX,
       y: tableTop,
-      width: 70,
+      width: 60,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('No.', {
-      x: 65,
+      x: leftColX + 20,
       y: tableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -416,15 +438,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 110,
+      x: leftColX + 60,
       y: tableTop,
-      width: 150,
+      width: 130,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Gas', {
-      x: 165,
+      x: leftColX + 110,
       y: tableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -432,15 +454,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 260,
+      x: leftColX + 190,
       y: tableTop,
-      width: 120,
+      width: 100,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Concentration', {
-      x: 290,
+      x: leftColX + 210,
       y: tableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -448,7 +470,7 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 380,
+      x: leftColX + 290,
       y: tableTop,
       width: 80,
       height: 25,
@@ -456,7 +478,7 @@ page.drawLine({
       borderWidth: 1
     });
     page.drawText('Balance', {
-      x: 405,
+      x: leftColX + 310,
       y: tableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -464,15 +486,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 460,
+      x: leftColX + 370,
       y: tableTop,
-      width: 100,
+      width: tableWidth - 370,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Batch / Lot No.', {
-      x: 475,
+      x: leftColX + 390,
       y: tableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -482,15 +504,15 @@ page.drawLine({
     // Data gas
     const dataRow1 = tableTop - 25;
     page.drawRectangle({
-      x: 40,
+      x: leftColX,
       y: dataRow1,
-      width: 70,
+      width: 60,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('1', {
-      x: 65,
+      x: leftColX + 20,
       y: dataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -504,15 +526,15 @@ page.drawLine({
     const gasBatchNumber = (certificateData.gasBatchNumber || '').toString() !== '' ? certificateData.gasBatchNumber as string : '-';
 
     page.drawRectangle({
-      x: 110,
+      x: leftColX + 60,
       y: dataRow1,
-      width: 150,
+      width: 130,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText(gasType, {
-      x: 120,
+      x: leftColX + 110,
       y: dataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -520,15 +542,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 260,
+      x: leftColX + 190,
       y: dataRow1,
-      width: 120,
+      width: 100,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText(gasConcentration, {
-      x: 280,
+      x: leftColX + 210,
       y: dataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -536,7 +558,7 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 380,
+      x: leftColX + 290,
       y: dataRow1,
       width: 80,
       height: 25,
@@ -544,7 +566,7 @@ page.drawLine({
       borderWidth: 1
     });
     page.drawText(gasBalance, {
-      x: 395,
+      x: leftColX + 310,
       y: dataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -552,15 +574,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 460,
+      x: leftColX + 370,
       y: dataRow1,
-      width: 100,
+      width: tableWidth - 370,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText(gasBatchNumber, {
-      x: 470,
+      x: leftColX + 390,
       y: dataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -569,7 +591,7 @@ page.drawLine({
     
     // --- Hasil Test ---
     page.drawText('Test Results :', {
-      x: 40,
+      x: leftColX,
       y: dataRow1 - 30,
       size: 12,
       font: helveticaBold,
@@ -580,15 +602,15 @@ page.drawLine({
     const testTableTop = dataRow1 - 70;
     // Header tabel
     page.drawRectangle({
-      x: 40,
+      x: leftColX,
       y: testTableTop,
-      width: 70,
+      width: 60,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('No.', {
-      x: 65,
+      x: leftColX + 20,
       y: testTableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -596,15 +618,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 110,
+      x: leftColX + 60,
       y: testTableTop,
-      width: 210,
+      width: 260,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Sensor', {
-      x: 165,
+      x: leftColX + 165,
       y: testTableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -612,31 +634,32 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 320,
+      x: leftColX + 320,
       y: testTableTop,
-      width: 140,
+      width: 120,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Span', {
-      x: 365,
+      x: leftColX + 365,
       y: testTableTop + 10,
       size: 10,
       font: helveticaBold,
       color: black
     });
     
+    // Combined Pass/Fail columns
     page.drawRectangle({
-      x: 460,
+      x: leftColX + 440,
       y: testTableTop,
-      width: 50,
+      width: 40,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Pass', {
-      x: 475,
+      x: leftColX + 447,
       y: testTableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -644,15 +667,15 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 510,
+      x: leftColX + 480,
       y: testTableTop,
-      width: 50,
+      width: 40,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('Fail', {
-      x: 525,
+      x: leftColX + 488,
       y: testTableTop + 10,
       size: 10,
       font: helveticaBold,
@@ -662,15 +685,15 @@ page.drawLine({
     // Data test
     const testDataRow1 = testTableTop - 25;
     page.drawRectangle({
-      x: 40,
+      x: leftColX,
       y: testDataRow1,
-      width: 70,
+      width: 60,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText('1', {
-      x: 65,
+      x: leftColX + 20,
       y: testDataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -684,15 +707,15 @@ page.drawLine({
     const approvedBy = (certificateData.approvedBy || '').toString() !== '' ? certificateData.approvedBy as string : '-';
 
     page.drawRectangle({
-      x: 110,
+      x: leftColX + 60,
       y: testDataRow1,
-      width: 210,
+      width: 260,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText(testSensor, {
-      x: 120,
+      x: leftColX + 165,
       y: testDataRow1 + 10,
       size: 10,
       font: helvetica,
@@ -700,25 +723,26 @@ page.drawLine({
     });
     
     page.drawRectangle({
-      x: 320,
+      x: leftColX + 320,
       y: testDataRow1,
-      width: 140,
+      width: 120,
       height: 25,
       borderColor: black,
       borderWidth: 1
     });
     page.drawText(testSpan, {
-      x: 340,
+      x: leftColX + 365,
       y: testDataRow1 + 10,
       size: 10,
       font: helvetica,
       color: black
     });
     
+    // Pass column
     page.drawRectangle({
-      x: 460,
+      x: leftColX + 440,
       y: testDataRow1,
-      width: 50,
+      width: 40,
       height: 25,
       borderColor: black,
       borderWidth: 1
@@ -726,7 +750,7 @@ page.drawLine({
     // Cek hasil test untuk Pass
     if (testResult === 'Pass') {
       page.drawText('V', {
-        x: 480,
+        x: leftColX + 455,
         y: testDataRow1 + 10,
         size: 10,
         font: helveticaBold,
@@ -734,10 +758,11 @@ page.drawLine({
       });
     }
     
+    // Fail column
     page.drawRectangle({
-      x: 510,
+      x: leftColX + 480,
       y: testDataRow1,
-      width: 50,
+      width: 40,
       height: 25,
       borderColor: black,
       borderWidth: 1
@@ -745,7 +770,7 @@ page.drawLine({
     // Cek hasil test untuk Fail
     if (testResult === 'Fail') {
       page.drawText('X', {
-        x: 530,
+        x: leftColX + 495,
         y: testDataRow1 + 10,
         size: 10,
         font: helveticaBold,
@@ -755,7 +780,7 @@ page.drawLine({
     
     // --- Catatan Prosedur ---
     page.drawText('This instrument has been calibrated using valid calibration gases and instrument', {
-      x: 40,
+      x: leftColX,
       y: testDataRow1 - 50,
       size: 11,
       font: helveticaOblique,
@@ -763,7 +788,7 @@ page.drawLine({
     });
     
     page.drawText('manual operation procedure.', {
-      x: 40,
+      x: leftColX,
       y: testDataRow1 - 70,
       size: 11,
       font: helveticaOblique,
@@ -772,7 +797,7 @@ page.drawLine({
     
     // --- Approval ---
     page.drawText(`Approved By : ${approvedBy}`, {
-      x: 40,
+      x: leftColX,
       y: testDataRow1 - 210,
       size: 12,
       font: helveticaBold,
@@ -786,8 +811,8 @@ const honeywellLogoWidth = 110; // Adjust based on your logo size
 const honeywellLogoDims = honeywellLogoImage.scale(honeywellLogoWidth / honeywellLogoImage.width);
 
 page.drawImage(honeywellLogoImage, {
-  x: 450, // Position it where the current "Honeywell" text is
-  y: testDataRow1 - 210, // Adjust this position as needed
+  x: leftColX + 350, // Position it on the right side
+  y: testDataRow1 - 210, // Align with Approved By text
   width: honeywellLogoDims.width,
   height: honeywellLogoDims.height
 });

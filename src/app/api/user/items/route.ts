@@ -93,14 +93,20 @@ export async function GET(request: NextRequest) {
       take: limit
     });
     
-    // Return paginated response
-    return NextResponse.json({
+    // Siapkan response dengan header cache
+    const response = NextResponse.json({
       items: items,
       total: totalItems,
       page,
       limit,
       totalPages: Math.ceil(totalItems / limit)
     });
+    
+    // Set header Cache-Control untuk memungkinkan browser caching
+    // max-age=60 berarti cache akan valid selama 60 detik
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching user items:', error);
     return NextResponse.json(

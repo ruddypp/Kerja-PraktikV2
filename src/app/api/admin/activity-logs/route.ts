@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { ActivityType } from '@prisma/client';
 
 // NOTE: If you're seeing TypeScript errors related to the ActivityLog model,
 // you may need to regenerate the Prisma client after schema changes:
@@ -29,7 +30,6 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
     
     // Build query filters
-    // @ts-ignore - TypeScript might complain if Prisma client hasn't been regenerated after schema changes
     const filters: any = {};
     
     if (startDate || endDate) {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       }
     }
     
-    if (activityType) {
+    if (activityType && Object.values(ActivityType).includes(activityType as ActivityType)) {
       filters.type = activityType;
     }
     
@@ -61,12 +61,23 @@ export async function GET(request: Request) {
       filters.itemSerial = itemSerial;
     }
     
-    // Execute queries
-    // @ts-ignore - TypeScript might complain if Prisma client hasn't been regenerated after schema changes
+    // Execute queries with optimized selection
     const [activityLogs, total] = await Promise.all([
       prisma.activityLog.findMany({
         where: filters,
-        include: {
+        select: {
+          id: true,
+          type: true,
+          action: true,
+          details: true,
+          createdAt: true,
+          userId: true,
+          itemSerial: true,
+          rentalId: true,
+          calibrationId: true,
+          maintenanceId: true,
+          affectedUserId: true,
+          vendorId: true,
           user: {
             select: {
               id: true,
@@ -94,13 +105,23 @@ export async function GET(request: Request) {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    return NextResponse.json({
+    // Create response with data
+    const responseData = {
       items: activityLogs,
       total,
       page,
       limit,
       totalPages
-    });
+    };
+    
+    // Create response with cache headers
+    const response = NextResponse.json(responseData);
+    
+    // Set cache control headers - cache for 1 minute
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    response.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
+    
+    return response;
     
   } catch (error) {
     console.error('Error fetching admin activity logs:', error);

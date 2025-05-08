@@ -1,9 +1,21 @@
 @baseUrl = http://localhost:3000/api
 @contentType = application/json
-@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxM2YwMTMxLTYxMmYtNDVlYy1iY2ZhLTI3MzFhOWNmOTk4ZiIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzQ1OTk4MDcyLCJleHAiOjE3NDYwODQ0NzJ9.QEKon8mhYnaxt0dRzKQOwb1Hb0O0xG33L-HLku_Tz4A
 
-### Upload Image with Authentication via Cookie
-# @name uploadImageWithCookie
+### 1. Login to get authentication token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com",
+  "password": "user123"
+}
+
+### 2. Extract token from response
+@authToken = {{login.response.body.token}}
+
+### 3. Upload Image with Cookie Authentication
+# @name uploadWithCookie
 POST {{baseUrl}}/upload
 Cookie: auth_token={{authToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -15,8 +27,8 @@ Content-Type: image/jpeg
 < ./test-image.jpg
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload Image with Authentication via Bearer Token
-# @name uploadImageWithBearer
+### 4. Upload Image with Bearer Token Authentication
+# @name uploadWithBearer
 POST {{baseUrl}}/upload
 Authorization: Bearer {{authToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -28,8 +40,7 @@ Content-Type: image/png
 < ./test-image.png
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload Without Authentication (Should Fail)
-# @name uploadWithoutAuth
+### 5. Upload Without Authentication (Should Fail)
 POST {{baseUrl}}/upload
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
@@ -40,8 +51,7 @@ Content-Type: image/jpeg
 < ./test-image.jpg
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload Unsupported File Type (Should Fail)
-# @name uploadInvalidType
+### 6. Upload with Unsupported File Type (Should Fail)
 POST {{baseUrl}}/upload
 Cookie: auth_token={{authToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -53,8 +63,7 @@ Content-Type: application/pdf
 < ./test-doc.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload Without File (Should Fail)
-# @name uploadNoFile
+### 7. Upload with Missing File (Should Fail)
 POST {{baseUrl}}/upload
 Cookie: auth_token={{authToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -64,4 +73,32 @@ Content-Disposition: form-data; name="something_else";
 Content-Type: text/plain
 
 This is not a file
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 8. Upload with Empty File (Should Fail)
+POST {{baseUrl}}/upload
+Cookie: auth_token={{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename=""
+Content-Type: image/jpeg
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 9. Upload Multiple Images in One Request (Should Use Only First)
+POST {{baseUrl}}/upload
+Cookie: auth_token={{authToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image1.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image2.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
 ------WebKitFormBoundary7MA4YWxkTrZu0gW-- 

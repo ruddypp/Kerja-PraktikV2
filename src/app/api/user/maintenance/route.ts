@@ -48,9 +48,18 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
+      // Batasi hasil untuk meningkatkan performa
+      take: 50,
     });
     
-    return NextResponse.json(maintenances);
+    // Buat response dengan header cache
+    const response = NextResponse.json(maintenances);
+    
+    // Set header Cache-Control untuk memungkinkan browser caching
+    // max-age=60 berarti cache akan valid selama 60 detik
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    
+    return response;
   } catch (error) {
     console.error("Error saat mengambil data maintenance:", error);
     return NextResponse.json(
@@ -77,9 +86,13 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Cek apakah barang tersedia
+    // Cek apakah barang tersedia - Menggunakan select yang lebih spesifik
     const item = await prisma.item.findUnique({
       where: { serialNumber: itemSerial },
+      select: {
+        serialNumber: true,
+        status: true
+      }
     });
     
     if (!item) {
@@ -147,7 +160,11 @@ export async function POST(req: NextRequest) {
       `Memulai maintenance untuk barang ${itemSerial}`
     );
     
-    return NextResponse.json(maintenance);
+    // Hapus cache untuk memastikan data di halaman maintenance sudah diperbarui
+    const response = NextResponse.json(maintenance);
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error("Error saat membuat maintenance:", error);
     return NextResponse.json(

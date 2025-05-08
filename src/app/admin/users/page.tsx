@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -38,6 +37,7 @@ export default function AdminUsersPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   
   // Form state
   const [formData, setFormData] = useState<UserFormData>({
@@ -51,6 +51,26 @@ export default function AdminUsersPage() {
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Cache settings
+  const CACHE_DURATION = 60000; // 1 minute
+  const CACHE_KEY = 'admin_users_data';
+  const CACHE_TIMESTAMP_KEY = 'admin_users_last_fetch';
+
+  // Cache invalidation function
+  const invalidateCache = useCallback(() => {
+    sessionStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  }, []);
+  
+  // Debounce function for search
+  const debounce = useCallback((callback: (searchTerm: string) => void, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (searchTerm: string) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => callback(searchTerm), wait);
+    };
+  }, []);
   
   // Clear form
   const clearForm = useCallback(() => {
@@ -91,24 +111,48 @@ export default function AdminUsersPage() {
     setCurrentUser(user);
     setConfirmDeleteOpen(true);
   }, []);
+
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearch(term);
+      fetchData(term);
+    }, 500),
+    []
+  );
+
+  // Handle search input change
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
   
   // Fetch data
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (searchTerm = search) => {
     try {
       setLoading(true);
       setError('');
       
-      console.log('Fetching users...');
-      
       // Build query parameters
       const queryParams = new URLSearchParams();
-      if (search) queryParams.append('search', search);
+      if (searchTerm) queryParams.append('search', searchTerm);
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      const cacheKey = `${CACHE_KEY}${searchTerm ? '_' + searchTerm : ''}`;
       
-      const usersRes = await fetch(`/api/admin/users${queryString}`, {
-        cache: 'no-store',
-        next: { revalidate: 0 }
-      });
+      // Check if we have cached data
+      const cachedData = sessionStorage.getItem(cacheKey);
+      const lastFetch = sessionStorage.getItem(`${cacheKey}_timestamp`);
+      const now = Date.now();
+      
+      // Use cache if available and less than 1 minute old
+      if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+        setUsers(JSON.parse(cachedData));
+        setLoading(false);
+        return;
+      }
+      
+      const usersRes = await fetch(`/api/admin/users${queryString}`);
       
       if (!usersRes.ok) {
         console.error('Failed to fetch users:', usersRes.statusText);
@@ -118,6 +162,10 @@ export default function AdminUsersPage() {
       const usersData = await usersRes.json();
       setUsers(usersData);
       
+      // Cache the results
+      sessionStorage.setItem(cacheKey, JSON.stringify(usersData));
+      sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load users. Please try again.');
@@ -126,6 +174,17 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, [search]);
+  
+  // Initial data fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  // Refresh data - force fetch fresh data
+  const refreshData = () => {
+    invalidateCache();
+    fetchData();
+  };
   
   // Handle form change
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -204,17 +263,26 @@ export default function AdminUsersPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save user');
+        throw new Error(errorData.error || 'Failed to process user data');
       }
+      
+      // Success - clear form and close modal
+      clearForm();
+      setModalOpen(false);
+      
+      // Invalidate cache and fetch fresh data
+      invalidateCache();
+      fetchData();
       
       toast.success(successMessage);
       setSuccess(successMessage);
-      setModalOpen(false);
-      fetchData();
+      
+      // Clear success message after a timeout
+      setTimeout(() => setSuccess(''), 3000);
       
     } catch (error) {
-      console.error('Error saving user:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Form submission error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -222,13 +290,12 @@ export default function AdminUsersPage() {
     }
   };
   
-  // Handle user delete
+  // Handle delete
   const handleDelete = async () => {
     if (!currentUser) return;
     
     try {
       setFormSubmitting(true);
-      setError('');
       
       const response = await fetch(`/api/admin/users/${currentUser.id}`, {
         method: 'DELETE'
@@ -239,13 +306,22 @@ export default function AdminUsersPage() {
         throw new Error(errorData.error || 'Failed to delete user');
       }
       
-      toast.success('User deleted successfully');
+      // Success - close modal and refresh data
       setConfirmDeleteOpen(false);
+      
+      // Invalidate cache and fetch fresh data
+      invalidateCache();
       fetchData();
       
+      toast.success('User deleted successfully');
+      setSuccess('User deleted successfully');
+      
+      // Clear success message after a timeout
+      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (error) {
-      console.error('Error deleting user:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Delete error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -264,11 +340,6 @@ export default function AdminUsersPage() {
         return 'bg-gray-100 text-gray-800';
     }
   };
-  
-  // Load data on component mount
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   return (
     <div className="bg-white min-h-screen">
@@ -276,13 +347,23 @@ export default function AdminUsersPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
-            <button
-              onClick={openCreateModal}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
-              <FiPlus className="mr-2" />
-              Add New User
-            </button>
+            <div className="flex space-x-2">
+              <button 
+                onClick={refreshData}
+                className="btn btn-secondary flex items-center gap-2"
+                disabled={loading}
+              >
+                <FiRefreshCw className={loading ? "animate-spin" : ""} />
+                Refresh
+              </button>
+              <button
+                onClick={openCreateModal}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <FiPlus />
+                Add User
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -304,19 +385,12 @@ export default function AdminUsersPage() {
               </div>
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={handleSearchInputChange}
                 placeholder="Search users..."
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <button
-              onClick={() => fetchData()}
-              className="p-2 rounded-md hover:bg-gray-100"
-              title="Refresh"
-            >
-              <FiRefreshCw className={`h-5 w-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
-            </button>
           </div>
 
           <div className="overflow-x-auto ring-1 ring-black ring-opacity-5 rounded-lg shadow">

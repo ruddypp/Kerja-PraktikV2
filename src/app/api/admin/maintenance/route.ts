@@ -26,39 +26,70 @@ export async function GET(req: NextRequest) {
       where.itemSerial = itemId;
     }
     
-    // Fetch all maintenance requests with details
+    // Fetch all maintenance requests with details - select hanya field yang dibutuhkan
     const maintenances = await prisma.maintenance.findMany({
       where,
-      include: {
-        item: true,
+      select: {
+        id: true,
+        itemSerial: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        item: {
+          select: {
+            serialNumber: true,
+            name: true,
+            partNumber: true,
+          }
+        },
         user: {
           select: {
             id: true,
             name: true,
-            email: true,
+            // Tidak perlu email di halaman listing
+            // email: true,
           },
         },
-        serviceReport: true,
-        technicalReport: true,
-        statusLogs: {
-          include: {
-            changedBy: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
+        // Hanya butuh ID dari report untuk mengetahui apakah ada report
+        serviceReport: {
+          select: {
+            id: true,
+          }
         },
+        technicalReport: {
+          select: {
+            id: true,
+          }
+        },
+        // Tidak perlu status logs di halaman listing
+        // statusLogs: {
+        //   include: {
+        //     changedBy: {
+        //       select: {
+        //         name: true,
+        //       },
+        //     },
+        //   },
+        //   orderBy: {
+        //     createdAt: "desc",
+        //   },
+        // },
       },
       orderBy: {
         createdAt: "desc",
       },
+      // Batasi jumlah data yang diambil untuk meningkatkan performa
+      take: 50,
     });
     
-    return NextResponse.json(maintenances);
+    // Buat response dengan header cache
+    const response = NextResponse.json(maintenances);
+    
+    // Set header Cache-Control untuk memungkinkan browser caching
+    // max-age=60 berarti cache akan valid selama 60 detik
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    
+    return response;
   } catch (error) {
     console.error("Error fetching maintenance data:", error);
     return NextResponse.json(
