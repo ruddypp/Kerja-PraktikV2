@@ -223,12 +223,20 @@ export default function UserItemHistoryPage() {
                         : historyData.item.status === 'IN_USE'
                         ? 'bg-blue-100 text-blue-800'
                         : historyData.item.status === 'IN_CALIBRATION'
-                        ? 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-purple-100 text-purple-800'
                         : historyData.item.status === 'IN_MAINTENANCE'
-                        ? 'bg-orange-100 text-orange-800'
+                        ? 'bg-red-100 text-red-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {historyData.item.status}
+                      {historyData.item.status === 'AVAILABLE' 
+                        ? 'Available'
+                        : historyData.item.status === 'IN_USE'
+                        ? 'In Use'
+                        : historyData.item.status === 'IN_CALIBRATION'
+                        ? 'In Calibration'
+                        : historyData.item.status === 'IN_MAINTENANCE'
+                        ? 'In Maintenance'
+                        : historyData.item.status}
                     </span>
                   </p>
                 </div>
@@ -384,7 +392,7 @@ export default function UserItemHistoryPage() {
                                       {formatDate(cal.createdAt)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                                         CALIBRATION ({cal.status})
                                       </span>
                                     </td>
@@ -404,7 +412,7 @@ export default function UserItemHistoryPage() {
                                       {formatDate(maintenance.startDate)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                         MAINTENANCE ({maintenance.status})
                                       </span>
                                     </td>
@@ -528,7 +536,7 @@ export default function UserItemHistoryPage() {
                                           ? 'bg-red-100 text-red-800'
                                           : cal.status === 'IN_PROGRESS'
                                           ? 'bg-blue-100 text-blue-800'
-                                          : 'bg-yellow-100 text-yellow-800'
+                                          : 'bg-purple-100 text-purple-800'
                                       }`}>
                                         {cal.status}
                                       </span>
@@ -593,7 +601,7 @@ export default function UserItemHistoryPage() {
                                           ? 'bg-red-100 text-red-800'
                                           : maintenance.status === 'IN_PROGRESS'
                                           ? 'bg-blue-100 text-blue-800'
-                                          : 'bg-yellow-100 text-yellow-800'
+                                          : 'bg-red-100 text-red-800'
                                       }`}>
                                         {maintenance.status}
                                       </span>
@@ -626,6 +634,8 @@ export default function UserItemHistoryPage() {
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : 'bg-indigo-500 text-white hover:bg-indigo-600'
                             }`}
+                            aria-label="Previous page"
+                            title="Previous page"
                           >
                             <FiChevronLeft />
                           </button>
@@ -653,6 +663,8 @@ export default function UserItemHistoryPage() {
                                     ? 'bg-indigo-500 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
+                                aria-label={`Page ${pageNum}`}
+                                title={`Page ${pageNum}`}
                               >
                                 {pageNum}
                               </button>
@@ -667,6 +679,8 @@ export default function UserItemHistoryPage() {
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : 'bg-indigo-500 text-white hover:bg-indigo-600'
                             }`}
+                            aria-label="Next page"
+                            title="Next page"
                           >
                             <FiChevronRight />
                           </button>

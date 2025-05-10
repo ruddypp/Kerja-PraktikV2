@@ -122,7 +122,7 @@ export async function GET() {
     ];
     
     // Ensure all values are proper numbers
-    const ensureNumber = (value: any): number => {
+    const ensureNumber = (value: string | number): number => {
       if (typeof value === 'number') return value;
       if (typeof value === 'string') {
         const parsed = parseInt(value, 10);

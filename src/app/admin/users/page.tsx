@@ -333,7 +333,7 @@ export default function AdminUsersPage() {
       setFormSubmitting(false);
     }
   };
-
+  
   // Helper to get role badge color class
   const getRoleBadgeClass = (role: Role): string => {
     switch (role) {
@@ -349,40 +349,40 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">User Management</h1>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={refreshData}
+              <button 
+                onClick={refreshData}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              disabled={loading}
-            >
+                disabled={loading}
+              >
               <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
               {loading ? "Loading..." : "Refresh"}
-            </button>
-            <button
-              onClick={openCreateModal}
+              </button>
+              <button
+                onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
-            >
+              >
               <FiPlus size={16} />
-              Add User
-            </button>
+                Add User
+              </button>
+            </div>
           </div>
-        </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
 
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-            {success}
-          </div>
-        )}
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+              {success}
+            </div>
+          )}
 
         <div className="bg-white rounded-lg border border-gray-100 p-6">
           <div className="flex items-center space-x-4 mb-4">
@@ -498,20 +498,20 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => openEditModal(user)}
+                        <button
+                          onClick={() => openEditModal(user)}
                             className="text-blue-600 hover:text-blue-900"
                             title="Edit user"
-                          >
+                        >
                             <FiEdit2 className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(user)}
+                        </button>
+                        <button
+                          onClick={() => openDeleteConfirm(user)}
                             className="text-red-600 hover:text-red-900"
                             title="Delete user"
-                          >
+                        >
                             <FiTrash2 className="h-5 w-5" />
-                          </button>
+                        </button>
                         </div>
                       </td>
                     </tr>
@@ -630,7 +630,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-      
+
       {/* Delete Confirmation Modal */}
       {confirmDeleteOpen && currentUser && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-25 backdrop-blur-sm z-50 flex items-center justify-center p-4">

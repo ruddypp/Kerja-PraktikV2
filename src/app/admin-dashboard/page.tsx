@@ -348,29 +348,45 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <div className="px-2 sm:px-0">
-        <div className="flex justify-between items-center mb-6">
+        {/* Dashboard Header */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+          <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
+            <p className="text-gray-500 text-sm mt-1">Overview of inventory system status and activities</p>
+          </div>
           
+          <div className="flex items-center gap-2">
           <button
             onClick={handleRefresh}
-            className="flex items-center space-x-1 bg-white border border-gray-300 px-3 py-1 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center space-x-1 bg-white border border-gray-300 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
             disabled={loading}
           >
             <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
+            
+            <Link 
+              href="/admin/reports" 
+              className="flex items-center space-x-1 bg-green-50 border border-green-200 px-3 py-2 rounded-md text-sm text-green-700 hover:bg-green-100 transition-colors shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Reports</span>
+            </Link>
+          </div>
         </div>
         
-        {/* Search Bar dengan Suggestion */}
-        <div className="mb-6 relative" ref={searchRef}>
-          <div className="relative">
+        {/* Search Bar with Suggestions */}
+        <div className="mb-8 relative" ref={searchRef}>
+          <div className="relative max-w-2xl mx-auto">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FiSearch className="h-5 w-5 text-gray-400" />
             </div>
             <input
               type="text"
-              className="block w-full bg-white border border-gray-300 rounded-lg py-2 pl-10 pr-3 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              placeholder="Cari barang berdasarkan nama, serial number..."
+              className="block w-full bg-white border border-gray-300 rounded-md py-2.5 pl-10 pr-3 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm"
+              placeholder="Search for items by name, serial number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
@@ -379,24 +395,24 @@ export default function AdminDashboard() {
           
           {/* Suggestion Dropdown */}
           {showSuggestions && (
-            <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-60 overflow-y-auto">
+            <div className="absolute z-10 mt-1 w-full max-w-2xl mx-auto bg-white rounded-md shadow-lg max-h-60 overflow-y-auto border border-gray-200">
               {isSearching ? (
                 <div className="p-4 text-center text-gray-500">
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-green-500 mx-auto mb-2"></div>
-                  Sedang mencari...
+                  Searching...
                 </div>
               ) : searchResults.length > 0 ? (
                 <ul className="py-1">
                   {searchResults.map((item) => (
                     <li 
                       key={item.serialNumber}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b last:border-0 border-gray-100"
                       onClick={() => handleItemSelect(item)}
                     >
                       <div className="flex justify-between items-center">
                         <div>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-sm text-gray-600">SN: {item.serialNumber}</div>
+                          <div className="font-medium text-gray-800">{item.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">SN: {item.serialNumber} • PN: {item.partNumber}</div>
                         </div>
                         {getStatusBadge(item.status)}
                       </div>
@@ -405,7 +421,7 @@ export default function AdminDashboard() {
                 </ul>
               ) : searchTerm.length >= 2 ? (
                 <div className="p-4 text-center text-gray-500">
-                  Tidak ditemukan barang yang sesuai
+                  No matching items found
                 </div>
               ) : null}
             </div>
@@ -413,176 +429,309 @@ export default function AdminDashboard() {
         </div>
         
         {loading && !stats ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
-            <span className="ml-3 text-lg text-gray-700">Loading dashboard data...</span>
+          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600 mr-3"></div>
+            <span className="text-gray-700">Loading dashboard data...</span>
           </div>
         ) : error && !stats ? (
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">
-            <p>{error}</p>
+          <div className="bg-red-50 p-5 rounded-lg border border-red-200 text-red-700 shadow-sm">
+            <p className="font-medium mb-1">Error Loading Data</p>
+            <p className="text-sm">{error}</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Statistik Utama */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Barang</h2>
-                <div className="flex items-center">
-                  <div className="bg-green-100 p-3 rounded-full">
+          <div className="space-y-8">
+            {/* Main Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Items</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalItems === 'number' ? formatNumber(stats.totalItems) : 0}</h2>
+                    <Link href="/admin/inventory" className="text-sm text-green-600 hover:text-green-700 hover:underline inline-flex items-center mt-2 group">
+                      View inventory
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.totalItems === 'number' ? formatNumber(stats.totalItems) : 0}</p>
-                    <Link href="/admin/inventory" className="text-sm text-green-600 hover:underline">Lihat detail</Link>
-                  </div>
                 </div>
               </div>
               
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold text-gray-700 mb-2">Permintaan</h2>
-                <div className="flex items-center">
-                  <div className="bg-blue-100 p-3 rounded-full">
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Pending Requests</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingRequests === 'number' ? formatNumber(stats.pendingRequests) : 0}</h2>
+                    <Link href="/admin/requests" className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2 group">
+                      View requests
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingRequests === 'number' ? formatNumber(stats.pendingRequests) : 0}</p>
-                    <Link href="/admin/requests" className="text-sm text-blue-600 hover:underline">Lihat pending</Link>
-                  </div>
                 </div>
               </div>
               
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold text-gray-700 mb-2">Kalibrasi</h2>
-                <div className="flex items-center">
-                  <div className="bg-purple-100 p-3 rounded-full">
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Calibrations</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingCalibrations === 'number' ? formatNumber(stats.pendingCalibrations) : 0}</h2>
+                    <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:text-purple-700 hover:underline inline-flex items-center mt-2 group">
+                      View calibrations
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingCalibrations === 'number' ? formatNumber(stats.pendingCalibrations) : 0}</p>
-                    <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:underline">Lihat pending</Link>
-                  </div>
                 </div>
               </div>
               
-              <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-lg font-semibold text-gray-700 mb-2">Rental</h2>
-                <div className="flex items-center">
-                  <div className="bg-yellow-100 p-3 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Rental Requests</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingRentals === 'number' ? formatNumber(stats.pendingRentals) : 0}</h2>
+                    <Link href="/admin/rentals" className="text-sm text-amber-600 hover:text-amber-700 hover:underline inline-flex items-center mt-2 group">
+                      View rentals
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-amber-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-800">{stats && typeof stats.pendingRentals === 'number' ? formatNumber(stats.pendingRentals) : 0}</p>
-                    <Link href="/admin/rentals" className="text-sm text-yellow-600 hover:underline">Lihat pending</Link>
-                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Status Barang */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Status Barang</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+            {/* Item Status Overview */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-6">Item Status Overview</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-green-700 font-medium">Available</span>
-                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Available</span>
+                    </div>
+                    <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-green-500 h-2" style={{ width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` }}></div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% of total inventory
+                  </p>
                 </div>
                 
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-purple-700 font-medium">In Calibration</span>
-                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">In Calibration</span>
+                    </div>
+                    <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-2" style={{ width: `${stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` }}></div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% of total inventory
+                  </p>
                 </div>
                 
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-yellow-700 font-medium">Rented</span>
-                    <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Rented</span>
+                    </div>
+                    <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-yellow-500 h-2" style={{ width: `${stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` }}></div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-amber-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% of total inventory
+                  </p>
                 </div>
                 
-                <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-red-700 font-medium">Maintenance</span>
-                    <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Maintenance</span>
+                    </div>
+                    <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                    <div className="bg-red-500 h-2" style={{ width: `${stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` }}></div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-red-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% of total inventory
+                  </p>
                 </div>
               </div>
             </div>
             
-            {/* Pengingat dan Pie Chart */}
+            {/* Reminders and Chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Pengingat */}
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Pengingat</h2>
-                <div className="space-y-3">
-                  <div className="flex items-start p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                    <div className="text-yellow-500 mr-2 mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">
-                        {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} barang mendekati jadwal kalibrasi dalam 7 hari
+              {/* Activity and Reminders */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Activity & Reminders</h2>
+                
+                <div className="space-y-4">
+                  <div className="relative pl-8 border-l-2 border-yellow-300 py-1">
+                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100">
+                      <p className="text-sm font-medium text-gray-800 mb-1">Upcoming Calibrations</p>
+                      <p className="text-sm text-gray-600">
+                        {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} items 
+                        due for calibration in the next 7 days
                       </p>
-                      <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:underline">Lihat detail</Link>
+                      <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:text-yellow-700 hover:underline inline-flex items-center mt-2">
+                        View calibration schedule
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      </Link>
                     </div>
                   </div>
                   
-                  <div className="flex items-start p-3 bg-red-50 rounded-lg border border-red-100">
-                    <div className="text-red-500 mr-2 mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">
-                        {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} barang melebihi batas waktu rental
+                  <div className="relative pl-8 border-l-2 border-red-300 py-1">
+                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-red-400"></div>
+                    <div className="bg-red-50 p-4 rounded-md border border-red-100">
+                      <p className="text-sm font-medium text-gray-800 mb-1">Overdue Rentals</p>
+                      <p className="text-sm text-gray-600">
+                        {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} items 
+                        have exceeded their rental return date
                       </p>
-                      <Link href="/admin/rentals" className="text-xs text-red-600 hover:underline">Lihat detail</Link>
+                      <Link href="/admin/rentals?filter=overdue" className="text-xs text-red-600 hover:text-red-700 hover:underline inline-flex items-center mt-2">
+                        View overdue rentals
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
+                  
+                  <div className="relative pl-8 border-l-2 border-blue-300 py-1">
+                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-400"></div>
+                    <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
+                      <p className="text-sm font-medium text-gray-800 mb-1">Pending Approvals</p>
+                      <p className="text-sm text-gray-600">
+                        {stats && typeof stats.pendingRequests === 'number' ? stats.pendingRequests : 0} requests 
+                        waiting for your approval
+                      </p>
+                      <Link href="/admin/requests" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
+                        Review pending requests
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Pie Chart - Distribution of Items by Status */}
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Distribusi Status Barang</h2>
-                <div className="h-60">
+              {/* Pie Chart - Item Status Distribution */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Item Status Distribution</h2>
+                <div className="h-64">
                   {stats ? (
-                    <Pie data={pieChartData} options={pieChartOptions} />
+                    <Pie data={pieChartData} options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'right',
+                          labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                              size: 12
+                            }
+                          }
+                        },
+                        title: {
+                          display: false
+                        },
+                        tooltip: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          titleColor: '#1f2937',
+                          bodyColor: '#4b5563',
+                          borderColor: '#e5e7eb',
+                          borderWidth: 1,
+                          padding: 12,
+                          boxPadding: 6,
+                          usePointStyle: true,
+                          callbacks: {
+                            label: function(context) {
+                              const value = context.raw;
+                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                              const percentage = Math.round((value / total) * 100);
+                              return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                          }
+                        }
+                      }
+                    }} />
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-gray-500 text-sm">Loading chart data...</p>
@@ -592,24 +741,57 @@ export default function AdminDashboard() {
               </div>
             </div>
             
-            {/* Notifikasi Terbaru */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Notifikasi Terbaru</h2>
-                <Link href="/admin/notifications" className="text-sm text-blue-600 hover:underline">Lihat semua</Link>
+            {/* Recent Notifications */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-bold text-gray-800">Recent Notifications</h2>
+                <Link href="/admin/notifications" className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center">
+                  View all
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
               </div>
               
               {stats?.notifications && Array.isArray(stats.notifications) && stats.notifications.length > 0 ? (
-                <div className="space-y-3">
+                <div className="divide-y divide-gray-100">
                   {stats.notifications.slice(0, 5).map(notification => (
-                    <div key={notification.id} className={`px-4 py-3 rounded-lg border-l-4 ${notification.isRead ? 'border-gray-300 bg-gray-50' : 'border-blue-500 bg-blue-50'}`}>
-                      <p className="text-sm font-medium text-gray-800">{notification.message}</p>
+                    <div key={notification.id} className="py-4 first:pt-0 last:pb-0">
+                      <div className="flex">
+                        <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                          notification.isRead 
+                            ? 'bg-gray-100 text-gray-500' 
+                            : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <p className={`text-sm font-medium ${notification.isRead ? 'text-gray-600' : 'text-gray-900'}`}>
+                            {notification.message}
+                          </p>
                       <p className="text-xs text-gray-500 mt-1">{formatDate(notification.createdAt)}</p>
+                        </div>
+                        {!notification.isRead && (
+                          <div className="flex-shrink-0">
+                            <span className="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">Tidak ada notifikasi terbaru</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="bg-gray-100 p-3 rounded-full mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-600">You're all caught up!</p>
+                  <p className="text-xs text-gray-500 mt-1">No new notifications at this time</p>
+                </div>
               )}
             </div>
           </div>

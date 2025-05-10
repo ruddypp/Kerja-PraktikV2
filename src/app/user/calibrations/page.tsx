@@ -138,16 +138,16 @@ export default function UserCalibrationPage() {
     
     // Detail Gas Kalibrasi - changed to arrays to support multiple entries
     gasEntries: [{
-      gasType: '',
-      gasConcentration: '',
-      gasBalance: '',
+    gasType: '',
+    gasConcentration: '',
+    gasBalance: '',
       gasBatchNumber: ''
     }],
     
     // Hasil Test - changed to arrays to support multiple entries
     testEntries: [{
-      testSensor: '',
-      testSpan: '',
+    testSensor: '',
+    testSpan: '',
       testResult: 'Pass' as 'Pass' | 'Fail'
     }],
     
@@ -514,16 +514,16 @@ export default function UserCalibrationPage() {
       
       // Detail Gas Kalibrasi - changed to arrays to support multiple entries
       gasEntries: [{
-        gasType: calibration.gasType || '',
-        gasConcentration: calibration.gasConcentration || '',
-        gasBalance: calibration.gasBalance || '',
+      gasType: calibration.gasType || '',
+      gasConcentration: calibration.gasConcentration || '',
+      gasBalance: calibration.gasBalance || '',
         gasBatchNumber: calibration.gasBatchNumber || ''
       }],
       
       // Hasil Test - changed to arrays to support multiple entries
       testEntries: [{
-        testSensor: calibration.testSensor || '',
-        testSpan: calibration.testSpan || '',
+      testSensor: calibration.testSensor || '',
+      testSpan: calibration.testSpan || '',
         testResult: (calibration.testResult as 'Pass' | 'Fail') || 'Pass'
       }],
       
@@ -593,7 +593,7 @@ export default function UserCalibrationPage() {
     } 
     // Handle other fields
     else {
-      setCompleteForm(prev => ({ ...prev, [name]: value }));
+    setCompleteForm(prev => ({ ...prev, [name]: value }));
     }
   };
   
@@ -1010,15 +1010,15 @@ export default function UserCalibrationPage() {
             {/* Other Inputs */}
             <div className="mb-3">
               <label className="block mb-1 text-sm font-medium text-gray-700">Nama Produk</label>
-              <input
-                type="text"
+                <input
+                  type="text"
                 name="manufacturer"
                 value={calibrationForm.manufacturer}
-                onChange={handleCalibrationFormChange}
+                  onChange={handleCalibrationFormChange}
                 placeholder="RAE Systems"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
+                />
+              </div>
             
             <div className="mb-3">
               <label className="block mb-1 text-sm font-medium text-gray-700">Part Number</label>
@@ -1158,24 +1158,24 @@ export default function UserCalibrationPage() {
 
         {/* Buttons */}
         <div className="mt-6 flex justify-end gap-2">
-          <button 
-            type="button" 
+                  <button 
+                    type="button" 
             onClick={closeCalibrationModal}
             className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
             className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
-          >
+                  >
             Start Calibration
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
         
         {/* Certificate Modal */}
         {showCertificateModal && selectedCalibration && (
@@ -1191,66 +1191,66 @@ export default function UserCalibrationPage() {
               <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
                 <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
                   <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
+                  <div>
                       <p className="text-xs text-gray-500">Item Name</p>
                       <p className="font-medium text-sm">{selectedCalibration.item.name}</p>
-                    </div>
-                    <div>
+                </div>
+                  <div>
                       <p className="text-xs text-gray-500">Serial Number</p>
                       <p className="font-medium text-sm">{selectedCalibration.item.serialNumber}</p>
-                    </div>
-                    <div>
+                </div>
+                  <div>
                       <p className="text-xs text-gray-500">Calibration Date</p>
                       <p className="font-medium text-sm">{formatDate(selectedCalibration.calibrationDate)}</p>
-                    </div>
-                    <div>
+                </div>
+                  <div>
                       <p className="text-xs text-gray-500">Valid Until</p>
                       <p className="font-medium text-sm">{formatDate(selectedCalibration.validUntil)}</p>
-                    </div>
-                    <div>
+                </div>
+                  <div>
                       <p className="text-xs text-gray-500">Vendor</p>
                       <p className="font-medium text-sm">{selectedCalibration.vendor.name}</p>
-                    </div>
-                    {selectedCalibration.certificateNumber && (
-                      <div>
+                  </div>
+                  {selectedCalibration.certificateNumber && (
+                    <div>
                         <p className="text-xs text-gray-500">Certificate Number</p>
                         <p className="font-medium text-sm">{selectedCalibration.certificateNumber}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col space-y-2">
-                    {/* View certificate button */}
-                    <a
-                      href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col space-y-2">
+                  {/* View certificate button */}
+                  <a
+                    href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                       className="flex justify-center items-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
-                    >
-                      <FiFileText className="mr-2" /> View Certificate
-                    </a>
-                    
-                    {/* Download button */}
-                    <a
-                      href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
-                      download={`Calibration_Certificate_${selectedCalibration.item.serialNumber}.pdf`}
-                      className="flex justify-center items-center px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
-                    >
-                      <FiDownload className="mr-2" /> Download Certificate
-                    </a>
-                  </div>
-                </div>
-                  
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={closeCertificateModal}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
                   >
-                    Close
-                  </button>
+                    <FiFileText className="mr-2" /> View Certificate
+                  </a>
+                  
+                  {/* Download button */}
+                  <a
+                    href={`/api/user/calibrations/${selectedCalibration.id}/certificate`}
+                    download={`Calibration_Certificate_${selectedCalibration.item.serialNumber}.pdf`}
+                      className="flex justify-center items-center px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
+                  >
+                    <FiDownload className="mr-2" /> Download Certificate
+                  </a>
                 </div>
-              </div>
+                </div>
+                
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={closeCertificateModal}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
+                >
+                  Close
+                </button>
+                </div>
+                </div>
             </div>
           </div>
         )}
@@ -1279,39 +1279,39 @@ export default function UserCalibrationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">Instrument</label>
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   name="instrumentName"
                   value={completeForm.instrumentName}
                   onChange={(e) => handleCompleteFormChange(e)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   placeholder="Enter instrument name"
-                />
-              </div>
-              
+                  />
+                </div>
+                
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">Manufacturer</label>
                 <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
                   {selectedCalibration?.item.name || 'Not specified'}
                 </div>
-              </div>
-              
+                </div>
+                
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">Model</label>
                 <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
                   {completeForm.modelNumber || 'Not specified'}
                 </div>
-              </div>
-              
-              <div>
+                </div>
+                
+                  <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">Sensor</label>
                 <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
                   {completeForm.configuration || 'Not specified'}
                 </div>
               </div>
-            </div>
-          </div>
-          
+                  </div>
+                </div>
+              
           {/* Calibration Gases Section */}
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -1352,34 +1352,34 @@ export default function UserCalibrationPage() {
                     <tr key={`gas-${index}`}>
                       <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
+                  <input
+                    type="text"
                           name="gasType"
                           value={gasEntry.gasType}
                           onChange={(e) => handleCompleteFormChange(e, index)}
-                          required
+                    required
                           className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                           placeholder="H2S"
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
+                  <input
+                    type="text"
                           name="gasConcentration"
                           value={gasEntry.gasConcentration}
                           onChange={(e) => handleCompleteFormChange(e, index)}
-                          required
+                    required
                           className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                           placeholder="25 ppm"
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
+                  <input
+                    type="text"
                           name="gasBalance"
                           value={gasEntry.gasBalance}
                           onChange={(e) => handleCompleteFormChange(e, index)}
-                          required
+                    required
                           className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                           placeholder="Nitrogen"
                         />
@@ -1418,9 +1418,9 @@ export default function UserCalibrationPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
-          </div>
-          
+            
           {/* Test Results Section */}
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -1460,34 +1460,34 @@ export default function UserCalibrationPage() {
                     <tr key={`test-${index}`}>
                       <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
-                          name="testSensor"
+                  <input
+                    type="text"
+                    name="testSensor"
                           value={testEntry.testSensor}
                           onChange={(e) => handleCompleteFormChange(e, index)}
-                          required
+                    required
                           className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                           placeholder="H2S"
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <input
-                          type="text"
-                          name="testSpan"
+                  <input
+                    type="text"
+                    name="testSpan"
                           value={testEntry.testSpan}
                           onChange={(e) => handleCompleteFormChange(e, index)}
-                          required
+                    required
                           className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                           placeholder="25 ppm"
                         />
                       </td>
                       <td className="px-2 py-1">
                         <div className="flex space-x-2">
-                          <label className="inline-flex items-center">
-                            <input
-                              type="radio"
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
                               name={`testResult-${index}`}
-                              value="Pass"
+                        value="Pass"
                               checked={testEntry.testResult === 'Pass'}
                               onChange={(e) => {
                                 const newValue = e.target.value as 'Pass' | 'Fail';
@@ -1500,12 +1500,12 @@ export default function UserCalibrationPage() {
                               className="form-radio h-3 w-3 text-blue-600"
                             />
                             <span className="ml-1 text-xs">Pass</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="radio"
+                    </label>
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
                               name={`testResult-${index}`}
-                              value="Fail"
+                        value="Fail"
                               checked={testEntry.testResult === 'Fail'}
                               onChange={(e) => {
                                 const newValue = e.target.value as 'Pass' | 'Fail';
@@ -1518,8 +1518,8 @@ export default function UserCalibrationPage() {
                               className="form-radio h-3 w-3 text-red-600"
                             />
                             <span className="ml-1 text-xs">Fail</span>
-                          </label>
-                        </div>
+                    </label>
+                  </div>
                       </td>
                       <td className="px-2 py-1 text-right">
                         {completeForm.testEntries.length > 1 && (
@@ -1544,11 +1544,11 @@ export default function UserCalibrationPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-          
+                </div>
+              </div>
+            
           {/* Certificate Information */}
-          <div>
+              <div>
             <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -1590,17 +1590,17 @@ export default function UserCalibrationPage() {
                 ></textarea>
               </div>
             </div>
-          </div>
-          
+              </div>
+              
           <div className="p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-xs">
             <p className="text-yellow-700">
-              <strong>Note:</strong> Once you complete this calibration, a certificate will be generated automatically. 
-              You will be able to download it after completion.
-            </p>
+                  <strong>Note:</strong> Once you complete this calibration, a certificate will be generated automatically. 
+                  You will be able to download it after completion.
+                </p>
           </div>
           
           <div className="flex justify-end space-x-2">
-            <button
+                <button
               type="button"
               onClick={closeCompleteModal}
               className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
@@ -1612,13 +1612,13 @@ export default function UserCalibrationPage() {
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
             >
               Complete & Generate Certificate
-            </button>
+                </button>
           </div>
         </form>
-      </div>
-    </div>
-  </div>
-)}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

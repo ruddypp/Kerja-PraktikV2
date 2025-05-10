@@ -654,7 +654,7 @@ export default function CalibrationPage() {
     modelNumber: '',
     configuration: '',
     calibrationDate: format(new Date(), 'yyyy-MM-dd'),
-    notes: ''
+  ` notes: ''`
   });
   
   // Function to fetch available items

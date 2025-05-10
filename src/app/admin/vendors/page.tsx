@@ -363,7 +363,7 @@ export default function VendorsPage() {
     e.preventDefault();
     fetchVendors(searchInput, 1, pagination.limit);
   };
-
+  
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -403,50 +403,50 @@ export default function VendorsPage() {
         <div className="bg-white rounded-lg border border-gray-100 p-6">
           <form onSubmit={handleSearch} className="mb-6">
             <div className="flex items-center">
-              <div className="relative flex-grow">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="relative flex-grow">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiSearch className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
+              </div>
+              <input
+                type="text"
                   className="block w-full p-3 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Search vendors by name or services..."
+                placeholder="Search vendors by name or services..."
                   value={searchInput}
-                  onChange={handleSearchInputChange}
-                />
+                onChange={handleSearchInputChange}
+              />
                 {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => {
+              <button 
+                type="button" 
+                onClick={() => {
                       setSearchInput('');
-                      setSearchQuery('');
+                  setSearchQuery('');
                       fetchVendors('', 1, pagination.limit);
-                    }}
+                }}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                     title="Clear search"
-                  >
+              >
                     <XIcon className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
+              </button>
+            )}
+        </div>
               <button type="submit" className="ml-2 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                 Search
               </button>
             </div>
           </form>
-          
-          {loading ? (
+        
+        {loading ? (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-            </div>
-          ) : vendors.length === 0 ? (
+          </div>
+        ) : vendors.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No vendors found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchQuery 
+              {searchQuery 
                   ? `No results for "${searchQuery}". Try a different search query or clear the filter.`
                   : "Get started by creating a new vendor."}
               </p>
@@ -471,36 +471,36 @@ export default function VendorsPage() {
                   New Vendor
                 </button>
               )}
-            </div>
-          ) : (
+          </div>
+        ) : (
             <>
               <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {vendors.map((vendor, index) => (
-                      <tr key={vendor.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {(pagination.page - 1) * pagination.limit + index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {vendors.map((vendor, index) => (
+                    <tr key={vendor.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
                           {vendor.address && (
                             <div className="text-xs text-gray-500 flex items-center mt-1">
                               <FiMapPin size={12} className="text-gray-400 mr-1" />
                               {vendor.address}
                             </div>
                           )}
-                        </td>
+                      </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {vendor.contactName ? (
                             <div className="text-sm text-gray-900 flex items-center">
@@ -510,8 +510,8 @@ export default function VendorsPage() {
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
                           )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                           {vendor.contactEmail && (
                             <div className="text-sm text-gray-900 flex items-center">
                               <FiMail size={14} className="text-gray-400 mr-2" />
@@ -527,37 +527,37 @@ export default function VendorsPage() {
                           {!vendor.contactEmail && !vendor.contactPhone && (
                             <span className="text-gray-400 text-sm">-</span>
                           )}
-                        </td>
+                      </td>
                         <td className="px-6 py-4">
                           {vendor.service ? (
                             <div className="max-w-xs text-sm text-gray-500 line-clamp-2">{vendor.service}</div>
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
                           )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => openEditModal(vendor)}
+                        <button
+                          onClick={() => openEditModal(vendor)}
                               className="text-blue-600 hover:text-blue-900"
                               title="Edit vendor"
-                            >
+                        >
                               <FiEdit className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => openDeleteModal(vendor)}
-                              className="text-red-600 hover:text-red-900"
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal(vendor)}
+                          className="text-red-600 hover:text-red-900"
                               title="Delete vendor"
-                            >
+                        >
                               <FiTrash2 className="h-5 w-5" />
-                            </button>
+                        </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
               
               {/* Pagination */}
               <div className="flex justify-between items-center mt-4">
@@ -565,9 +565,9 @@ export default function VendorsPage() {
                   <span className="mr-2">
                     Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vendors
                   </span>
-                  <select 
-                    value={pagination.limit} 
-                    onChange={handleLimitChange}
+              <select 
+                value={pagination.limit} 
+                onChange={handleLimitChange}
                     className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
                     aria-label="Number of items per page"
                   >
@@ -575,28 +575,28 @@ export default function VendorsPage() {
                     <option value="25">25 per page</option>
                     <option value="50">50 per page</option>
                     <option value="100">100 per page</option>
-                  </select>
-                </div>
-                
-                {pagination.totalPages > 1 && (
+              </select>
+            </div>
+        
+        {pagination.totalPages > 1 && (
                   <div className="flex space-x-1">
-                    <button
-                      onClick={() => handlePageChange(1)}
-                      disabled={pagination.page === 1}
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={pagination.page === 1}
                       className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                       title="First page"
-                    >
-                      &laquo;
-                    </button>
-                    <button
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
+              >
+                &laquo;
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
                       className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                       title="Previous page"
-                    >
+              >
                       <ChevronLeft size={16} />
-                    </button>
-                    
+              </button>
+
                     {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                       .filter(page => 
                         page === 1 || 
@@ -608,33 +608,33 @@ export default function VendorsPage() {
                           {index > 0 && array[index - 1] !== page - 1 && (
                             <span className="px-1 text-gray-500">...</span>
                           )}
-                          <button
+                  <button
                             onClick={() => handlePageChange(page)}
                             className={`px-3 py-1 rounded ${pagination.page === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                          >
+                  >
                             {page}
-                          </button>
+                  </button>
                         </div>
                       ))}
-                    
-                    <button
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.totalPages}
+
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
                       className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                       title="Next page"
-                    >
+              >
                       <ChevronRight size={16} />
-                    </button>
-                    <button
-                      onClick={() => handlePageChange(pagination.totalPages)}
-                      disabled={pagination.page === pagination.totalPages}
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.totalPages)}
+                disabled={pagination.page === pagination.totalPages}
                       className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                       title="Last page"
-                    >
-                      &raquo;
-                    </button>
-                  </div>
-                )}
+              >
+                &raquo;
+              </button>
+          </div>
+        )}
               </div>
             </>
           )}
@@ -902,7 +902,7 @@ export default function VendorsPage() {
               <div className="mb-4">
                 <div className="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-100 mb-3">
                   <FiTrash2 className="h-5 w-5 text-red-600" />
-                </div>
+              </div>
                 <p className="text-xs text-gray-500">
                   Are you sure you want to delete vendor <span className="font-semibold">{selectedVendor.name}</span>? This action cannot be undone.
                 </p>
@@ -924,7 +924,7 @@ export default function VendorsPage() {
                   onClick={handleDeleteSubmit}
                   className="px-3 py-1.5 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
-                  Delete
+                    Delete
                 </button>
               </div>
             </div>
