@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
-import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2 } from "lucide-react";
+import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2, PlusIcon } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 interface MaintenanceItem {
@@ -240,14 +240,23 @@ export default function AdminMaintenancePage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Manajemen Maintenance</h1>
-          <button
-            onClick={handleRefresh}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-            disabled={loading}
-          >
-            <RefreshCw size={16} />
-            {loading ? "Memuat..." : "Refresh Data"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              disabled={loading}
+            >
+              <RefreshCw size={16} />
+              {loading ? "Memuat..." : "Refresh Data"}
+            </button>
+            <Link
+              href="/admin/maintenance/new"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+            >
+              <PlusIcon size={16} />
+              Mulai Maintenance Baru
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-100 p-4">

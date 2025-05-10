@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
+import { XIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Vendor {
   id: string;
@@ -260,9 +261,8 @@ export default function VendorsPage() {
     if (!selectedVendor) return;
     
     try {
-      // Use the correct URL with ID for the PATCH request
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -313,7 +313,7 @@ export default function VendorsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include' // Include cookies for authentication
+        credentials: 'include', // Include cookies for authentication
       });
       
       if (!res.ok) {
@@ -350,352 +350,414 @@ export default function VendorsPage() {
   
   const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLimit = parseInt(e.target.value);
-    setPagination(prev => ({
-      ...prev,
-      limit: newLimit,
-      page: 1 // Reset to first page when changing limit
-    }));
+    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
     fetchVendors(searchQuery, 1, newLimit);
   };
   
   const refreshData = () => {
-    // Invalidate cache and fetch fresh data
     invalidateCache();
-    fetchVendors(searchQuery, pagination.page, pagination.limit);
+    fetchVendors();
   };
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchVendors();
+    fetchVendors(searchInput, 1, pagination.limit);
   };
-  
+
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Vendor Management</h1>
-          <div className="flex space-x-2">
-            <button onClick={refreshData} className="btn btn-secondary flex items-center gap-2">
-              <FiRefreshCw className="h-4 w-4" />
-              Refresh
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Vendor Management</h1>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={refreshData} 
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
+              {loading ? "Loading..." : "Refresh"}
             </button>
-            <button onClick={openAddModal} className="btn btn-primary flex items-center gap-2">
-              <FiPlus className="h-4 w-4" />
+            <button 
+              onClick={openAddModal} 
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+            >
+              <FiPlus size={16} />
               Add Vendor
             </button>
           </div>
         </div>
         
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{error}</p>
-            <button 
-              onClick={() => fetchVendors()}
-              className="mt-2 text-sm text-red-700 hover:text-red-600 underline"
-            >
-              Retry
-            </button>
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            {error}
           </div>
         )}
         
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{success}</p>
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            {success}
           </div>
         )}
         
-        <div className="mb-6">
-          <form onSubmit={handleSearch} className="flex items-center">
-            <div className="relative flex-grow">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                className="form-input pl-10 w-full"
-                placeholder="Search vendors by name or services..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-              />
-            </div>
-            <button type="submit" className="btn btn-secondary ml-2">
-              Search
-            </button>
-            {searchQuery && (
-              <button 
-                type="button" 
-                className="btn btn-outlined ml-2"
-                onClick={() => {
-                  setSearchQuery('');
-                  fetchVendors();
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </form>
-        </div>
-        
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-            <p className="mt-4 text-subtitle">Loading vendors...</p>
-          </div>
-        ) : vendors.length === 0 ? (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-            <p className="text-yellow-700 font-medium">No vendors found.</p>
-            <p className="text-yellow-600 mt-2">
-              {searchQuery 
-                ? "Try a different search query or clear the filter." 
-                : "Use the 'Add Vendor' button to create your first vendor entry."}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vendors.map((vendor, index) => (
-                    <tr key={vendor.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(pagination.page - 1) * pagination.limit + index + 1}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
-                        <div className="text-xs text-gray-500">{vendor.address || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vendor.contactName || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{vendor.contactEmail || '-'}</div>
-                        <div className="text-xs text-gray-500">{vendor.contactPhone || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <div className="max-w-xs truncate">{vendor.service || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => openEditModal(vendor)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-4"
-                        >
-                          <FiEdit className="inline" /> Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(vendor)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <FiTrash2 className="inline" /> Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        
-        {/* Pagination info and limit selector */}
-        {!loading && vendors.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
-            </div>
-            <div className="flex items-center mt-2 sm:mt-0">
-              <label htmlFor="limit-select" className="text-sm text-gray-600 mr-2">
-                Items per page:
-              </label>
-              <select 
-                id="limit-select" 
-                value={pagination.limit} 
-                onChange={handleLimitChange}
-                className="form-select text-sm py-1"
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-          </div>
-        )}
-        
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex justify-center mt-6">
-            <nav className="inline-flex">
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={pagination.page === 1}
-                className="btn btn-icon btn-sm"
-              >
-                &laquo;
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="btn btn-icon btn-sm mx-1"
-              >
-                &lt;
-              </button>
-
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum;
-                if (pagination.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (pagination.page <= 3) {
-                  pageNum = i + 1;
-                } else if (pagination.page >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + i;
-                } else {
-                  pageNum = pagination.page - 2 + i;
-                }
-                
-                return (
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
+          <form onSubmit={handleSearch} className="mb-6">
+            <div className="flex items-center">
+              <div className="relative flex-grow">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiSearch className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  className="block w-full p-3 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Search vendors by name or services..."
+                  value={searchInput}
+                  onChange={handleSearchInputChange}
+                />
+                {searchInput && (
                   <button
-                    key={i}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`btn btn-sm mx-1 ${pagination.page === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                    type="button"
+                    onClick={() => {
+                      setSearchInput('');
+                      setSearchQuery('');
+                      fetchVendors('', 1, pagination.limit);
+                    }}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    title="Clear search"
                   >
-                    {pageNum}
+                    <XIcon className="h-5 w-5" />
                   </button>
-                );
-              })}
-
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="btn btn-icon btn-sm mx-1"
-              >
-                &gt;
+                )}
+              </div>
+              <button type="submit" className="ml-2 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Search
               </button>
-              <button
-                onClick={() => handlePageChange(pagination.totalPages)}
-                disabled={pagination.page === pagination.totalPages}
-                className="btn btn-icon btn-sm"
-              >
-                &raquo;
-              </button>
-            </nav>
-          </div>
-        )}
+            </div>
+          </form>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          ) : vendors.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No vendors found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchQuery 
+                  ? `No results for "${searchQuery}". Try a different search query or clear the filter.`
+                  : "Get started by creating a new vendor."}
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchQuery('');
+                    fetchVendors('', 1, pagination.limit);
+                  }}
+                  className="mt-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Clear search
+                </button>
+              )}
+              {!searchQuery && (
+                <button
+                  onClick={openAddModal}
+                  className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  New Vendor
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {vendors.map((vendor, index) => (
+                      <tr key={vendor.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {(pagination.page - 1) * pagination.limit + index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                          {vendor.address && (
+                            <div className="text-xs text-gray-500 flex items-center mt-1">
+                              <FiMapPin size={12} className="text-gray-400 mr-1" />
+                              {vendor.address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {vendor.contactName ? (
+                            <div className="text-sm text-gray-900 flex items-center">
+                              <FiUser size={14} className="text-gray-400 mr-2" />
+                              {vendor.contactName}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {vendor.contactEmail && (
+                            <div className="text-sm text-gray-900 flex items-center">
+                              <FiMail size={14} className="text-gray-400 mr-2" />
+                              {vendor.contactEmail}
+                            </div>
+                          )}
+                          {vendor.contactPhone && (
+                            <div className="text-sm text-gray-500 flex items-center mt-1">
+                              <FiPhone size={14} className="text-gray-400 mr-2" />
+                              {vendor.contactPhone}
+                            </div>
+                          )}
+                          {!vendor.contactEmail && !vendor.contactPhone && (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {vendor.service ? (
+                            <div className="max-w-xs text-sm text-gray-500 line-clamp-2">{vendor.service}</div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => openEditModal(vendor)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Edit vendor"
+                            >
+                              <FiEdit className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(vendor)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete vendor"
+                            >
+                              <FiTrash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination */}
+              <div className="flex justify-between items-center mt-4">
+                <div className="text-sm text-gray-700 flex items-center">
+                  <span className="mr-2">
+                    Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vendors
+                  </span>
+                  <select 
+                    value={pagination.limit} 
+                    onChange={handleLimitChange}
+                    className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                    aria-label="Number of items per page"
+                  >
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                  </select>
+                </div>
+                
+                {pagination.totalPages > 1 && (
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={pagination.page === 1}
+                      className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      title="First page"
+                    >
+                      &laquo;
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      title="Previous page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      .filter(page => 
+                        page === 1 || 
+                        page === pagination.totalPages || 
+                        (page >= pagination.page - 1 && page <= pagination.page + 1)
+                      )
+                      .map((page, index, array) => (
+                        <div key={page} className="flex items-center">
+                          {index > 0 && array[index - 1] !== page - 1 && (
+                            <span className="px-1 text-gray-500">...</span>
+                          )}
+                          <button
+                            onClick={() => handlePageChange(page)}
+                            className={`px-3 py-1 rounded ${pagination.page === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                          >
+                            {page}
+                          </button>
+                        </div>
+                      ))}
+                    
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page === pagination.totalPages}
+                      className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      title="Next page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(pagination.totalPages)}
+                      disabled={pagination.page === pagination.totalPages}
+                      className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      title="Last page"
+                    >
+                      &raquo;
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         
         {/* Add Vendor Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+          <div className="fixed inset-0 overflow-y-auto bg-gray-500/75 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto p-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Add New Vendor</h3>
-                <button onClick={closeAddModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <h2 className="text-lg font-semibold text-gray-900">Add New Vendor</h2>
+                <button 
+                  onClick={closeAddModal} 
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
+                  aria-label="Close"
+                >
+                  <XIcon className="h-5 w-5" />
                 </button>
               </div>
               
-              <form onSubmit={handleAddSubmit}>
-                <div className="mb-4">
-                  <label htmlFor="name" className="form-label">Vendor Name <span className="text-red-500">*</span></label>
+              <form onSubmit={handleAddSubmit} className="space-y-3">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Vendor Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     id="name"
                     name="name"
                     type="text"
                     value={vendorForm.name}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter vendor name"
                     required
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="address" className="form-label">Address</label>
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
                   <textarea
                     id="address"
                     name="address"
                     value={vendorForm.address}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter vendor address"
                     rows={2}
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="contactName" className="form-label">Contact Person</label>
+                <div>
+                  <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Person
+                  </label>
                   <input
                     id="contactName"
                     name="contactName"
                     type="text"
                     value={vendorForm.contactName}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact person name"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="contactEmail" className="form-label">Contact Email</label>
+                <div>
+                  <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Email
+                  </label>
                   <input
                     id="contactEmail"
                     name="contactEmail"
                     type="email"
                     value={vendorForm.contactEmail}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact email"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="contactPhone" className="form-label">Contact Phone</label>
+                <div>
+                  <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Phone
+                  </label>
                   <input
                     id="contactPhone"
                     name="contactPhone"
                     type="text"
                     value={vendorForm.contactPhone}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact phone number"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="service" className="form-label">Services</label>
+                <div>
+                  <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-1">
+                    Services
+                  </label>
                   <textarea
                     id="service"
                     name="service"
                     value={vendorForm.service}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter services provided by this vendor"
                     rows={2}
                   />
                 </div>
                 
-                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                <div className="mt-4 flex items-center justify-end gap-2">
                   <button 
                     type="button" 
                     onClick={closeAddModal}
-                    className="btn btn-outlined order-2 sm:order-1"
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
-                    className="btn btn-primary order-1 sm:order-2"
+                    className="px-3 py-1.5 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
                     Add Vendor
                   </button>
@@ -707,108 +769,122 @@ export default function VendorsPage() {
         
         {/* Edit Vendor Modal */}
         {showEditModal && selectedVendor && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+          <div className="fixed inset-0 overflow-y-auto bg-gray-500/75 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto p-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Edit Vendor</h3>
-                <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <h2 className="text-lg font-semibold text-gray-900">Edit Vendor</h2>
+                <button 
+                  onClick={closeEditModal} 
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
+                  aria-label="Close"
+                >
+                  <XIcon className="h-5 w-5" />
                 </button>
               </div>
               
-              <form onSubmit={handleEditSubmit}>
-                <div className="mb-4">
-                  <label htmlFor="edit-name" className="form-label">Vendor Name <span className="text-red-500">*</span></label>
+              <form onSubmit={handleEditSubmit} className="space-y-3">
+                <div>
+                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Vendor Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     id="edit-name"
                     name="name"
                     type="text"
                     value={vendorForm.name}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter vendor name"
                     required
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="edit-address" className="form-label">Address</label>
+                <div>
+                  <label htmlFor="edit-address" className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
                   <textarea
                     id="edit-address"
                     name="address"
                     value={vendorForm.address}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter vendor address"
                     rows={2}
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="edit-contactName" className="form-label">Contact Person</label>
+                <div>
+                  <label htmlFor="edit-contactName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Person
+                  </label>
                   <input
                     id="edit-contactName"
                     name="contactName"
                     type="text"
                     value={vendorForm.contactName}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact person name"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="edit-contactEmail" className="form-label">Contact Email</label>
+                <div>
+                  <label htmlFor="edit-contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Email
+                  </label>
                   <input
                     id="edit-contactEmail"
                     name="contactEmail"
                     type="email"
                     value={vendorForm.contactEmail}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact email"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="edit-contactPhone" className="form-label">Contact Phone</label>
+                <div>
+                  <label htmlFor="edit-contactPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Phone
+                  </label>
                   <input
                     id="edit-contactPhone"
                     name="contactPhone"
                     type="text"
                     value={vendorForm.contactPhone}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter contact phone number"
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="edit-service" className="form-label">Services</label>
+                <div>
+                  <label htmlFor="edit-service" className="block text-sm font-medium text-gray-700 mb-1">
+                    Services
+                  </label>
                   <textarea
                     id="edit-service"
                     name="service"
                     value={vendorForm.service}
                     onChange={handleFormChange}
-                    className="form-input"
+                    className="block w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter services provided by this vendor"
                     rows={2}
                   />
                 </div>
                 
-                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                <div className="mt-4 flex items-center justify-end gap-2">
                   <button 
                     type="button" 
                     onClick={closeEditModal}
-                    className="btn btn-outlined order-2 sm:order-1"
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
-                    className="btn btn-primary order-1 sm:order-2"
+                    className="px-3 py-1.5 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
                     Update Vendor
                   </button>
@@ -820,39 +896,36 @@ export default function VendorsPage() {
         
         {/* Delete Confirmation Modal */}
         {showDeleteModal && selectedVendor && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="mt-3 text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                  <FiTrash2 className="h-6 w-6 text-red-600" />
-              </div>
-                <h3 className="text-title text-lg leading-6 font-medium text-gray-900 mt-4">
-                  Delete Vendor
-                </h3>
-                <div className="mt-2 px-7 py-3">
-                  <p className="text-sm text-gray-500">
-                    Apakah Anda yakin ingin menghapus vendor &quot;{selectedVendor.name}&quot;? Tindakan ini tidak dapat dibatalkan.
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    <span className="font-medium">Catatan:</span> Vendor dengan kalibrasi aktif (status In Calibration) tidak dapat dihapus. Vendor dengan kalibrasi yang sudah selesai (COMPLETED) masih dapat dihapus.
+          <div className="fixed inset-0 overflow-y-auto bg-gray-500/75 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto p-4">
+              <h3 className="text-base font-medium text-gray-900 mb-3">Confirm Deletion</h3>
+              <div className="mb-4">
+                <div className="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-100 mb-3">
+                  <FiTrash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Are you sure you want to delete vendor <span className="font-semibold">{selectedVendor.name}</span>? This action cannot be undone.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  <span className="font-medium">Note:</span> Vendors with active calibrations cannot be deleted.
                 </p>
               </div>
-                <div className="flex justify-center mt-5 gap-3">
+              
+              <div className="flex justify-end gap-2">
                 <button 
                   type="button" 
-                    className="btn btn-outlined"
                   onClick={closeDeleteModal}
+                  className="px-3 py-1.5 text-xs border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Cancel
                 </button>
                 <button 
                   type="button" 
-                    className="btn btn-danger"
                   onClick={handleDeleteSubmit}
+                  className="px-3 py-1.5 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
-                    Delete
+                  Delete
                 </button>
-                </div>
               </div>
             </div>
           </div>

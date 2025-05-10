@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiCheckCircle, FiEdit2, FiDownload } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiDownload, FiX, FiPlus } from 'react-icons/fi';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
+import { format } from 'date-fns';
+
+// Near the top of the file, add this interface for API responses
+interface ApiResponse {
+  error?: string;
+  message?: string;
+  [key: string]: unknown;
+}
 
 // Tambahkan fetcher untuk SWR
 const fetcher = async (url: string) => {
@@ -367,7 +375,8 @@ export default function CalibrationPage() {
   const getStatusBadgeColor = (statusName: string) => {
     switch (statusName.toLowerCase()) {
       case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-purple-100 text-purple-800'; // Changed to purple like the user page
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'cancelled':
@@ -375,6 +384,15 @@ export default function CalibrationPage() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+  
+  // Update the getDisplayStatus function to handle both object and string status
+  const getDisplayStatus = (status: string | { name: string }): string => {
+    const statusName = typeof status === 'object' ? status.name : status;
+    if (statusName.toLowerCase() === 'pending') {
+      return 'IN_CALIBRATION'; // Show PENDING as IN_CALIBRATION like in user page
+    }
+    return statusName;
   };
   
   const handleComplete = async (id: string) => {
@@ -423,7 +441,7 @@ export default function CalibrationPage() {
     setSelectedCalibration(null);
   };
   
-  // Tambahkan fungsi untuk menghapus kalibrasi
+  // Fix the handleDeleteCalibration function
   const handleDeleteCalibration = async () => {
     if (!selectedCalibration) return;
     
@@ -439,7 +457,7 @@ export default function CalibrationPage() {
       });
       
       // Handle empty response bodies
-      let data = {};
+      let data: ApiResponse = {};
       try {
         const text = await response.text();
         data = text ? JSON.parse(text) : {};
@@ -614,18 +632,252 @@ export default function CalibrationPage() {
     }
   };
   
+  // Add new state variables for create calibration functionality
+  const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+  const [items, setItems] = useState<Item[]>([]);
+  const [itemSearch, setItemSearch] = useState('');
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+  const itemSearchRef = useRef<HTMLDivElement>(null);
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+  const vendorSearchRef = useRef<HTMLDivElement>(null);
+  const [calibrationForm, setCalibrationForm] = useState({
+    itemSerial: '',
+    vendorId: '',
+    address: '',
+    phone: '',
+    fax: '',
+    manufacturer: '',
+    instrumentName: '',
+    modelNumber: '',
+    configuration: '',
+    calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+    notes: ''
+  });
+  
+  // Function to fetch available items
+  const fetchAvailableItems = async () => {
+    try {
+      const res = await fetch('/api/admin/items?status=AVAILABLE', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch available items: ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      }
+      
+      const data = await res.json();
+      
+      if (data && Array.isArray(data.items)) {
+        setItems(data.items);
+      } else if (data && typeof data === 'object') {
+        setItems(data.items || []);
+      } else {
+        setItems([]);
+        console.error('Unexpected response format from items API:', data);
+      }
+    } catch (err) {
+      console.error('Error fetching available items:', err);
+      setItems([]);
+    }
+  };
+  
+  // Function to open the calibration modal
+  const openCalibrationModal = () => {
+    if (!items || items.length === 0) {
+      fetchAvailableItems();
+    }
+    
+    setCalibrationForm({
+      itemSerial: '',
+      vendorId: '',
+      address: '',
+      phone: '',
+      fax: '',
+      manufacturer: '',
+      instrumentName: '',
+      modelNumber: '',
+      configuration: '',
+      calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+      notes: ''
+    });
+    
+    setShowCalibrationModal(true);
+  };
+  
+  // Function to close the calibration modal
+  const closeCalibrationModal = () => {
+    setShowCalibrationModal(false);
+  };
+  
+  // Handle changes in calibration form
+  const handleCalibrationFormChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCalibrationForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle item selection in the search dropdown
+  const handleItemSelect = (item: Item) => {
+    setItemSearch(''); // Clear search
+    setShowItemSuggestions(false);
+    
+    // Set the selected item in the form
+    setCalibrationForm(prev => ({
+      ...prev,
+      itemSerial: item.serialNumber,
+      manufacturer: item.name || '', // Nama produk sebagai manufacturer
+      instrumentName: item.partNumber || '', // Part number sebagai instrument name
+      modelNumber: '', // Dibiarkan kosong untuk diisi pengguna
+      configuration: item.sensor || '' // sensor sebagai configuration
+    }));
+  };
+  
+  // Handle vendor selection in the search dropdown
+  const handleVendorSelect = (vendor: Vendor) => {
+    setVendorSearch(''); // Clear search
+    setShowVendorSuggestions(false);
+    
+    // Set the selected vendor in the form
+    setCalibrationForm(prev => ({
+      ...prev,
+      vendorId: vendor.id,
+      // Field address dan phone tetap ada tapi diisi kosong
+      // karena data ini sudah ada di data vendor yang dipilih
+      address: '',
+      phone: '',
+      fax: ''
+    }));
+  };
+  
+  // Handle calibration form submission
+  const handleCalibrationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/calibrations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(calibrationForm),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create calibration');
+      }
+      
+      const data = await response.json();
+      setSuccess('Calibration request created successfully');
+      setCalibrations(prev => [data, ...prev]);
+      closeCalibrationModal();
+      
+      // Reset form
+      setCalibrationForm({
+        itemSerial: '',
+        vendorId: '',
+        address: '',
+        phone: '',
+        fax: '',
+        manufacturer: '',
+        instrumentName: '',
+        modelNumber: '',
+        configuration: '',
+        calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+        notes: ''
+      });
+      
+      // Refresh data
+      fetchCalibrations();
+      fetchAvailableItems();
+    } catch (err: any) {
+      console.error('Error creating calibration:', err);
+      setError(err.message || 'Failed to create calibration request');
+    }
+  };
+
+  // Add additional useEffect hooks for item and vendor search functionality
+  useEffect(() => {
+    // Handler for clicking outside the suggestions to close them
+    const handleClickOutside = (event: MouseEvent) => {
+      if (itemSearchRef.current && !itemSearchRef.current.contains(event.target as Node)) {
+        setShowItemSuggestions(false);
+      }
+      if (vendorSearchRef.current && !vendorSearchRef.current.contains(event.target as Node)) {
+        setShowVendorSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Filter items based on search term
+  useEffect(() => {
+    if (itemSearch.length < 2) {
+      setFilteredItems([]);
+      setShowItemSuggestions(false);
+      return;
+    }
+    
+    const filtered = items.filter(item => 
+      item.name.toLowerCase().includes(itemSearch.toLowerCase()) || 
+      item.serialNumber.toLowerCase().includes(itemSearch.toLowerCase())
+    );
+    
+    setFilteredItems(filtered);
+    setShowItemSuggestions(true);
+  }, [itemSearch, items]);
+  
+  // Filter vendors based on search term
+  useEffect(() => {
+    if (vendorSearch.length < 2) {
+      setFilteredVendors([]);
+      setShowVendorSuggestions(false);
+      return;
+    }
+    
+    const filtered = vendors.filter(vendor => 
+      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
+      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
+    );
+    
+    setFilteredVendors(filtered);
+    setShowVendorSuggestions(true);
+  }, [vendorSearch, vendors]);
+  
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-title text-xl md:text-2xl">Calibration Management</h1>
+          <div className="flex gap-2">
+            <button 
+              onClick={openCalibrationModal}
+              className="btn btn-primary flex items-center"
+              aria-label="Create new calibration"
+            >
+              <FiPlus className="mr-2" /> New Calibration
+            </button>
           <Link href="/admin/vendors" className="btn btn-secondary">
             Manage Vendors
           </Link>
+          </div>
         </div>
         
+        {/* Error message */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded shadow-sm" role="alert">
             <p className="font-medium">{error}</p>
             <button 
               onClick={() => fetchCalibrations()}
@@ -636,43 +888,44 @@ export default function CalibrationPage() {
           </div>
         )}
         
+        {/* Success message */}
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm" role="alert">
+          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded shadow-sm" role="alert">
             <p className="font-medium">{success}</p>
           </div>
         )}
         
-        {/* Calibrations Section */}
-        <div>
-          <h2 className="text-subtitle text-lg mb-4">Calibration Records</h2>
-          
-          {/* Filters */}
-          <div className="card mb-6 border border-gray-200 p-4">
-            <h3 className="text-subtitle mb-4">Filter Calibrations</h3>
+        {/* Filters Section */}
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Status */}
               <div>
-                <label htmlFor="statusId" className="form-label">Status</label>
+              <label htmlFor="statusId" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   id="statusId"
                   name="statusId"
                   value={filter.statusId}
                   onChange={handleFilterChange}
-                  className="form-input"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
                 >
                   <option value="">All Statuses</option>
                   {statuses.map(status => (
-                    <option key={`status-${status.id}`} value={status.id}>{status.name}</option>
+                  <option key={`status-${status.id}`} value={status.id}>
+                    {status.name.toLowerCase() === 'pending' ? 'IN_CALIBRATION' : status.name}
+                  </option>
                   ))}
                 </select>
               </div>
+
+            {/* Vendor */}
               <div>
-                <label htmlFor="vendorId" className="form-label">Vendor</label>
+              <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
                 <select
                   id="vendorId"
                   name="vendorId"
                   value={filter.vendorId}
                   onChange={handleFilterChange}
-                  className="form-input"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
                 >
                   <option value="">All Vendors</option>
                   {vendors.map(vendor => (
@@ -680,10 +933,13 @@ export default function CalibrationPage() {
                   ))}
                 </select>
               </div>
+
+            {/* Reset Button */}
               <div className="flex items-end">
                 <button
+                type="button"
                   onClick={resetFilters}
-                  className="btn btn-secondary"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out"
                 >
                   Reset Filters
                 </button>
@@ -691,46 +947,57 @@ export default function CalibrationPage() {
             </div>
           </div>
           
+        {/* Loading state */}
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
-              <p className="mt-4 text-subtitle">Loading calibrations...</p>
+          <div className="bg-white p-8 rounded-lg shadow flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             </div>
           ) : calibrations.length === 0 ? (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-              <p className="text-yellow-700 font-medium">No calibration records found.</p>
-              <p className="text-yellow-600 mt-2">
-                Add calibrations through the Edit button to start tracking calibrations.
-              </p>
+          <div className="bg-white p-8 rounded-lg shadow text-center">
+            <p className="text-gray-500">No calibrations found.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vendor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Valid Until
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {calibrations.map((calibration) => (
                       <tr key={calibration.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          #{calibration.id}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div>
                           <div className="text-sm font-medium text-gray-900">
                             {calibration.item ? calibration.item.name : 'Item tidak tersedia'}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-sm text-gray-500">
                             {calibration.item && calibration.item.serialNumber ? 
                               calibration.item.serialNumber : 'No S/N'}
+                          </div>
+                        </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -739,83 +1006,91 @@ export default function CalibrationPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {calibration.vendor?.name || 'Not assigned'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(calibration.calibrationDate)}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(typeof calibration.status === 'object' ? calibration.status.name : calibration.status)}`}>
-                            {typeof calibration.status === 'object' ? calibration.status.name.toLowerCase() : calibration.status.toLowerCase()}
+                        {getDisplayStatus(typeof calibration.status === 'object' ? calibration.status.name : calibration.status)}
                           </span>
+                        </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(calibration.calibrationDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {calibration.validUntil ? formatDate(calibration.validUntil) : 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           {(typeof calibration.status === 'object' && calibration.status.name === 'COMPLETED') || 
                            calibration.status === 'COMPLETED' ? (
                             <>
-                              {/* Download sertifikat */}
+                          {/* Download certificate */}
                               <a 
                                 href={`/api/admin/calibrations/${calibration.id}/certificate`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-900 mr-3"
+                            className="text-blue-600 hover:text-blue-900 mr-3 inline-flex items-center"
                                 title="Download Certificate"
                               >
-                                <FiDownload className="inline-block" />
+                            <FiDownload className="mr-1" /> Certificate
                               </a>
                               
-                              {/* Edit sertifikat */}
+                          {/* Edit certificate */}
                           <button
                                 onClick={() => openEditCertificateModal(calibration)}
-                                className="text-green-600 hover:text-green-900 mr-3"
+                            className="text-green-600 hover:text-green-900 inline-flex items-center"
                                 title="Edit Certificate"
                               >
-                                <FiEdit2 className="inline-block" />
+                            <FiEdit2 className="mr-1" /> Edit
+                          </button>
+                          
+                          {/* Add Delete button for completed calibrations */}
+                          <button
+                            onClick={() => openDeleteModal(calibration)}
+                            className="text-red-600 hover:text-red-900 ml-3 inline-flex items-center"
+                            title="Delete Calibration"
+                          >
+                            <FiX className="mr-1" /> Delete
                           </button>
                             </>
                           ) : (
                             <>
-                              {/* Tombol untuk mengubah status menjadi completed */}
+                          {/* Mark as completed */}
                               <button
                                 onClick={() => openCompleteModal(calibration)}
-                                className="text-green-600 hover:text-green-900 mr-3"
+                            className="text-green-600 hover:text-green-900 mr-3 inline-flex items-center"
                                 title="Mark as Completed"
                               >
-                                <FiCheckCircle className="inline-block" />
+                            <FiCheckCircle className="mr-1" /> Complete
                               </button>
                               
-                              {/* Edit kalibrasi */}
+                          {/* Edit calibration */}
                           <button
                             onClick={() => openEditModal(calibration)}
-                                className="text-green-600 hover:text-green-900 mr-3"
+                            className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                             title="Edit Calibration"
                           >
-                            <FiEdit2 className="inline-block" />
+                            <FiEdit2 className="mr-1" /> Edit
                           </button>
-                            </>
-                          )}
                           
-                          {/* Tombol hapus untuk semua kalibrasi */}
+                          {/* Add Delete button for in-progress calibrations */}
                             <button
                             onClick={() => openDeleteModal(calibration)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 ml-3 inline-flex items-center"
                             title="Delete Calibration"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            <FiX className="mr-1" /> Delete
                             </button>
+                        </>
+                      )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           )}
-        </div>
         
         {/* Pagination Controls */}
         {!loading && calibrations.length > 0 && (
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-4">
             <div className="text-sm text-gray-700">
               Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} results
             </div>
@@ -823,7 +1098,7 @@ export default function CalibrationPage() {
               <button
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
                 Previous
               </button>
@@ -834,7 +1109,7 @@ export default function CalibrationPage() {
                   <button
                     key={page}
                     onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    className={`px-3 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                   >
                     {page}
                   </button>
@@ -843,7 +1118,7 @@ export default function CalibrationPage() {
               <button
                 onClick={() => handlePageChange(Math.min(Math.ceil(totalItems / PAGE_SIZE), currentPage + 1))}
                 disabled={currentPage === Math.ceil(totalItems / PAGE_SIZE)}
-                className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
                 Next
               </button>
@@ -853,33 +1128,32 @@ export default function CalibrationPage() {
         
         {/* Edit Calibration Modal */}
         {showEditModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+                <h3 className="text-lg font-semibold">
                   {editForm.completed ? 'Complete Calibration' : 'Edit Calibration'}
                 </h3>
-                <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button onClick={closeEditModal} className="text-white hover:text-gray-200" aria-label="Close">
+                  <FiX size={20} />
                 </button>
               </div>
               
-              <form onSubmit={handleUpdateCalibration}>
-                <div className="mb-4">
-                  <p className="text-subtitle mb-1">Item:</p>
-                  <p className="text-body">{selectedCalibration && selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</p>
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
+                <form onSubmit={handleUpdateCalibration} className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Item:</p>
+                    <p className="text-sm">{selectedCalibration && selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</p>
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="vendorId" className="form-label">Vendor</label>
+                  <div>
+                    <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
                   <select
                     id="vendorId"
                     name="vendorId"
                     value={editForm.vendorId}
                     onChange={handleEditFormChange}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   >
                     <option value="">Select a vendor</option>
                     {vendors.map(vendor => (
@@ -888,65 +1162,67 @@ export default function CalibrationPage() {
                   </select>
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="calibrationDate" className="form-label">Calibration Date</label>
+                  <div>
+                    <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Calibration Date</label>
                   <input
                     id="calibrationDate"
                     name="calibrationDate"
                     type="date"
                     value={editForm.calibrationDate}
                     onChange={handleEditFormChange}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     required
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="result" className="form-label">Result / Notes</label>
+                  <div>
+                    <label htmlFor="result" className="block text-sm font-medium text-gray-700 mb-1">Result / Notes</label>
                   <textarea
                     id="result"
                     name="result"
                     value={editForm.result}
                     onChange={handleEditFormChange}
                     rows={3}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter calibration results or notes..."
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="certificateUrl" className="form-label">Certificate URL (if available)</label>
+                  <div>
+                    <label htmlFor="certificateUrl" className="block text-sm font-medium text-gray-700 mb-1">Certificate URL (if available)</label>
                   <input
                     id="certificateUrl"
                     name="certificateUrl"
                     type="text"
                     value={editForm.certificateUrl}
                     onChange={handleEditFormChange}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     placeholder="https://example.com/certificate.pdf"
                   />
                 </div>
                 
                 {!editForm.completed && (
-                  <div className="mb-4">
-                    <label htmlFor="statusId" className="form-label">Status</label>
+                    <div>
+                      <label htmlFor="statusId" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select
                       id="statusId"
                       name="statusId"
                       value={editForm.statusId}
                       onChange={handleEditFormChange}
-                      className="form-input"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                       required
                     >
                       {statuses.map(status => (
-                        <option key={`edit-status-${status.id}`} value={status.id}>{status.name}</option>
+                          <option key={`edit-status-${status.id}`} value={status.id}>
+                            {status.name.toLowerCase() === 'pending' ? 'IN_CALIBRATION' : status.name}
+                          </option>
                       ))}
                     </select>
                   </div>
                 )}
                 
                 {editForm.completed && (
-                  <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                    <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-100">
                     <div className="flex items-start">
                       <input
                         id="completed"
@@ -967,105 +1243,103 @@ export default function CalibrationPage() {
                   </div>
                 )}
                 
-                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  <div className="flex justify-end gap-2">
                   <button 
                     type="button" 
                     onClick={closeEditModal}
-                    className="btn btn-secondary order-2 sm:order-1"
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
-                    className="btn btn-primary order-1 sm:order-2"
+                      className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
                   >
                     {editForm.completed ? 'Complete Calibration' : 'Update Calibration'}
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           </div>
         )}
         
         {/* Complete Modal */}
         {completeModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Complete Calibration</h3>
-                <button onClick={closeCompleteModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+                <h3 className="text-lg font-semibold">Complete Calibration</h3>
+                <button onClick={closeCompleteModal} className="text-white hover:text-gray-200" aria-label="Close">
+                  <FiX size={20} />
                 </button>
               </div>
               
-              <div className="mb-4">
-                <p className="text-gray-700">Please enter the details to complete the calibration for: <strong>{selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</strong></p>
-                </div>
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
+                <p className="text-sm mb-4">Please enter the details to complete the calibration for: <strong>{selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</strong></p>
               
-              <form onSubmit={(e) => { e.preventDefault(); handleComplete(selectedCalibration.id.toString()); }}>
-                <div className="mb-4">
-                  <label htmlFor="certificateNumber" className="form-label">Certificate Number</label>
+                <form onSubmit={(e) => { e.preventDefault(); handleComplete(selectedCalibration.id.toString()); }} className="space-y-4">
+                  <div>
+                    <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">Certificate Number</label>
                   <input
                     type="text"
                     id="certificateNumber"
                     value={certificateNumber}
                     onChange={(e) => setCertificateNumber(e.target.value)}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter certificate number"
                     required
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="calibrationDate" className="form-label">Calibration Date</label>
+                  <div>
+                    <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Calibration Date</label>
                   <input
                     type="date"
                     id="calibrationDate"
                     value={calibrationDate}
                     onChange={(e) => setCalibrationDate(e.target.value)}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     required
                   />
                 </div>
                 
-                <div className="mb-4">
-                  <label htmlFor="nextCalibrationDate" className="form-label">Next Calibration Date</label>
+                  <div>
+                    <label htmlFor="nextCalibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Next Calibration Date</label>
                   <input
                     type="date"
                     id="nextCalibrationDate"
                     value={nextCalibrationDate}
                     onChange={(e) => setNextCalibrationDate(e.target.value)}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     required
                   />
                 </div>
                 
-                <div className="mb-6">
-                  <label htmlFor="calibrationResult" className="form-label">Result</label>
+                  <div>
+                    <label htmlFor="calibrationResult" className="block text-sm font-medium text-gray-700 mb-1">Result</label>
                   <textarea
                     id="calibrationResult"
                     value={calibrationResult}
                     onChange={(e) => setCalibrationResult(e.target.value)}
-                    className="form-input"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     rows={3}
                     placeholder="Enter calibration results"
                     required
                   ></textarea>
                 </div>
                 
-                <div className="flex justify-end space-x-3">
+                  <div className="flex justify-end space-x-2">
                   <button
                     type="button"
                     onClick={closeCompleteModal}
-                    className="btn btn-secondary"
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-primary"
+                      className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
@@ -1079,59 +1353,60 @@ export default function CalibrationPage() {
                   </button>
                 </div>
               </form>
+              </div>
                 </div>
                   </div>
         )}
         
-        {/* Tambahkan Delete Confirmation Modal */}
+        {/* Delete Confirmation Modal */}
         {showDeleteModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Hapus Kalibrasi</h3>
-                <button onClick={closeDeleteModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+                <h3 className="text-lg font-semibold">Delete Calibration</h3>
+                <button onClick={closeDeleteModal} className="text-white hover:text-gray-200" aria-label="Close">
+                  <FiX size={20} />
                 </button>
                 </div>
                 
-              <div className="mt-3 text-center">
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
+                <div className="flex flex-col items-center mb-4">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                   </div>
-                <h3 className="text-title text-lg leading-6 font-medium text-gray-900 mt-4">
-                  Hapus Kalibrasi
+                  <h3 className="text-lg font-medium text-gray-900 mt-4">
+                    Delete Calibration
                 </h3>
-                <div className="mt-2 px-7 py-3">
-                  <p className="text-sm text-gray-500">
-                    Apakah Anda yakin ingin menghapus kalibrasi untuk {selectedCalibration.item?.name || "item ini"}? 
-                    Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait termasuk sertifikat.
-                  </p>
               </div>
-                <div className="flex justify-center mt-5 gap-3">
+                
+                <div className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete the calibration for {selectedCalibration.item?.name || "this item"}? 
+                  This action cannot be undone and will delete all related data including certificates.
+                </div>
+                
+                <div className="flex justify-end gap-2">
                 <button 
                   type="button" 
-                  className="btn btn-secondary"
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
                     onClick={closeDeleteModal}
                   >
-                    Batal
+                    Cancel
                   </button>
                   <button
                     type="button"
-                    className="btn btn-danger"
+                    className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm"
                     onClick={handleDeleteCalibration}
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
                       <>
                         <span className="animate-spin mr-2">⟳</span>
-                        Menghapus...
+                        Deleting...
                       </>
                     ) : (
-                      'Hapus'
+                      'Delete'
                     )}
                 </button>
                 </div>
@@ -1140,263 +1415,523 @@ export default function CalibrationPage() {
           </div>
         )}
         
-        {/* Modal Edit Sertifikat */}
+        {/* Edit Certificate Modal */}
         {showEditCertificateModal && selectedCalibration && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-title text-lg">Edit Sertifikat Kalibrasi</h3>
-                <button onClick={closeEditCertificateModal} className="text-gray-400 hover:text-gray-500" aria-label="Close">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+                <h3 className="text-lg font-semibold">Edit Calibration Certificate</h3>
+                <button onClick={closeEditCertificateModal} className="text-white hover:text-gray-200" aria-label="Close">
+                  <FiX size={20} />
                 </button>
               </div>
               
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
               <div className="mb-4">
-                <p className="text-subtitle mb-1">Item:</p>
-                <p className="text-body font-medium">{selectedCalibration.item?.name || 'Unknown Item'}</p>
+                  <p className="text-sm font-medium text-gray-700">Item:</p>
+                  <p className="text-sm">{selectedCalibration.item?.name || 'Unknown Item'}</p>
                 <p className="text-xs text-gray-500">{selectedCalibration.item?.serialNumber || 'No S/N'}</p>
               </div>
               
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
                 <p className="text-blue-700 text-sm">
-                  <strong>Catatan:</strong> Hanya informasi Gas Kalibrasi dan Hasil Test yang dapat diedit. Informasi lainnya hanya dapat dilihat.
+                    <strong>Note:</strong> Only Gas Calibration and Test Result information can be edited. Other information is read-only.
                 </p>
               </div>
               
-              <form onSubmit={handleUpdateCertificate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Informasi Vendor */}
-                <div className="md:col-span-2 mb-2">
-                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Vendor</h4>
-                </div>
-                
-                <div className="mb-3">
-                  <label htmlFor="vendorName" className="form-label">Nama Vendor</label>
+                <form onSubmit={handleUpdateCertificate} className="space-y-4">
+                  {/* Vendor Information */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Vendor Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="vendorName" className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
                   <input
                     type="text"
                     id="vendorName"
                     name="vendorName"
                     value={certificateData.vendorName}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="vendorAddress" className="form-label">Alamat Vendor</label>
+                      <div>
+                        <label htmlFor="vendorAddress" className="block text-sm font-medium text-gray-700 mb-1">Vendor Address</label>
                   <input
                     type="text"
                     id="vendorAddress"
                     name="vendorAddress"
                     value={certificateData.vendorAddress}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="vendorPhone" className="form-label">Telepon Vendor</label>
+                      <div>
+                        <label htmlFor="vendorPhone" className="block text-sm font-medium text-gray-700 mb-1">Vendor Phone</label>
                   <input
                     type="text"
                     id="vendorPhone"
                     name="vendorPhone"
                     value={certificateData.vendorPhone}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
-                
-                {/* Informasi Alat */}
-                <div className="md:col-span-2 mb-2 mt-3">
-                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Alat</h4>
+                    </div>
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="manufacturer" className="form-label">Pembuat Alat</label>
+                  {/* Instrument Information */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Instrument Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="manufacturer" className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
                   <input
                     type="text"
                     id="manufacturer"
                     name="manufacturer"
                     value={certificateData.manufacturer}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="instrumentName" className="form-label">Nama Instrumen</label>
+                      <div>
+                        <label htmlFor="instrumentName" className="block text-sm font-medium text-gray-700 mb-1">Instrument Name</label>
                   <input
                     type="text"
                     id="instrumentName"
                     name="instrumentName"
                     value={certificateData.instrumentName}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="modelNumber" className="form-label">Nomor Model</label>
+                      <div>
+                        <label htmlFor="modelNumber" className="block text-sm font-medium text-gray-700 mb-1">Model Number</label>
                   <input
                     type="text"
                     id="modelNumber"
                     name="modelNumber"
                     value={certificateData.modelNumber}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="configuration" className="form-label">Konfigurasi</label>
+                      <div>
+                        <label htmlFor="configuration" className="block text-sm font-medium text-gray-700 mb-1">Sensor</label>
                   <input
                     type="text"
                     id="configuration"
                     name="configuration"
                     value={certificateData.configuration}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
                 </div>
-                
-                {/* Informasi Gas Kalibrasi - Bagian yang bisa diedit */}
-                <div className="md:col-span-2 mb-2 mt-3">
-                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Informasi Gas Kalibrasi</h4>
+                    </div>
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="gasType" className="form-label">Jenis Gas</label>
+                  {/* Calibration Gas Information - Editable */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Calibration Gas Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="gasType" className="block text-sm font-medium text-gray-700 mb-1">Gas Type</label>
                   <input
                     type="text"
                     id="gasType"
                     name="gasType"
                     value={certificateData.gasType}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="gasConcentration" className="form-label">Konsentrasi Gas</label>
+                      <div>
+                        <label htmlFor="gasConcentration" className="block text-sm font-medium text-gray-700 mb-1">Gas Concentration</label>
                   <input
                     type="text"
                     id="gasConcentration"
                     name="gasConcentration"
                     value={certificateData.gasConcentration}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="gasBalance" className="form-label">Balance Gas</label>
+                      <div>
+                        <label htmlFor="gasBalance" className="block text-sm font-medium text-gray-700 mb-1">Balance Gas</label>
                   <input
                     type="text"
                     id="gasBalance"
                     name="gasBalance"
                     value={certificateData.gasBalance}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="gasBatchNumber" className="form-label">Batch/Lot Gas</label>
+                      <div>
+                        <label htmlFor="gasBatchNumber" className="block text-sm font-medium text-gray-700 mb-1">Batch/Lot Number</label>
                   <input
                     type="text"
                     id="gasBatchNumber"
                     name="gasBatchNumber"
                     value={certificateData.gasBatchNumber}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
-                
-                {/* Hasil Test - Bagian yang bisa diedit */}
-                <div className="md:col-span-2 mb-2 mt-3">
-                  <h4 className="text-md font-medium text-gray-700 border-b pb-1 mb-2">Hasil Test</h4>
+                    </div>
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="testSensor" className="form-label">Sensor</label>
+                  {/* Test Results - Editable */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Test Results</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="testSensor" className="block text-sm font-medium text-gray-700 mb-1">Sensor</label>
                   <input
                     type="text"
                     id="testSensor"
                     name="testSensor"
                     value={certificateData.testSensor}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="testSpan" className="form-label">Span</label>
+                      <div>
+                        <label htmlFor="testSpan" className="block text-sm font-medium text-gray-700 mb-1">Span</label>
                   <input
                     type="text"
                     id="testSpan"
                     name="testSpan"
                     value={certificateData.testSpan}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="testResult" className="form-label">Hasil</label>
+                      <div>
+                        <label htmlFor="testResult" className="block text-sm font-medium text-gray-700 mb-1">Result</label>
                   <select
                     id="testResult"
                     name="testResult"
                     value={certificateData.testResult}
                     onChange={handleCertificateFormChange}
-                    className="form-input"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   >
                     <option value="Pass">Pass</option>
                     <option value="Fail">Fail</option>
                   </select>
                 </div>
                 
-                <div className="mb-3">
-                  <label htmlFor="approvedBy" className="form-label">Disetujui Oleh</label>
+                      <div>
+                        <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
                   <input
                     type="text"
                     id="approvedBy"
                     name="approvedBy"
                     value={certificateData.approvedBy}
                     onChange={handleCertificateFormChange}
-                    className="form-input bg-gray-100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
                     disabled
                   />
+                      </div>
+                    </div>
                 </div>
                 
-                <div className="md:col-span-2 flex justify-end mt-6 space-x-3">
+                  <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={closeEditCertificateModal}
-                    className="btn btn-secondary"
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
                   >
-                    Batal
+                      Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-primary"
+                      className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
                       <>
                         <span className="animate-spin mr-2">⟳</span>
-                        Menyimpan...
+                          Saving...
                       </>
                     ) : (
-                      'Simpan Perubahan'
+                        'Save Changes'
                     )}
+                  </button>
+                </div>
+              </form>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* New Calibration Modal */}
+        {showCalibrationModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+                <h2 className="text-lg font-semibold">New Calibration</h2>
+                <button 
+                  onClick={closeCalibrationModal} 
+                  className="text-white hover:text-gray-200"
+                  aria-label="Close modal"
+                  title="Close calibration form"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              
+              {/* Form */}
+              <form onSubmit={handleCalibrationSubmit} className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Item Details */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-3">Item Details</h3>
+
+                    {/* Item Selection */}
+                    <div className="mb-3" ref={itemSearchRef}>
+                      <label className="block mb-1 text-sm font-medium text-gray-700" id="item-label">Item</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={itemSearch}
+                          onChange={(e) => setItemSearch(e.target.value)}
+                          placeholder="Search for item by name or serial number"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                          aria-labelledby="item-label"
+                          onFocus={() => itemSearch.length >= 2 && setShowItemSuggestions(true)}
+                        />
+                        
+                        {/* Show selected item if any */}
+                        {calibrationForm.itemSerial && (
+                          <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
+                            <p className="font-medium text-sm">
+                              {items.find(item => item.serialNumber === calibrationForm.itemSerial)?.name || "Selected Item"}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              SN: {calibrationForm.itemSerial}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Suggestions dropdown */}
+                        {showItemSuggestions && (
+                          <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {filteredItems.length > 0 ? (
+                              <ul className="py-1">
+                                {filteredItems.map((item) => (
+                                  <li 
+                                    key={item.serialNumber}
+                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                    onClick={() => handleItemSelect(item)}
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <div className="font-medium">{item.name}</div>
+                                        <div className="text-sm text-gray-600">SN: {item.serialNumber}</div>
+                                      </div>
+                                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800`}>
+                                        Available
+                                      </span>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                No matching items found
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {!calibrationForm.itemSerial && (
+                        <p className="text-xs text-gray-500 mt-1">Search and select an item for calibration</p>
+                      )}
+                    </div>
+
+                    {/* Other Inputs */}
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Nama Produk</label>
+                      <input
+                        type="text"
+                        name="manufacturer"
+                        value={calibrationForm.manufacturer}
+                        onChange={handleCalibrationFormChange}
+                        placeholder="RAE Systems"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Part Number</label>
+                      <input
+                        type="text"
+                        name="instrumentName"
+                        value={calibrationForm.instrumentName}
+                        onChange={handleCalibrationFormChange}
+                        placeholder="MeshGuard H2S"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Configuration</label>
+                      <input
+                        type="text"
+                        name="configuration"
+                        value={calibrationForm.configuration}
+                        onChange={handleCalibrationFormChange}
+                        placeholder="H2S, O2, CO, dll"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Date */}
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-medium text-gray-700" id="calibration-date-label">Calibration Date</label>
+                      <input
+                        type="date"
+                        name="calibrationDate"
+                        value={calibrationForm.calibrationDate}
+                        onChange={handleCalibrationFormChange}
+                        required
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                        aria-labelledby="calibration-date-label"
+                        title="Select the calibration date"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Vendor Details */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-3">Vendor Details</h3>
+
+                    {/* Vendor */}
+                    <div className="mb-3" ref={vendorSearchRef}>
+                      <label className="block mb-1 text-sm font-medium text-gray-700" id="vendor-label">Vendor</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={vendorSearch}
+                          onChange={(e) => setVendorSearch(e.target.value)}
+                          placeholder="Search for vendor by name"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                          aria-labelledby="vendor-label"
+                          onFocus={() => vendorSearch.length >= 2 && setShowVendorSuggestions(true)}
+                        />
+                        
+                        {/* Show selected vendor if any */}
+                        {calibrationForm.vendorId && (
+                          <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
+                            <p className="font-medium text-sm">
+                              {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.name || "Selected Vendor"}
+                            </p>
+                            {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName && (
+                              <p className="text-xs text-gray-600">
+                                Contact: {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Suggestions dropdown */}
+                        {showVendorSuggestions && (
+                          <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {filteredVendors.length > 0 ? (
+                              <ul className="py-1">
+                                {filteredVendors.map((vendor) => (
+                                  <li 
+                                    key={vendor.id}
+                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                    onClick={() => handleVendorSelect(vendor)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">{vendor.name}</div>
+                                      {vendor.contactName && (
+                                        <div className="text-sm text-gray-600">Contact: {vendor.contactName}</div>
+                                      )}
+                                      {vendor.contactPhone && (
+                                        <div className="text-xs text-gray-500">Phone: {vendor.contactPhone}</div>
+                                      )}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                No matching vendors found
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {!calibrationForm.vendorId && (
+                        <p className="text-xs text-gray-500 mt-1">Search and select a vendor for calibration</p>
+                      )}
+                    </div>
+
+                    {/* Fax */}
+                    <div className="mb-3">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Fax</label>
+                      <input
+                        type="text"
+                        name="fax"
+                        value={calibrationForm.fax}
+                        onChange={handleCalibrationFormChange}
+                        placeholder="Fax number"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Notes</label>
+                      <textarea
+                        name="notes"
+                        value={calibrationForm.notes}
+                        onChange={handleCalibrationFormChange}
+                        placeholder="Additional notes"
+                        rows={3}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="mt-6 flex justify-end gap-2">
+                  <button 
+                    type="button" 
+                    onClick={closeCalibrationModal}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+                  >
+                      Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+                  >
+                    Start Calibration
                   </button>
                 </div>
               </form>

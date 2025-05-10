@@ -200,26 +200,23 @@ interface TechnicalReportMaintenanceData extends MaintenanceDataBase {
     id: string;
     csrNumber?: string | null;
     deliveryTo?: string | null;
-    quoNumber?: string | null;
     dateReport?: string | Date | null;
     techSupport?: string | null;
     dateIn?: string | Date | null;
     estimateWork?: string | null;
     reasonForReturn?: string | null;
     findings?: string | null;
+    action?: string | null;
     beforePhotoUrl?: string | null;
     afterPhotoUrl?: string | null;
-    termsConditions?: string | null;
     partsList?: Array<{
       id: string;
       itemNumber: number;
       namaUnit?: string | null;
       description?: string | null;
       quantity: number;
-      unitPrice?: number | null;
       createdAt?: Date;
       technicalReportId?: string;
-      totalPrice?: number | null;
     }>;
   } | null;
   csrNumber?: string;
@@ -1013,26 +1010,6 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     color: black
   });
   
-  // QUO information
-  page.drawText('QUO No:', {
-    x: margin + tableWidth * 0.33 + 10,
-    y: height - 120,
-    size: 9,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // QUO Number if available
-  if (tr?.quoNumber) {
-    page.drawText(tr.quoNumber, {
-      x: margin + tableWidth * 0.33 + 70,
-      y: height - 120,
-      size: 9,
-      font: helvetica,
-      color: black
-    });
-  }
-  
   // Right column information
   const csrNum = tr?.csrNumber || maintenanceData.csrNumber || '090/CSR-PBI/IX/24';
   page.drawText('CSR NO :', {
@@ -1182,15 +1159,23 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     borderWidth: 1
   });
   
+  page.drawText('Findings :', {
+    x: margin + 10,
+    y: reasonY - 90,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
   // Add detailed findings content if available
   if (tr?.findings) {
-    const findingsLines = splitTextToLines(tr.findings, tableWidth - 20, helvetica, 9);
+    const findingsLines = splitTextToLines(tr.findings, tableWidth - 100, helvetica, 9);
     let lineY = reasonY - 90;
     
     findingsLines.forEach((line, idx) => {
       if (lineY > reasonY - 110 && idx < 2) { // Show max 2 lines
-        page.drawText(idx === 0 ? `1. ${line}` : `2. ${line}`, {
-          x: margin + 10,
+        page.drawText(line, {
+          x: margin + 80,
           y: lineY,
           size: 9,
           font: helvetica,
@@ -1266,29 +1251,83 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
         );
         
         page.drawImage(afterImage, {
-          x: margin + (tableWidth * 3 / 4) - (afterDims.width / 2),
+          x: margin + (tableWidth * 3/4) - (afterDims.width / 2),
           y: photosY - 75 - (afterDims.height / 2),
           width: afterDims.width,
           height: afterDims.height
         });
       }
+      
+      // Add labels for before/after images
+      page.drawText('Before Maintenance', {
+        x: margin + (tableWidth / 4) - 40,
+        y: photosY - 140,
+        size: 9,
+        font: helveticaBold,
+        color: black
+      });
+      
+      page.drawText('After Maintenance', {
+        x: margin + (tableWidth * 3/4) - 40,
+        y: photosY - 140,
+        size: 9,
+        font: helveticaBold,
+        color: black
+      });
     }
-  } catch (err) {
-    console.error('Error loading device images:', err);
+  } catch (e) {
+    console.error('Error processing device images:', e);
   }
   
-  // --- FIFTH SECTION - PARTS TABLE ---
-  const partsY = photosY - 150;
+  // --- FIFTH SECTION - ACTION ---
+  const actionY = photosY - 150;
+  
+  page.drawRectangle({
+    x: margin,
+    y: actionY - 70,
+    width: tableWidth,
+    height: 70,
+    borderColor: black,
+    borderWidth: 1
+  });
+  
+  page.drawText('Action :', {
+    x: margin + 10, 
+    y: actionY - 20,
+    size: 9,
+    font: helveticaBold,
+    color: black
+  });
+  
+  // Add action content if available
+  if (tr?.action) {
+    const actionLines = splitTextToLines(tr.action, tableWidth - 100, helvetica, 9);
+    let lineY = actionY - 20;
+    
+    actionLines.forEach((line, idx) => {
+      if (lineY > actionY - 60 && idx < 3) { // Show max 3 lines
+        page.drawText(line, {
+          x: margin + 80,
+          y: lineY,
+          size: 9,
+          font: helvetica,
+          color: black
+        });
+        lineY -= 15;
+      }
+    });
+  }
+  
+  // --- SIXTH SECTION - PARTS LIST TABLE ---
+  const partsY = actionY - 70;
   
   // Table headers
-  const columnHeaders = ['NO', 'Nama Unit', 'DESCRIPTION', 'QTY', 'UNIT PRICE', 'TOTAL PRICE'];
+  const columnHeaders = ['NO', 'Nama Unit', 'DESCRIPTION', 'QTY'];
   const columnWidths = [
     tableWidth * 0.08,  // NO
     tableWidth * 0.17,  // Nama Unit
     tableWidth * 0.30,  // DESCRIPTION
-    tableWidth * 0.10,  // QTY
-    tableWidth * 0.17,  // UNIT PRICE
-    tableWidth * 0.18   // TOTAL PRICE
+    tableWidth * 0.10,  // QTY 
   ];
   
   // Draw header row
@@ -1400,95 +1439,13 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
         font: helvetica,
         color: black
       });
-      
-      // Unit Price
-      if (part.unitPrice) {
-        const formattedPrice = new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0
-        }).format(part.unitPrice);
-        
-        page.drawText(formattedPrice, {
-          x: margin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + 5,
-          y: rowY - rowHeight/2 - 4,
-          size: 9,
-          font: helvetica,
-          color: black
-        });
-      }
-      
-      // Total Price
-      if (part.totalPrice || (part.quantity && part.unitPrice)) {
-        const total = part.totalPrice || (part.quantity * (part.unitPrice || 0));
-        const formattedTotal = new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0
-        }).format(total);
-        
-        page.drawText(formattedTotal, {
-          x: margin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + columnWidths[4] + 5,
-          y: rowY - rowHeight/2 - 4,
-          size: 9,
-          font: helvetica,
-          color: black
-        });
-      }
     }
   }
   
   // --- SIXTH SECTION - TERMS & CONDITIONS ---
   const termsY = partsY - 25 - (rowCount * rowHeight);
-  
-  // Terms and conditions title
-  page.drawText('Terms and Condition :', {
-    x: margin,
-    y: termsY - 20,
-    size: 9,
-    font: helveticaBold,
-    color: black
-  });
-  
-  // Terms content - use form data if available, otherwise default 
-  if (tr?.termsConditions) {
-    const termsLines = splitTextToLines(tr.termsConditions, tableWidth - 20, helvetica, 9);
-    let lineY = termsY - 40;
-    
-    termsLines.forEach((line, idx) => {
-      if (lineY > termsY - 100 && idx < 4) { // Show max 4 lines
-        page.drawText(`${idx + 1}. ${line}`, {
-          x: margin,
-          y: lineY,
-          size: 9,
-          font: helvetica,
-          color: black
-        });
-        lineY -= 15;
-      }
-    });
-  } else {
-    // Default terms
-    const terms = [
-      'Price above exclude PPN 11 %',
-      'Delivery                       : 2 weeks',
-      'Payment                      :',
-      'Franco                        :'
-    ];
-    
-    terms.forEach((term, i) => {
-      page.drawText(`${i + 1}. ${term}`, {
-        x: margin,
-        y: termsY - 40 - (i * 15),
-        size: 9,
-        font: helvetica,
-        color: black
-      });
-    });
-  }
-  
   // --- FOOTER TEXT ---
-  page.drawText('We hope above are acceptable for your needs. We look further for your order.', {
+  page.drawText('This Report is generated by the system automatically, please verify the accuracy of the report before signing.', {
     x: margin,
     y: termsY - 100,
     size: 9,

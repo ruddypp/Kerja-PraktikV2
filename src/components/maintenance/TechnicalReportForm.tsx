@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -23,9 +23,9 @@ interface TechnicalReportData {
   estimateWork: string;
   reasonForReturn: string;
   findings: string;
+  action: string;
   beforePhotoUrl: string;
   afterPhotoUrl: string;
-  termsConditions: string;
 }
 
 interface TechnicalReportFormProps {
@@ -41,9 +41,6 @@ export default function TechnicalReportForm({
   parts,
   setParts,
 }: TechnicalReportFormProps) {
-  const [beforeFile, setBeforeFile] = useState<File | null>(null);
-  const [afterFile, setAfterFile] = useState<File | null>(null);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     console.log(`Field changed: ${name} = ${value}`);
@@ -65,7 +62,7 @@ export default function TechnicalReportForm({
     ]);
   };
 
-  const updatePart = (index: number, field: keyof TechnicalReportPart, value: any) => {
+  const updatePart = (index: number, field: keyof TechnicalReportPart, value: string | number) => {
     const updatedParts = [...parts];
     
     if (field === "quantity" || field === "unitPrice") {
@@ -90,10 +87,9 @@ export default function TechnicalReportForm({
     setParts(parts.filter((_, i) => i !== index));
   };
 
-  const handleBeforeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBeforeFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setBeforeFile(file);
       
       // Upload file and get URL
       const formData = new FormData();
@@ -119,7 +115,6 @@ export default function TechnicalReportForm({
         }
         
         // Use the relative URL (path only) to ensure it works in all contexts
-        // We don't use the full URL as it may cause issues with path resolution
         const photoPath = responseData.url;
         console.log("Setting before photo URL to:", photoPath);
         setData({ ...data, beforePhotoUrl: photoPath });
@@ -133,12 +128,11 @@ export default function TechnicalReportForm({
         toast.error("Gagal mengupload foto");
       }
     }
-  };
+  }, [data, setData]);
 
-  const handleAfterFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAfterFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAfterFile(file);
       
       // Upload file and get URL
       const formData = new FormData();
@@ -164,7 +158,6 @@ export default function TechnicalReportForm({
         }
         
         // Use the relative URL (path only) to ensure it works in all contexts
-        // We don't use the full URL as it may cause issues with path resolution
         const photoPath = responseData.url;
         console.log("Setting after photo URL to:", photoPath);
         setData({ ...data, afterPhotoUrl: photoPath });
@@ -178,7 +171,7 @@ export default function TechnicalReportForm({
         toast.error("Gagal mengupload foto");
       }
     }
-  };
+  }, [data, setData]);
 
   return (
     <div className="space-y-6">
@@ -305,23 +298,6 @@ export default function TechnicalReportForm({
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="findings">
-          Findings <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          id="findings"
-          name="findings"
-          value={data.findings}
-          onChange={handleChange}
-          rows={3}
-          placeholder="QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang, Sensor CO Fail saat dikalibrasi ulang."
-          className="w-full p-2 border border-gray-300 rounded-md"
-          required
-          title="Findings"
-        ></textarea>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -411,6 +387,40 @@ export default function TechnicalReportForm({
       </div>
 
       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="findings">
+          Findings <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          id="findings"
+          name="findings"
+          value={data.findings}
+          onChange={handleChange}
+          rows={3}
+          placeholder="QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang, Sensor CO Fail saat dikalibrasi ulang."
+          className="w-full p-2 border border-gray-300 rounded-md"
+          required
+          title="Findings"
+        ></textarea>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="action">
+          Action <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          id="action"
+          name="action"
+          value={data.action}
+          onChange={handleChange}
+          rows={3}
+          placeholder="Tindakan yang dilakukan untuk perbaikan"
+          className="w-full p-2 border border-gray-300 rounded-md"
+          required
+          title="Action"
+        ></textarea>
+      </div>
+
+      <div>
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-medium">Daftar Unit</h3>
           <button
@@ -437,12 +447,6 @@ export default function TechnicalReportForm({
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                   QTY
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                  Unit Price
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                  Total Price
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                   Actions
@@ -493,28 +497,6 @@ export default function TechnicalReportForm({
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={part.unitPrice || ""}
-                      onChange={(e) =>
-                        updatePart(index, "unitPrice", e.target.value)
-                      }
-                      placeholder="0"
-                      className="w-24 p-1 border border-gray-300 rounded-md"
-                      title="Unit Price"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={part.totalPrice || ""}
-                      readOnly
-                      className="w-24 p-1 border border-gray-300 rounded-md bg-gray-50"
-                      title="Total Price"
-                      placeholder="Total Price"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
                     <button
                       type="button"
                       onClick={() => removePart(index)}
@@ -530,25 +512,6 @@ export default function TechnicalReportForm({
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="termsConditions">
-          Terms and Conditions
-        </label>
-        <textarea
-          id="termsConditions"
-          name="termsConditions"
-          value={data.termsConditions}
-          onChange={handleChange}
-          rows={3}
-          placeholder="1. Price above exclude PPN 11%
-2. Delivery: 2 weeks
-3. Payment:
-4. Franco:"
-          className="w-full p-2 border border-gray-300 rounded-md"
-          title="Terms and Conditions"
-        ></textarea>
       </div>
     </div>
   );

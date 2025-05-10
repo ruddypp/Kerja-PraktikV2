@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { XIcon } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
@@ -253,44 +254,49 @@ export default function AdminUsersPage() {
         successMessage = 'User updated successfully';
       }
       
+      const requestBody: Partial<UserFormData> = { ...formData };
+      
+      // If password is empty in edit mode, remove it from the request
+      if (isEditMode && (!requestBody.password || requestBody.password.trim() === '')) {
+        delete requestBody.password;
+      }
+      
       const response = await fetch(apiUrl, {
         method,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(requestBody),
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process user data');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save user');
       }
       
-      // Success - clear form and close modal
-      clearForm();
-      setModalOpen(false);
-      
-      // Invalidate cache and fetch fresh data
+      // Clear cache to refresh data
       invalidateCache();
+      
+      // Refresh the user list
       fetchData();
       
-      toast.success(successMessage);
+      // Show success message
       setSuccess(successMessage);
+      toast.success(successMessage);
       
-      // Clear success message after a timeout
-      setTimeout(() => setSuccess(''), 3000);
+      // Close the modal
+      setModalOpen(false);
       
-    } catch (error) {
-      console.error('Form submission error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      setError(errorMessage);
-      toast.error(errorMessage);
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      setError(error.message || 'An unexpected error occurred');
+      toast.error(error.message || 'Failed to save user');
     } finally {
       setFormSubmitting(false);
     }
   };
   
-  // Handle delete
+  // Handle user deletion
   const handleDelete = async () => {
     if (!currentUser) return;
     
@@ -298,86 +304,87 @@ export default function AdminUsersPage() {
       setFormSubmitting(true);
       
       const response = await fetch(`/api/admin/users/${currentUser.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete user');
       }
       
-      // Success - close modal and refresh data
-      setConfirmDeleteOpen(false);
-      
-      // Invalidate cache and fetch fresh data
+      // Clear cache
       invalidateCache();
+      
+      // Refresh the user list
       fetchData();
       
-      toast.success('User deleted successfully');
+      // Show success message
       setSuccess('User deleted successfully');
+      toast.success('User deleted successfully');
       
-      // Clear success message after a timeout
-      setTimeout(() => setSuccess(''), 3000);
+      // Close the confirmation
+      setConfirmDeleteOpen(false);
       
-    } catch (error) {
-      console.error('Delete error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      setError(errorMessage);
-      toast.error(errorMessage);
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      setError(error.message || 'An unexpected error occurred');
+      toast.error(error.message || 'Failed to delete user');
     } finally {
       setFormSubmitting(false);
     }
   };
-  
-  // Get role badge class
+
+  // Helper to get role badge color class
   const getRoleBadgeClass = (role: Role): string => {
     switch (role) {
-      case 'ADMIN':
+      case Role.ADMIN:
         return 'bg-red-100 text-red-800';
-      case 'USER':
+      case Role.MANAGER:
         return 'bg-blue-100 text-blue-800';
+      case Role.USER:
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
-            <div className="flex space-x-2">
-              <button 
-                onClick={refreshData}
-                className="btn btn-secondary flex items-center gap-2"
-                disabled={loading}
-              >
-                <FiRefreshCw className={loading ? "animate-spin" : ""} />
-                Refresh
-              </button>
-              <button
-                onClick={openCreateModal}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                <FiPlus />
-                Add User
-              </button>
-            </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">User Management</h1>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={refreshData}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+            >
+              <FiPlus size={16} />
+              Add User
+            </button>
           </div>
+        </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
 
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-              {success}
-            </div>
-          )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            {success}
+          </div>
+        )}
 
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
           <div className="flex items-center space-x-4 mb-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -387,13 +394,27 @@ export default function AdminUsersPage() {
                 type="text"
                 value={searchInput}
                 onChange={handleSearchInputChange}
-                placeholder="Search users..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+                placeholder="Search users by name or email..."
+                className="block w-full p-3 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                    fetchData('');
+                  }}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  title="Clear search"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="overflow-x-auto ring-1 ring-black ring-opacity-5 rounded-lg shadow">
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -409,7 +430,7 @@ export default function AdminUsersPage() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -417,17 +438,45 @@ export default function AdminUsersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-green-600"></div>
-                        <span>Loading users...</span>
+                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex justify-center items-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
                       </div>
                     </td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                      No users found.
+                    <td colSpan={5} className="px-6 py-8 whitespace-nowrap text-center text-gray-500">
+                      <div className="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {search ? `No results for "${search}"` : "Get started by creating a new user."}
+                        </p>
+                        {search && (
+                          <button
+                            onClick={() => {
+                              setSearchInput('');
+                              setSearch('');
+                              fetchData('');
+                            }}
+                            className="mt-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            Clear search
+                          </button>
+                        )}
+                        {!search && (
+                          <button
+                            onClick={openCreateModal}
+                            className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                            New User
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -440,28 +489,30 @@ export default function AdminUsersPage() {
                         <div className="text-sm text-gray-900">{user.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeClass(user.role)}`}>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeClass(user.role)}`}>
                           {user.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2 flex">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="Edit"
-                        >
-                          <FiEdit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(user)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit user"
+                          >
+                            <FiEdit2 className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(user)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete user"
+                          >
+                            <FiTrash2 className="h-5 w-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -470,30 +521,21 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </div>
-      </DashboardLayout>
+      </div>
 
       {/* Create/Edit User Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)' }}>
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
-                {isEditMode ? 'Edit User' : 'Add New User'}
-              </h3>
-            </div>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-25 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              {isEditMode ? `Edit User: ${currentUser?.name}` : "Create New User"}
+            </h2>
             
             <form onSubmit={handleSubmit}>
-              <div className="px-6 py-4 space-y-4">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-                    {error}
-                  </div>
-                )}
-                
-                {/* Name */}
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    Name
                   </label>
                   <input
                     type="text"
@@ -501,20 +543,16 @@ export default function AdminUsersPage() {
                     name="name"
                     value={formData.name}
                     onChange={handleFormChange}
-                    className={`block w-full rounded-md shadow-sm ${
-                      formErrors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
-                    }`}
-                    placeholder="Enter name"
+                    className={`mt-1 block w-full px-3 py-2 border ${formErrors.name ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500`}
                   />
                   {formErrors.name && (
                     <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                   )}
                 </div>
                 
-                {/* Email */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-red-500">*</span>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    Email
                   </label>
                   <input
                     type="email"
@@ -522,21 +560,16 @@ export default function AdminUsersPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleFormChange}
-                    className={`block w-full rounded-md shadow-sm ${
-                      formErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
-                    }`}
-                    placeholder="Enter email"
+                    className={`mt-1 block w-full px-3 py-2 border ${formErrors.email ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500`}
                   />
                   {formErrors.email && (
                     <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
                   )}
                 </div>
                 
-                {/* Password */}
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password {!isEditMode && <span className="text-red-500">*</span>}
-                    {isEditMode && <span className="text-gray-500 text-xs">(Leave blank to keep current password)</span>}
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                    Password {isEditMode && <span className="text-gray-500 font-normal">(leave blank to keep current)</span>}
                   </label>
                   <input
                     type="password"
@@ -544,83 +577,74 @@ export default function AdminUsersPage() {
                     name="password"
                     value={formData.password}
                     onChange={handleFormChange}
-                    className={`block w-full rounded-md shadow-sm ${
-                      formErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
-                    }`}
-                    placeholder={isEditMode ? "Enter new password (optional)" : "Enter password"}
+                    className={`mt-1 block w-full px-3 py-2 border ${formErrors.password ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500`}
                   />
                   {formErrors.password && (
                     <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
                   )}
                 </div>
                 
-                {/* Role */}
                 <div>
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                    Role <span className="text-red-500">*</span>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                    Role
                   </label>
                   <select
                     id="role"
                     name="role"
                     value={formData.role}
                     onChange={handleFormChange}
-                    className={`block w-full rounded-md shadow-sm ${
-                      formErrors.role ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
-                    }`}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                   >
-                    <option value={Role.ADMIN}>Admin</option>
                     <option value={Role.USER}>User</option>
+                    <option value={Role.MANAGER}>Manager</option>
+                    <option value={Role.ADMIN}>Admin</option>
                   </select>
-                  {formErrors.role && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.role}</p>
-                  )}
                 </div>
               </div>
               
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-2">
+              <div className="mt-6 flex items-center justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center space-x-1"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
                 >
                   {formSubmitting && (
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span className="mr-2">
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </span>
                   )}
-                  <span>{isEditMode ? 'Update' : 'Create'}</span>
+                  {isEditMode ? "Update User" : "Create User"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Confirm Delete Modal */}
+      
+      {/* Delete Confirmation Modal */}
       {confirmDeleteOpen && currentUser && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)' }}>
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Confirm Delete</h3>
-            </div>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-25 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Confirm Deletion</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete user <span className="font-semibold">{currentUser.name}</span>? This action cannot be undone.
+            </p>
             
-            <div className="px-6 py-4">
-              <p className="text-gray-700">
-                Are you sure you want to delete the user &ldquo;{currentUser.name}&rdquo;?
-                This action cannot be undone.
-              </p>
-            </div>
-            
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-2">
+            <div className="mt-5 sm:mt-4 flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => setConfirmDeleteOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Cancel
               </button>
@@ -628,17 +652,22 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={handleDelete}
                 disabled={formSubmitting}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center space-x-1"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center"
               >
                 {formSubmitting && (
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span className="mr-2">
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
                 )}
-                <span>Delete</span>
+                Delete
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 } 

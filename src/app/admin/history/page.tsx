@@ -6,6 +6,8 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 // @ts-expect-error jspdf-autotable doesn't have proper TypeScript types
 import autoTable from 'jspdf-autotable';
+import { FiDownload, FiFilter, FiRefreshCw, FiSearch, FiCalendar, FiUser, FiList, FiPackage } from 'react-icons/fi';
+import { ChevronLeft, ChevronRight, XIcon } from 'lucide-react';
 
 // Define ActivityType enum to match Prisma schema
 enum ActivityType {
@@ -64,6 +66,7 @@ export default function AdminHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -183,6 +186,10 @@ export default function AdminHistoryPage() {
     });
   };
 
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return format(date, 'dd MMM yyyy HH:mm');
@@ -268,254 +275,346 @@ export default function AdminHistoryPage() {
     }
   };
 
+  const getActivityTypeDisplayClass = (type: ActivityType): string => {
+    if (type.includes('CREATED')) {
+      return 'bg-green-100 text-green-800';
+    } else if (type.includes('UPDATED')) {
+      return 'bg-blue-100 text-blue-800';
+    } else if (type.includes('DELETED')) {
+      return 'bg-red-100 text-red-800';
+    } else {
+      return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <DashboardLayout>
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">System Activity History</h1>
-          <div className="space-x-2">
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">System Activity History</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleFilters}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+            >
+              <FiFilter size={16} />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+            
+            <button
+              onClick={fetchActivityLogs}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+            
             <button
               onClick={generatePDF}
-              className="btn btn-primary"
               disabled={loading || activityLogs.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-white ${
+                loading || activityLogs.length === 0
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
+              <FiDownload size={16} />
               Export PDF
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{error}</p>
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{success}</p>
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            {success}
           </div>
         )}
 
         {/* Filters */}
-        <div className="card mb-6 border border-gray-200 p-4">
-          <h2 className="text-subtitle mb-4">Filter History</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="startDate" className="form-label">
-                Start Date
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                name="startDate"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                className="form-input w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="endDate" className="form-label">
-                End Date
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                name="endDate"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                className="form-input w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="activityType" className="form-label">
-                Activity Type
-              </label>
-              <select
-                id="activityType"
-                name="activityType"
-                value={filters.activityType}
-                onChange={handleFilterChange}
-                className="form-select w-full"
-              >
-                <option value="">All Activities</option>
-                <optgroup label="Item Activities">
-                  <option value={ActivityType.ITEM_CREATED}>Item Created</option>
-                  <option value={ActivityType.ITEM_UPDATED}>Item Updated</option>
-                  <option value={ActivityType.ITEM_DELETED}>Item Deleted</option>
-                </optgroup>
-                <optgroup label="Calibration Activities">
-                  <option value={ActivityType.CALIBRATION_CREATED}>Calibration Created</option>
-                  <option value={ActivityType.CALIBRATION_UPDATED}>Calibration Updated</option>
-                  <option value={ActivityType.CALIBRATION_DELETED}>Calibration Deleted</option>
-                </optgroup>
-                <optgroup label="Maintenance Activities">
-                  <option value={ActivityType.MAINTENANCE_CREATED}>Maintenance Created</option>
-                  <option value={ActivityType.MAINTENANCE_UPDATED}>Maintenance Updated</option>
-                  <option value={ActivityType.MAINTENANCE_DELETED}>Maintenance Deleted</option>
-                </optgroup>
-                <optgroup label="Rental Activities">
-                  <option value={ActivityType.RENTAL_CREATED}>Rental Created</option>
-                  <option value={ActivityType.RENTAL_UPDATED}>Rental Updated</option>
-                  <option value={ActivityType.RENTAL_DELETED}>Rental Deleted</option>
-                </optgroup>
-                <optgroup label="User Activities">
-                  <option value={ActivityType.USER_CREATED}>User Created</option>
-                  <option value={ActivityType.USER_UPDATED}>User Updated</option>
-                  <option value={ActivityType.USER_DELETED}>User Deleted</option>
-                </optgroup>
-                <optgroup label="Vendor Activities">
-                  <option value={ActivityType.VENDOR_CREATED}>Vendor Created</option>
-                  <option value={ActivityType.VENDOR_UPDATED}>Vendor Updated</option>
-                  <option value={ActivityType.VENDOR_DELETED}>Vendor Deleted</option>
-                </optgroup>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="userId" className="form-label">
-                User ID
-              </label>
-              <input
-                type="text"
-                id="userId"
-                name="userId"
-                value={filters.userId}
-                onChange={handleFilterChange}
-                placeholder="Filter by user ID"
-                className="form-input w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="itemSerial" className="form-label">
-                Item Serial
-              </label>
-              <input
-                type="text"
-                id="itemSerial"
-                name="itemSerial"
-                value={filters.itemSerial}
-                onChange={handleFilterChange}
-                placeholder="Filter by item serial"
-                className="form-input w-full"
-              />
-            </div>
-            <div className="flex items-end">
-              <div className="mt-6 space-x-2">
-                <button onClick={resetFilters} className="btn btn-secondary">
-                  Reset Filters
-                </button>
-                <button onClick={() => fetchActivityLogs()} className="btn btn-primary">
-                  Apply Filters
-                </button>
+        {showFilters && (
+          <div className="bg-white rounded-lg border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold mb-4">Filter History</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiCalendar size={16} className="text-gray-500" />
+                    Start Date
+                  </div>
+                </label>
+                <input
+                  type="date"
+                  id="startDate"
+                  name="startDate"
+                  value={filters.startDate}
+                  onChange={handleFilterChange}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiCalendar size={16} className="text-gray-500" />
+                    End Date
+                  </div>
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  name="endDate"
+                  value={filters.endDate}
+                  onChange={handleFilterChange}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="activityType" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiList size={16} className="text-gray-500" />
+                    Activity Type
+                  </div>
+                </label>
+                <select
+                  id="activityType"
+                  name="activityType"
+                  value={filters.activityType}
+                  onChange={handleFilterChange}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">All Activities</option>
+                  <optgroup label="Item Activities">
+                    <option value={ActivityType.ITEM_CREATED}>Item Created</option>
+                    <option value={ActivityType.ITEM_UPDATED}>Item Updated</option>
+                    <option value={ActivityType.ITEM_DELETED}>Item Deleted</option>
+                  </optgroup>
+                  <optgroup label="Calibration Activities">
+                    <option value={ActivityType.CALIBRATION_CREATED}>Calibration Created</option>
+                    <option value={ActivityType.CALIBRATION_UPDATED}>Calibration Updated</option>
+                    <option value={ActivityType.CALIBRATION_DELETED}>Calibration Deleted</option>
+                  </optgroup>
+                  <optgroup label="Maintenance Activities">
+                    <option value={ActivityType.MAINTENANCE_CREATED}>Maintenance Created</option>
+                    <option value={ActivityType.MAINTENANCE_UPDATED}>Maintenance Updated</option>
+                    <option value={ActivityType.MAINTENANCE_DELETED}>Maintenance Deleted</option>
+                  </optgroup>
+                  <optgroup label="Rental Activities">
+                    <option value={ActivityType.RENTAL_CREATED}>Rental Created</option>
+                    <option value={ActivityType.RENTAL_UPDATED}>Rental Updated</option>
+                    <option value={ActivityType.RENTAL_DELETED}>Rental Deleted</option>
+                  </optgroup>
+                  <optgroup label="User Activities">
+                    <option value={ActivityType.USER_CREATED}>User Created</option>
+                    <option value={ActivityType.USER_UPDATED}>User Updated</option>
+                    <option value={ActivityType.USER_DELETED}>User Deleted</option>
+                  </optgroup>
+                  <optgroup label="Vendor Activities">
+                    <option value={ActivityType.VENDOR_CREATED}>Vendor Created</option>
+                    <option value={ActivityType.VENDOR_UPDATED}>Vendor Updated</option>
+                    <option value={ActivityType.VENDOR_DELETED}>Vendor Deleted</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiUser size={16} className="text-gray-500" />
+                    User ID
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  id="userId"
+                  name="userId"
+                  value={filters.userId}
+                  onChange={handleFilterChange}
+                  placeholder="Filter by user ID"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="itemSerial" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiPackage size={16} className="text-gray-500" />
+                    Item Serial
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  id="itemSerial"
+                  name="itemSerial"
+                  value={filters.itemSerial}
+                  onChange={handleFilterChange}
+                  placeholder="Filter by item serial"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <div className="space-x-2">
+                  <button 
+                    onClick={resetFilters} 
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Reset Filters
+                  </button>
+                  <button 
+                    onClick={() => fetchActivityLogs()} 
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Display Activity Logs */}
-        {loading ? (
-          <div className="flex justify-center items-center py-8">
-            <div className="loader"></div>
-          </div>
-        ) : activityLogs.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No activity logs found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table-auto w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left">Date & Time</th>
-                  <th className="px-4 py-2 text-left">User</th>
-                  <th className="px-4 py-2 text-left">Type</th>
-                  <th className="px-4 py-2 text-left">Activity</th>
-                  <th className="px-4 py-2 text-left">Details</th>
-                  <th className="px-4 py-2 text-left">Related ID</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {activityLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">{formatDate(log.createdAt)}</td>
-                    <td className="px-4 py-3">{log.user?.name || 'Unknown'}</td>
-                    <td className="px-4 py-3">{log.type.replace(/_/g, ' ')}</td>
-                    <td className="px-4 py-3">{log.action}</td>
-                    <td className="px-4 py-3">{log.details || '-'}</td>
-                    <td className="px-4 py-3">
-                      {log.itemSerial ? `Item: ${log.itemSerial}` : 
-                       log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
-                       log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
-                       log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
-                       log.affectedUserId ? `User: ${log.affectedUser?.name || log.affectedUserId.substring(0, 8)}...` :
-                       log.vendorId ? `Vendor: ${log.vendorId.substring(0, 8)}...` : '-'}
-                    </td>
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          ) : activityLogs.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No activity logs found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Try changing your filter criteria or refresh the page.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date & Time
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Activity
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Details
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Related ID
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {activityLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(log.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {log.user?.name || 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getActivityTypeDisplayClass(log.type)}`}>
+                          {log.type.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {log.action}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {log.details || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {log.itemSerial ? `Item: ${log.itemSerial}` : 
+                         log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
+                         log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
+                         log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
+                         log.affectedUserId ? `User: ${log.affectedUser?.name || log.affectedUserId.substring(0, 8)}...` :
+                         log.vendorId ? `Vendor: ${log.vendorId.substring(0, 8)}...` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex justify-center mt-6">
-            <nav className="inline-flex">
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={pagination.page === 1}
-                className="btn btn-icon btn-sm"
-              >
-                &laquo;
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="btn btn-icon btn-sm mx-1"
-              >
-                &lt;
-              </button>
-
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum;
-                if (pagination.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (pagination.page <= 3) {
-                  pageNum = i + 1;
-                } else if (pagination.page >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + i;
-                } else {
-                  pageNum = pagination.page - 2 + i;
-                }
+          {/* Pagination */}
+          {!loading && pagination.totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              <div className="text-sm text-gray-700">
+                Showing {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => handlePageChange(1)}
+                  disabled={pagination.page === 1}
+                  className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  title="First page"
+                >
+                  &laquo;
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  title="Previous page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
                 
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`btn btn-sm mx-1 ${pagination.page === pageNum ? 'btn-primary' : 'btn-secondary'}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="btn btn-icon btn-sm mx-1"
-              >
-                &gt;
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.totalPages)}
-                disabled={pagination.page === pagination.totalPages}
-                className="btn btn-icon btn-sm"
-              >
-                &raquo;
-              </button>
-            </nav>
-          </div>
-        )}
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter(page => 
+                    page === 1 || 
+                    page === pagination.totalPages || 
+                    (page >= pagination.page - 1 && page <= pagination.page + 1)
+                  )
+                  .map((page, index, array) => (
+                    <div key={page} className="flex items-center">
+                      {index > 0 && array[index - 1] !== page - 1 && (
+                        <span className="px-1 text-gray-500">...</span>
+                      )}
+                      <button
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-1 rounded ${pagination.page === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      >
+                        {page}
+                      </button>
+                    </div>
+                  ))}
+                
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  title="Next page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.totalPages)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  title="Last page"
+                >
+                  &raquo;
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

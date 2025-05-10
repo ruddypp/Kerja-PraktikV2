@@ -340,17 +340,14 @@ page.drawImage(logoImage, {
     });
     
     // --- Informasi Alat ---
-    const manufacturer = (certificateData.manufacturer || '').toString() !== '' ? 
-      certificateData.manufacturer as string : '-';
+    const manufacturer = (calibration.item && calibration.item.name) ? 
+      calibration.item.name : '-';
     const instrumentName = (certificateData.instrumentName || '').toString() !== '' ? 
-      certificateData.instrumentName as string : 
-      (calibration.item && calibration.item.name) ? calibration.item.name : '-';
-    const modelNumber = (certificateData.modelNumber || '').toString() !== '' ? 
-      certificateData.modelNumber as string : 
-      (calibration.item && calibration.item.partNumber) ? calibration.item.partNumber : '-';
-    const configuration = (certificateData.configuration || '').toString() !== '' ? 
-      certificateData.configuration as string : 
-      (calibration.item && calibration.item.sensor) ? calibration.item.sensor : '-';
+      certificateData.instrumentName as string : '-';
+    const modelNumber = (calibration.item && calibration.item.partNumber) ? 
+      calibration.item.partNumber : '-';
+    const configuration = (calibration.item && calibration.item.sensor) ? 
+      calibration.item.sensor : '-';
     const serialNumber = (calibration.item && calibration.item.serialNumber) ? 
       calibration.item.serialNumber : '-';
 
@@ -378,7 +375,7 @@ page.drawImage(logoImage, {
       color: black
     });
 
-    page.drawText(`Configuration : ${configuration}`, {
+    page.drawText(`Sensor : ${configuration}`, {
       x: rightColX,
       y: infoStartY - 75,
       size: 12,

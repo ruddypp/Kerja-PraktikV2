@@ -167,7 +167,6 @@ export async function POST(
             findings: technicalReportData.findings,
             beforePhotoUrl: technicalReportData.beforePhotoUrl || null,
             afterPhotoUrl: technicalReportData.afterPhotoUrl || null,
-            termsConditions: technicalReportData.termsConditions,
           },
         });
         

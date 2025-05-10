@@ -10,8 +10,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 
 // Konstanta untuk caching
 const CACHE_DURATION = 60000; // 1 menit
-const CACHE_KEY_PREFIX = 'user_maintenance_items_';
-const SEARCH_CACHE_PREFIX = 'user_maintenance_search_';
+const CACHE_KEY_PREFIX = 'admin_maintenance_items_';
+const SEARCH_CACHE_PREFIX = 'admin_maintenance_search_';
 
 interface Item {
   serialNumber: string;
@@ -33,7 +33,7 @@ interface PaginationData {
   totalPages: number;
 }
 
-export default function NewMaintenancePage() {
+export default function AdminNewMaintenancePage() {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +108,7 @@ export default function NewMaintenancePage() {
         params.append('search', searchQuery);
       }
       
-      const response = await fetch(`/api/user/items?${params.toString()}`);
+      const response = await fetch(`/api/admin/items?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch items");
@@ -168,7 +168,7 @@ export default function NewMaintenancePage() {
       params.append('search', term);
       params.append('limit', '5'); // Hanya tampilkan 5 suggestion
       
-      const res = await fetch(`/api/user/items?${params.toString()}`, {
+      const res = await fetch(`/api/admin/items?${params.toString()}`, {
         headers: { 'Cache-Control': 'max-age=30' }
       });
       
@@ -241,29 +241,26 @@ export default function NewMaintenancePage() {
     try {
       setIsStartingMaintenance(true);
       
-      const response = await fetch('/api/user/maintenance', {
+      const response = await fetch('/api/admin/maintenance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ itemSerial: selectedItemSerial }),
       });
-      
-      const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.error || 'Gagal memulai maintenance');
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal memulai maintenance");
       }
+
+      toast.success("Maintenance berhasil dimulai");
       
-      toast.success('Maintenance berhasil dimulai');
-      router.push(`/user/maintenance/${data.id}`);
-    } catch (error: unknown) {
+      // Redirect ke halaman maintenance admin
+      router.push('/admin/maintenance');
+    } catch (error) {
       console.error('Error starting maintenance:', error);
-      let errorMessage = 'Gagal memulai maintenance';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      toast.error(errorMessage);
+      toast.error(error instanceof Error ? error.message : "Gagal memulai maintenance");
     } finally {
       setIsStartingMaintenance(false);
     }
@@ -274,7 +271,7 @@ export default function NewMaintenancePage() {
       <div className="space-y-6">
         <div className="flex items-center gap-2">
           <Link
-            href="/user/maintenance"
+            href="/admin/maintenance"
             className="flex items-center text-gray-600 hover:text-gray-900"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
