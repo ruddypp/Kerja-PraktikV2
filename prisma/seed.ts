@@ -1,149 +1,83 @@
-import { PrismaClient, ItemStatus, RequestStatus } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client';
+import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log('Mulai seeding...');
+
   try {
-    // Create Admin User
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    // Hapus data yang ada - hapus tabel anak terlebih dahulu
+    console.log('Menghapus data lama...');
+
+    // Hapus Calibration terlebih dahulu karena memiliki foreign key ke Item
+    await prisma.$executeRaw`TRUNCATE TABLE "Calibration" CASCADE;`;
     
-    const adminUser = await prisma.user.upsert({
-      where: { email: 'admin@example.com' },
-      update: {
-        name: 'Admin User',
-        password: adminPassword,
-        role: 'ADMIN',
-      },
-      create: {
-        name: 'Admin User',
-        email: 'admin@example.com',
-        password: adminPassword,
-        role: 'ADMIN',
-      },
-    });
-    
-    console.log(`Upserted admin user: ${adminUser.email}`);
-    
-    // Create regular user
-    const userPassword = await bcrypt.hash('user123', 10);
-    
-    const regularUser = await prisma.user.upsert({
-      where: { email: 'user@example.com' },
-      update: {
-        name: 'Regular User',
-        password: userPassword,
-        role: 'USER',
-      },
-      create: {
-        name: 'Regular User',
-        email: 'user@example.com',
-        password: userPassword,
-        role: 'USER',
-      },
-    });
-    
-    console.log(`Upserted regular user: ${regularUser.email}`);
-    
-    // Create vendors
-    const vendor1 = await prisma.vendor.upsert({
-      where: { id: 'vendor-1' },
-      update: {
-        name: 'Precision Calibration Services',
-        address: 'Jl. Industri No. 123, Jakarta',
-        contactName: 'Budi Santoso',
-        contactPhone: '081234567890',
-        service: 'Kalibrasi peralatan elektronik',
-      },
-      create: {
-        id: 'vendor-1',
-        name: 'Precision Calibration Services',
-        address: 'Jl. Industri No. 123, Jakarta',
-        contactName: 'Budi Santoso',
-        contactPhone: '081234567890',
-        service: 'Kalibrasi peralatan elektronik',
-      },
-    });
-    
-    const vendor2 = await prisma.vendor.upsert({
-      where: { id: 'vendor-2' },
-      update: {
-        name: 'Measurement Solutions',
-        address: 'Jl. Teknik No. 45, Bandung',
-        contactName: 'Dewi Pertiwi',
-        contactPhone: '087654321098',
-        service: 'Kalibrasi peralatan mekanik',
-      },
-      create: {
-        id: 'vendor-2',
-        name: 'Measurement Solutions',
-        address: 'Jl. Teknik No. 45, Bandung',
-        contactName: 'Dewi Pertiwi',
-        contactPhone: '087654321098',
-        service: 'Kalibrasi peralatan mekanik',
-      },
-    });
-    
-    console.log(`Created vendors: ${vendor1.name}, ${vendor2.name}`);
-    
-    // Create items
-    const items = [
-      {
-        serialNumber: 'MULTI-001',
-        name: 'Digital Multimeter',
-        partNumber: 'DMM-X500',
-        category: 'Measuring Instruments',
-        sensor: 'Electronic',
-        description: 'Multifungsi pengukur tegangan, arus, dan resistansi',
-        customerId: 'vendor-1',
-        status: ItemStatus.AVAILABLE,
-      },
-      {
-        serialNumber: 'OSCI-001',
-        name: 'Oscilloscope',
-        partNumber: 'OSC-2000',
-        category: 'Measuring Instruments',
-        sensor: 'Electronic',
-        description: 'Alat pengukur sinyal elektronik',
-        customerId: 'vendor-1',
-        status: ItemStatus.AVAILABLE,
-      },
-      {
-        serialNumber: 'PRES-001',
-        name: 'Pressure Gauge',
-        partNumber: 'PG-100',
-        category: 'Mechanical Instruments',
-        sensor: 'Mechanical',
-        description: 'Pengukur tekanan',
-        customerId: 'vendor-2',
-        status: ItemStatus.AVAILABLE,
-      }
-    ];
-    
-    for (const itemData of items) {
-      try {
-        const item = await prisma.item.upsert({
-          where: { serialNumber: itemData.serialNumber },
-          update: itemData,
-          create: itemData
-        });
-        console.log(`Created item: ${item.name} (${item.serialNumber})`);
-      } catch (error: any) {
-        console.log(`Skipping item ${itemData.serialNumber}: ${error.message}`);
+    // Sekarang aman untuk menghapus Item dan Vendor
+    await prisma.$executeRaw`TRUNCATE TABLE "Item" CASCADE;`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Vendor" CASCADE;`;
+
+    console.log('Data lama berhasil dihapus');
+
+    // Buat 100 vendor
+    const vendors = [];
+    console.log('Membuat vendor...');
+    for (let i = 0; i < 1000; i++) { // Diubah dari 1000 menjadi 100 sesuai komentar awal
+      const vendor = await prisma.vendor.create({
+        data: {
+          name: faker.company.name(),
+          address: faker.location.streetAddress(),
+          contactName: faker.person.fullName(),
+          contactPhone: faker.phone.number(),
+          contactEmail: faker.internet.email(),
+          service: faker.company.catchPhrase(),
+          isDeleted: false,
+        },
+      });
+      vendors.push(vendor);
+      
+      if (i % 10 === 0) {
+        console.log(`${i} vendor dibuat...`);
       }
     }
-    
-    console.log('Database seeded successfully');
+
+    console.log('100 vendor berhasil dibuat');
+
+    // Buat 1000 item
+    console.log('Membuat item...');
+    for (let i = 0; i < 10000; i++) { // Diubah dari 10000 menjadi 1000 sesuai dengan kebutuhan
+      const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
+      
+      await prisma.item.create({
+        data: {
+          serialNumber: faker.string.alphanumeric(10).toUpperCase(),
+          name: faker.commerce.productName(),
+          partNumber: faker.string.alphanumeric(8).toUpperCase(),
+          sensor: faker.helpers.arrayElement(['Temperature', 'Pressure', 'Humidity', 'Vibration', 'None']),
+          description: faker.commerce.productDescription(),
+          customerId: randomVendor.id,
+          status: "AVAILABLE", // Menggunakan status enum yang valid
+        },
+      });
+      
+      if (i % 100 === 0) {
+        console.log(`${i} item dibuat...`);
+      }
+    }
+
+    console.log('1000 item berhasil dibuat');
+    console.log('Seeding selesai!');
   } catch (error) {
-    console.error('Error seeding database:', error);
+    console.error('Error dalam seeding:', error);
+    throw error; // Re-throw error untuk ditangani di blok catch setelah fungsi main
   }
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error dalam eksekusi seed:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });````````

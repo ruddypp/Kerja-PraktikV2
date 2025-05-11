@@ -11,6 +11,8 @@ export interface DashboardStats {
   pendingRentals: number;
   upcomingCalibrations: number;
   overdueRentals: number;
+  totalVendors: number;
+  totalUsers: number;
 }
 
 // Format number with thousands separator
