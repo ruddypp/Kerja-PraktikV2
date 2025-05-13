@@ -36,6 +36,39 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status') as ItemStatus | null;
+    const serialNumber = searchParams.get('serialNumber');
+    const basicDetails = searchParams.get('basicDetails') === 'true';
+    
+    // If requesting a single item with basic details, return just that item quickly
+    if (serialNumber && basicDetails) {
+      const item = await prisma.item.findUnique({
+        where: { serialNumber },
+        select: {
+          serialNumber: true,
+          name: true,
+          partNumber: true,
+          sensor: true,
+          description: true,
+          customerId: true,
+          customer: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          status: true,
+          lastVerifiedAt: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      
+      if (!item) {
+        return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+      }
+      
+      return NextResponse.json(item);
+    }
     
     // Get pagination parameters
     const page = parseInt(searchParams.get('page') || '1');

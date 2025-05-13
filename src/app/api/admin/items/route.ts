@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { ItemStatus } from '@prisma/client';
+import { ItemStatus, ActivityType } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
 // GET all items
@@ -21,6 +21,39 @@ export async function GET(request: Request) {
     const category = searchParams.get('category');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const serialNumber = searchParams.get('serialNumber');
+    const basicDetails = searchParams.get('basicDetails') === 'true';
+    
+    // If requesting a single item with basic details, return just that item quickly
+    if (serialNumber && basicDetails) {
+      const item = await prisma.item.findUnique({
+        where: { serialNumber },
+        select: {
+          serialNumber: true,
+          name: true,
+          partNumber: true,
+          sensor: true,
+          description: true,
+          customerId: true,
+          customer: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          status: true,
+          lastVerifiedAt: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      
+      if (!item) {
+        return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+      }
+      
+      return NextResponse.json(item);
+    }
     
     // Get pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
@@ -335,7 +368,8 @@ export async function PATCH(request: Request) {
         user: { connect: { id: user?.id || '' } },
         item: { connect: { serialNumber } },
         action: 'UPDATED',
-        details: `Item ${name} (${serialNumber}) updated`
+        details: `Item ${name} (${serialNumber}) updated`,
+        type: ActivityType.ITEM_UPDATED
       }
     });
     
@@ -414,122 +448,96 @@ export async function DELETE(request: Request) {
     console.log(`Attempting full deletion of item ${serialNumber} with ALL related records`);
     
     try {
-      // 1. Hapus semua relasi CalibrationStatusLog
-      for (const calibration of existingItem.calibrations || []) {
-        if (calibration.statusLogs?.length > 0) {
-          await prisma.calibrationStatusLog.deleteMany({
-            where: { calibrationId: calibration.id }
-          });
-        }
+      // Use a Prisma transaction for atomic operations
+      await prisma.$transaction(async (tx) => {
+        // 1. Identify all related IDs first to minimize database calls
+        const calibrationIds = existingItem.calibrations.map(c => c.id);
+        const maintenanceIds = existingItem.maintenances.map(m => m.id);
+        const rentalIds = existingItem.rentals.map(r => r.id);
         
-        // Hapus sertifikat kalibrasi jika ada
-        if (calibration.certificate) {
-          await prisma.calibrationCertificate.delete({
-            where: { calibrationId: calibration.id }
-          });
-        }
-      }
-      
-      // 2. Hapus semua relasi MaintenanceStatusLog dan laporan terkait
-      for (const maintenance of existingItem.maintenances || []) {
-        if (maintenance.statusLogs?.length > 0) {
-          await prisma.maintenanceStatusLog.deleteMany({
-            where: { maintenanceId: maintenance.id }
-          });
-        }
+        // 2. Delete all logs and related records in parallel where possible
+        await Promise.all([
+          // Delete calibration-related records
+          calibrationIds.length > 0 && tx.calibrationStatusLog.deleteMany({
+            where: { calibrationId: { in: calibrationIds } }
+          }),
+          calibrationIds.length > 0 && tx.calibrationCertificate.deleteMany({
+            where: { calibrationId: { in: calibrationIds } }
+          }),
+          
+          // Delete maintenance-related records
+          maintenanceIds.length > 0 && tx.maintenanceStatusLog.deleteMany({
+            where: { maintenanceId: { in: maintenanceIds } }
+          }),
+          // Note: ServiceReportPart and TechnicalReportPart need sequential deletion
+          
+          // Delete rental-related records
+          rentalIds.length > 0 && tx.rentalStatusLog.deleteMany({
+            where: { rentalId: { in: rentalIds } }
+          }),
+          
+          // Delete associated records
+          tx.inventoryCheckItem.deleteMany({
+            where: { itemSerial: serialNumber }
+          }),
+          tx.activityLog.deleteMany({
+            where: { itemSerial: serialNumber }
+          }),
+          tx.itemHistory.deleteMany({
+            where: { itemSerial: serialNumber }
+          })
+        ].filter(Boolean)); // Filter out falsy values for when arrays are empty
         
-        // Hapus ServiceReport dan parts jika ada
-        if (maintenance.serviceReport) {
-          // Hapus parts terlebih dahulu
-          if (maintenance.serviceReport.parts?.length > 0) {
-            await prisma.serviceReportPart.deleteMany({
+        // 3. Delete records that require sequential processing
+        for (const maintenance of existingItem.maintenances) {
+          // Handle ServiceReport and parts
+          if (maintenance.serviceReport) {
+            await tx.serviceReportPart.deleteMany({
               where: { serviceReportId: maintenance.serviceReport.id }
             });
-          }
-          
-          await prisma.serviceReport.delete({
-            where: { maintenanceId: maintenance.id }
-          });
-        }
-        
-        // Hapus TechnicalReport dan partsList jika ada
-        if (maintenance.technicalReport) {
-          // Hapus parts terlebih dahulu
-          if (maintenance.technicalReport.partsList?.length > 0) {
-            await prisma.technicalReportPart.deleteMany({
-              where: { technicalReportId: maintenance.technicalReport.id }
+            await tx.serviceReport.delete({
+              where: { maintenanceId: maintenance.id }
             });
           }
           
-          await prisma.technicalReport.delete({
-            where: { maintenanceId: maintenance.id }
-          });
+          // Handle TechnicalReport and parts
+          if (maintenance.technicalReport) {
+            await tx.technicalReportPart.deleteMany({
+              where: { technicalReportId: maintenance.technicalReport.id }
+            });
+            await tx.technicalReport.delete({
+              where: { maintenanceId: maintenance.id }
+            });
+          }
         }
-      }
-      
-      // 3. Hapus semua relasi RentalStatusLog
-      for (const rental of existingItem.rentals || []) {
-        if (rental.statusLogs?.length > 0) {
-          await prisma.rentalStatusLog.deleteMany({
-            where: { rentalId: rental.id }
-          });
-        }
-      }
-      
-      // 4. Hapus inventoryCheckItems
-      if (existingItem.inventoryCheckItems?.length > 0) {
-        await prisma.inventoryCheckItem.deleteMany({
-          where: { itemSerial: serialNumber }
+        
+        // 4. Delete the main related records
+        await Promise.all([
+          calibrationIds.length > 0 && tx.calibration.deleteMany({
+            where: { id: { in: calibrationIds } }
+          }),
+          maintenanceIds.length > 0 && tx.maintenance.deleteMany({
+            where: { id: { in: maintenanceIds } }
+          }),
+          rentalIds.length > 0 && tx.rental.deleteMany({
+            where: { id: { in: rentalIds } }
+          })
+        ].filter(Boolean));
+        
+        // 5. Finally delete the item itself
+        await tx.item.delete({
+          where: { serialNumber }
         });
-      }
-      
-      // 5. Hapus activityLogs
-      if (existingItem.activityLogs?.length > 0) {
-        await prisma.activityLog.deleteMany({
-          where: { itemSerial: serialNumber }
+        
+        // 6. Create activity log for the deletion
+        await tx.activityLog.create({
+          data: {
+            user: { connect: { id: user?.id || '' } },
+            action: 'DELETED',
+            details: `Item ${existingItem.name} (${serialNumber}) deleted from inventory along with all related records`,
+            type: ActivityType.ITEM_DELETED
+          }
         });
-      }
-      
-      // 6. Hapus histories
-      if (existingItem.histories?.length > 0) {
-        await prisma.itemHistory.deleteMany({
-          where: { itemSerial: serialNumber }
-        });
-      }
-      
-      // 7. Hapus calibrations
-      if (existingItem.calibrations?.length > 0) {
-        await prisma.calibration.deleteMany({
-          where: { itemSerial: serialNumber }
-        });
-      }
-      
-      // 8. Hapus maintenances
-      if (existingItem.maintenances?.length > 0) {
-        await prisma.maintenance.deleteMany({
-          where: { itemSerial: serialNumber }
-        });
-      }
-      
-      // 9. Hapus rentals
-      if (existingItem.rentals?.length > 0) {
-        await prisma.rental.deleteMany({
-          where: { itemSerial: serialNumber }
-        });
-      }
-      
-      // 10. Hapus item
-      await prisma.item.delete({
-        where: { serialNumber }
-      });
-      
-      // Buat activity log penghapusan (tanpa relasi ke item)
-      await prisma.activityLog.create({
-        data: {
-          userId: user?.id || '',
-          action: 'DELETED',
-          details: `Item ${existingItem.name} (${serialNumber}) deleted from inventory along with all related records`
-        }
       });
       
       return NextResponse.json({ 

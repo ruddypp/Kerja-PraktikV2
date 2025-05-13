@@ -13,15 +13,29 @@ interface NotificationResponse {
 // GET: Fetch all notifications
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+    
+    // Use proper where condition for UUID
     const notifications = await prisma.notification.findMany({
+      where: {
+        userId: userId
+      },
       orderBy: {
         createdAt: 'desc',
       },
+      take: limit,
       include: {
         user: {
           select: {
             id: true,
             email: true,
+            name: true
           },
         },
       },
@@ -29,20 +43,27 @@ export async function GET(req: NextRequest) {
 
     // Transform data to include user email
     const formattedNotifications = notifications.map((notification) => ({
-      id: notification.id.toString(),
+      id: notification.id,
       title: notification.title,
       message: notification.message,
       type: notification.type,
       createdAt: notification.createdAt.toISOString(),
       read: notification.isRead,
-      userId: notification.userId.toString(),
+      userId: notification.userId,
+      userName: notification.user?.name || null,
       userEmail: notification.user?.email || null,
     }));
 
-    return NextResponse.json(formattedNotifications);
+    // Add cache control headers
+    const response = NextResponse.json(formattedNotifications);
+    response.headers.set('Cache-Control', 'private, max-age=10');
+    return response;
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: 'Failed to fetch notifications' }, 
+      { status: 500 }
+    );
   }
 }
 
@@ -89,7 +110,7 @@ export async function PATCH(req: NextRequest) {
       // Mark all notifications as read for user
       await prisma.notification.updateMany({
         where: {
-          userId: parseInt(userId),
+          userId: userId, // Use string directly for UUID
           isRead: false
         },
         data: {
@@ -110,7 +131,7 @@ export async function PATCH(req: NextRequest) {
     // Mark single notification as read
     await prisma.notification.update({
       where: {
-        id: parseInt(id)
+        id: id // Use string directly for UUID
       },
       data: {
         isRead: true
@@ -119,7 +140,7 @@ export async function PATCH(req: NextRequest) {
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error('Error updating notification:', error);
     return NextResponse.json(
       { error: 'Failed to update notification' },
       { status: 500 }
@@ -142,13 +163,13 @@ export async function DELETE(req: NextRequest) {
     // Delete notification
     await prisma.notification.delete({
       where: {
-        id: parseInt(id)
+        id: id // Use string directly for UUID
       }
     });
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting notification:', error);
     return NextResponse.json(
       { error: 'Failed to delete notification' },
       { status: 500 }

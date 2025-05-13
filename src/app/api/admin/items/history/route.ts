@@ -252,9 +252,11 @@ export async function GET(request: Request) {
     // Create response with cache headers
     const apiResponse = NextResponse.json(response);
     
-    // Set cache control headers - cache for 1 minute
-    apiResponse.headers.set('Cache-Control', 'public, max-age=60');
-    apiResponse.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
+    // Use a shorter cache time (30 seconds) to balance performance and freshness
+    // Also add Vary header to ensure proper cache differentiation
+    apiResponse.headers.set('Cache-Control', 'public, max-age=30');
+    apiResponse.headers.set('Expires', new Date(Date.now() + 30000).toUTCString());
+    apiResponse.headers.set('Vary', 'Accept, Authorization');
     
     return apiResponse;
   } catch (error) {

@@ -164,7 +164,13 @@ export default function AdminInventoryPage() {
     setModalOpen(true);
     
     // Fetch vendors when opening the modal
-    fetchVendors();
+    fetchVendors().then(() => {
+      // If item has a customer, set the selected customer name for the dropdown display
+      if (item.customer) {
+        // Update vendor search with the customer name to show it's selected
+        setVendorSearch(item.customer.name);
+      }
+    });
   }, []);
   
   // Open delete confirmation
@@ -408,33 +414,94 @@ export default function AdminInventoryPage() {
         
         const res = await fetch(`/api/admin/items?serialNumber=${currentItem?.serialNumber}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          cache: 'no-store',
+          body: JSON.stringify({
+            name: formData.name,
             partNumber: formData.partNumber,
             sensor: formData.sensor || null,
             description: formData.description || null,
             customerId: formData.customerId || null,
             status: formData.status
           })
-      });
+        });
       
-      if (!res.ok) {
-        const errorData = await res.json();
+        if (!res.ok) {
+          const errorData = await res.json();
           throw new Error(errorData.error || 'Failed to update item');
         }
         
         const updatedItem = await res.json();
         console.log('Item updated successfully:', updatedItem);
         
-        toast.success('Item updated successfully');
+        // Close modal
+        setModalOpen(false);
+        
+        // First invalidate all cached data
+        invalidateCache();
+        
+        // Force manual refresh without using cache
+        setLoading(true);
+        setTimeout(async () => {
+          try {
+            // Build query parameters
+            const queryParams = new URLSearchParams();
+            if (filters.search) queryParams.append('search', filters.search);
+            if (filters.status) queryParams.append('status', filters.status);
+            if (filters.category) queryParams.append('category', filters.category);
+            queryParams.append('page', currentPage.toString());
+            queryParams.append('limit', itemsPerPage.toString());
+            
+            const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+            
+            // Force a fresh fetch by adding a cache-busting parameter
+            const timestamp = new Date().getTime();
+            const cacheBustUrl = `/api/admin/items${queryString}${queryString ? '&' : '?'}t=${timestamp}`;
+            
+            const freshResponse = await fetch(cacheBustUrl, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            });
+            
+            if (!freshResponse.ok) {
+              throw new Error('Failed to refresh data after update');
+            }
+            
+            const freshData = await freshResponse.json();
+            
+            // Update state with fresh data
+            setItems(freshData.items || []);
+            setTotalItems(freshData.total || 0);
+            
+            if (freshData.countByStatus) {
+              setStatusCounts(freshData.countByStatus);
+            }
+            
+            toast.success('Item updated successfully');
+          } catch (err) {
+            console.error('Error refreshing data after update:', err);
+            toast.error('Item was updated but the display could not be refreshed. Please reload the page.');
+          } finally {
+            setLoading(false);
+          }
+        }, 300);
       } else {
         // Create item
         console.log('Creating new item with data:', formData);
         
         const res = await fetch('/api/admin/items', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          cache: 'no-store',
           body: JSON.stringify(formData)
         });
         
@@ -443,22 +510,61 @@ export default function AdminInventoryPage() {
           throw new Error(errorData.error || 'Failed to create item');
         }
         
-        const newItem = await res.json();
-        console.log('Item created successfully:', newItem);
+        // Close modal
+        setModalOpen(false);
         
-        toast.success('Item created successfully');
+        // Invalidate cache and force refresh
+        invalidateCache();
+        
+        // Force manual refresh after creation
+        setLoading(true);
+        setTimeout(async () => {
+          try {
+            // Build query parameters
+            const queryParams = new URLSearchParams();
+            if (filters.search) queryParams.append('search', filters.search);
+            if (filters.status) queryParams.append('status', filters.status);
+            if (filters.category) queryParams.append('category', filters.category);
+            queryParams.append('page', currentPage.toString());
+            queryParams.append('limit', itemsPerPage.toString());
+            
+            const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+            
+            // Force a fresh fetch
+            const timestamp = new Date().getTime();
+            const cacheBustUrl = `/api/admin/items${queryString}${queryString ? '&' : '?'}t=${timestamp}`;
+            
+            const freshResponse = await fetch(cacheBustUrl, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            });
+            
+            if (!freshResponse.ok) {
+              throw new Error('Failed to refresh data after item creation');
+            }
+            
+            const freshData = await freshResponse.json();
+            
+            // Update state with fresh data
+            setItems(freshData.items || []);
+            setTotalItems(freshData.total || 0);
+            
+            if (freshData.countByStatus) {
+              setStatusCounts(freshData.countByStatus);
+            }
+            
+            toast.success('Item created successfully');
+          } catch (err) {
+            console.error('Error refreshing data after creation:', err);
+            toast.error('Item was created but the display could not be refreshed. Please reload the page.');
+          } finally {
+            setLoading(false);
+          }
+        }, 300);
       }
-      
-      // Close modal and refresh data
-      setModalOpen(false);
-      
-      // Invalidate cache setelah perubahan
-      invalidateCache();
-      
-      // Wait a moment before refreshing data to ensure backend updates are complete
-      setTimeout(() => {
-        fetchData();
-      }, 500);
     } catch (error: any) {
       console.error('Error submitting form:', error);
       toast.error(error.message || 'Failed to save item');
@@ -474,7 +580,8 @@ export default function AdminInventoryPage() {
     try {
       const serialNumber = encodeURIComponent(currentItem.serialNumber);
       const response = await fetch(`/api/admin/items?serialNumber=${serialNumber}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        cache: 'no-store'
       });
       
       if (!response.ok) {
@@ -482,16 +589,60 @@ export default function AdminInventoryPage() {
         throw new Error(errorData.error || 'Failed to delete item');
       }
       
-      // Close confirm dialog and refresh data
+      // Close confirm dialog
       setConfirmDeleteOpen(false);
       
-      toast.success('Item deleted successfully');
-      
-      // Invalidate cache setelah perubahan
+      // First invalidate all cached data
       invalidateCache();
       
-      // Refresh data
-      fetchData();
+      // Force manual refresh without using cache
+      setLoading(true);
+      setTimeout(async () => {
+        try {
+          // Build query parameters
+          const queryParams = new URLSearchParams();
+          if (filters.search) queryParams.append('search', filters.search);
+          if (filters.status) queryParams.append('status', filters.status);
+          if (filters.category) queryParams.append('category', filters.category);
+          queryParams.append('page', currentPage.toString());
+          queryParams.append('limit', itemsPerPage.toString());
+          
+          const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+          
+          // Force a fresh fetch by adding a cache-busting parameter
+          const timestamp = new Date().getTime();
+          const cacheBustUrl = `/api/admin/items${queryString}${queryString ? '&' : '?'}t=${timestamp}`;
+          
+          const freshResponse = await fetch(cacheBustUrl, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (!freshResponse.ok) {
+            throw new Error('Failed to refresh data after deletion');
+          }
+          
+          const freshData = await freshResponse.json();
+          
+          // Update state with fresh data
+          setItems(freshData.items || []);
+          setTotalItems(freshData.total || 0);
+          
+          if (freshData.countByStatus) {
+            setStatusCounts(freshData.countByStatus);
+          }
+          
+          toast.success('Item deleted successfully');
+        } catch (err) {
+          console.error('Error refreshing data after deletion:', err);
+          toast.error('Item was deleted but the display could not be refreshed. Please reload the page.');
+        } finally {
+          setLoading(false);
+        }
+      }, 300);
     } catch (error: any) {
       console.error('Error deleting item:', error);
       toast.error(error.message || 'Failed to delete item');
@@ -565,9 +716,18 @@ export default function AdminInventoryPage() {
   // Get selected vendor name
   const selectedVendorName = useMemo(() => {
     if (!formData.customerId) return '';
+    
+    // First try to find the vendor in the loaded vendors list
     const selectedVendor = vendors.find(v => v.id === formData.customerId);
-    return selectedVendor ? selectedVendor.name : '';
-  }, [formData.customerId, vendors]);
+    if (selectedVendor) return selectedVendor.name;
+    
+    // If not found in vendors list but we're in edit mode, try to get from currentItem
+    if (isEditMode && currentItem?.customer && currentItem.customerId === formData.customerId) {
+      return currentItem.customer.name;
+    }
+    
+    return '';
+  }, [formData.customerId, vendors, isEditMode, currentItem]);
 
   return (
     <DashboardLayout>
@@ -1001,7 +1161,10 @@ export default function AdminInventoryPage() {
                               <button
                                 type="button"
                                 className="text-gray-400 hover:text-gray-500"
-                                onClick={() => setFormData(prev => ({...prev, customerId: ''}))}
+                                onClick={() => {
+                                  setFormData(prev => ({...prev, customerId: ''}));
+                                  setVendorSearch('');
+                                }}
                               >
                                 <span className="sr-only">Clear selection</span>
                                 <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -1017,6 +1180,15 @@ export default function AdminInventoryPage() {
                               value={vendorSearch}
                               onChange={handleVendorSearch}
                               className={`w-full px-3 py-2 border-0 ${selectedVendorName ? 'border-t border-gray-200 rounded-b-md' : 'rounded-t-md'} focus:ring-0 focus:outline-none text-sm`}
+                              onFocus={() => {
+                                // If we have a customerId but no search text, populate with vendor name
+                                if (formData.customerId && !vendorSearch) {
+                                  const selectedVendor = vendors.find(v => v.id === formData.customerId);
+                                  if (selectedVendor) {
+                                    setVendorSearch(selectedVendor.name);
+                                  }
+                                }
+                              }}
                             />
                             <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                               <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -1040,7 +1212,7 @@ export default function AdminInventoryPage() {
                                 className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === vendor.id ? 'bg-green-50' : ''}`}
                                 onClick={() => {
                                   setFormData(prev => ({...prev, customerId: vendor.id}));
-                                  setVendorSearch('');
+                                  setVendorSearch(vendor.name);
                                 }}
                               >
                                 <div className="font-medium">{vendor.name}</div>
