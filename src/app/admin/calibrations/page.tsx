@@ -660,7 +660,8 @@ export default function CalibrationPage() {
   // Function to fetch available items
   const fetchAvailableItems = async () => {
     try {
-      const res = await fetch('/api/admin/items?status=AVAILABLE', {
+      // Add a timestamp parameter to prevent caching
+      const res = await fetch(`/api/admin/items?status=AVAILABLE&timestamp=${new Date().getTime()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -692,9 +693,8 @@ export default function CalibrationPage() {
   
   // Function to open the calibration modal
   const openCalibrationModal = () => {
-    if (!items || items.length === 0) {
-      fetchAvailableItems();
-    }
+    // Always fetch fresh items when opening the modal, don't use cached items
+    fetchAvailableItems();
     
     setCalibrationForm({
       itemSerial: '',
@@ -761,7 +761,8 @@ export default function CalibrationPage() {
   const handleCalibrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/calibrations', {
+      // Change to the user API endpoint which has the proper implementation for creating new calibrations
+      const response = await fetch('/api/user/calibrations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -772,7 +773,35 @@ export default function CalibrationPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create calibration');
+        // Properly extract and handle error information
+        let errorMessage = 'Failed to create calibration';
+        if (errorData.error) {
+          if (typeof errorData.error === 'string') {
+            errorMessage = errorData.error;
+          } else if (typeof errorData.error === 'object') {
+            // Format error object into readable message
+            errorMessage = Object.entries(errorData.error)
+              .filter(([key, value]) => key !== '_errors' && value)
+              .map(([key, value]) => {
+                const errors = (value as {_errors?: string[]})._errors;
+                if (Array.isArray(errors) && errors.length > 0) {
+                  return `${key}: ${errors.join(', ')}`;
+                }
+                return null;
+              })
+              .filter(Boolean)
+              .join('; ');
+            
+            if (!errorMessage) {
+              // If no field errors, check for general errors
+              const generalErrors = errorData.error._errors;
+              if (Array.isArray(generalErrors) && generalErrors.length > 0) {
+                errorMessage = generalErrors.join(', ');
+              }
+            }
+          }
+        }
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
@@ -798,9 +827,9 @@ export default function CalibrationPage() {
       // Refresh data
       fetchCalibrations();
       fetchAvailableItems();
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
       console.error('Error creating calibration:', err);
-      setError(err.message || 'Failed to create calibration request');
+      setError(err instanceof Error ? err.message : 'Failed to create calibration request');
     }
   };
 
