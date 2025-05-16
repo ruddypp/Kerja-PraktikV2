@@ -55,8 +55,11 @@ export async function GET(req: NextRequest) {
     }));
 
     // Add cache control headers
-    const response = NextResponse.json(formattedNotifications);
-    response.headers.set('Cache-Control', 'private, max-age=10');
+    const response = NextResponse.json({
+      notifications: formattedNotifications,
+      unreadCount: formattedNotifications.filter(n => !n.read).length
+    });
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
     return response;
   } catch (error) {
     console.error('Error fetching notifications:', error);

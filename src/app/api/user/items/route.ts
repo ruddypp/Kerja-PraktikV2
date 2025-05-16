@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
     
     // Get pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // For calibration item selection, allow much higher limits
+    const requestedLimit = parseInt(searchParams.get('limit') || '10');
+    const limit = requestedLimit > 1000 ? 50000 : requestedLimit; // Support up to 50,000 items if requested
     
     // Calculate skip value for pagination
     const skip = (page - 1) * limit;
@@ -95,13 +97,14 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
     
-    // Get total count for pagination - do this only when needed
-    const totalItems = await prisma.item.count({ where });
-    
-    // Get items with pagination - select only needed fields
-    const items = await prisma.item.findMany({
-      where,
-      select: {
+    // For large limit requests (for calibration form), optimize by selecting fewer fields
+    const select = (limit > 1000) ? {
+      serialNumber: true,
+      name: true,
+      partNumber: true,
+      sensor: true,
+      status: true,
+    } : {
         serialNumber: true,
         name: true,
         partNumber: true,
@@ -118,13 +121,21 @@ export async function GET(request: NextRequest) {
             name: true
           }
         }
-      },
+    };
+    
+    // Get items with pagination - select only needed fields
+    const items = await prisma.item.findMany({
+      where,
+      select,
       orderBy: {
         name: 'asc'
       },
       skip: skip,
       take: limit
     });
+    
+    // For optimized requests, skip counting total if not needed for pagination
+    const totalItems = limit > 1000 ? items.length : await prisma.item.count({ where });
     
     // Siapkan response dengan header cache
     const response = NextResponse.json({

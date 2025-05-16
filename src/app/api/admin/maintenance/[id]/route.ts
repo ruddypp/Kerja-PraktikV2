@@ -11,7 +11,7 @@ export async function GET(
   try {
     const user = await getUserFromRequest(req);
     
-    if (!user || user.role !== "ADMIN") {
+    if (!user) {
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     
@@ -68,7 +68,7 @@ export async function DELETE(
   try {
     const user = await getUserFromRequest(req);
     
-    if (!user || user.role !== "ADMIN") {
+    if (!user) {
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     

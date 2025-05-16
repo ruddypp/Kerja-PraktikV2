@@ -25,9 +25,11 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Constants for caching
-  const CACHE_DURATION = 60000; // 1 minute
+  const CACHE_DURATION = 300000; // 5 minutes
+  const POLLING_INTERVAL = 300000; // 5 minutes
   const CACHE_KEY = `notifications_${userId}`;
   const CACHE_TIMESTAMP_KEY = `notifications_timestamp_${userId}`;
+  const isActiveRef = useRef(true); // Track if page is active/visible
 
   // Fetch notifications with caching and error handling
   const fetchNotifications = useCallback(async (forceRefresh = false) => {
@@ -114,12 +116,38 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   
   // Fetch notifications on component mount and when userId changes
   useEffect(() => {
+    if (!userId) return;
+    
     fetchNotifications();
     
-    // Set up polling for new notifications (every minute)
-    const interval = setInterval(() => fetchNotifications(), 60000);
+    // Track document visibility to prevent unnecessary polling when tab is not active
+    const handleVisibilityChange = () => {
+      isActiveRef.current = document.visibilityState === 'visible';
+      
+      // If becoming visible and cache is stale, fetch new data
+      if (isActiveRef.current) {
+        const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+        if (!lastFetch || now - parseInt(lastFetch) > CACHE_DURATION) {
+          fetchNotifications();
+        }
+      }
+    };
     
-    return () => clearInterval(interval);
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Set up polling for new notifications (every 5 minutes, but only when page is visible)
+    const interval = setInterval(() => {
+      if (isActiveRef.current) {
+        fetchNotifications();
+      }
+    }, POLLING_INTERVAL);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [userId, fetchNotifications]);
   
   // Close dropdown when clicking outside

@@ -396,9 +396,9 @@ export default function AdminMaintenancePage() {
                         <div className="flex items-center space-x-4">
                           <Link 
                             href={`/admin/maintenance/${maintenance.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className={maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}
                           >
-                            Lihat Detail
+                            {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
                           </Link>
                           <button
                             onClick={() => openDeleteModal(maintenance)}

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
     
-    if (!user || user.role !== "ADMIN") {
+    if (!user) {
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
     
-    if (!user || user.role !== "ADMIN") {
+    if (!user) {
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     

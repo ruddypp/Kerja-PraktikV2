@@ -10,14 +10,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verifikasi user admin menggunakan helper function yang konsisten
+    // Verify user is authenticated
     const user = await getUserFromRequest(request);
-    if (!user || !isAdmin(user)) {
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Di Next.js 15, params adalah objek yang harus diawait
+    // Get the calibration ID
     const { id } = await params;
+    
     if (!id) {
       return NextResponse.json(
         { error: 'Calibration ID is required' },
@@ -25,20 +27,25 @@ export async function GET(
       );
     }
     
-    // Langsung gunakan ID string untuk UUID
+    // Fetch the calibration
     const calibration = await prisma.calibration.findUnique({
       where: { id },
       include: {
         item: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         vendor: true,
-        certificate: true,
+        certificate: {
+          include: {
+            gasEntries: true,
+            testEntries: true
+          }
+        },
         statusLogs: {
           include: {
             changedBy: {
@@ -51,7 +58,8 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           }
-        }
+        },
+        activityLogs: true
       }
     });
     
@@ -61,6 +69,9 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Allow access to any authenticated user
+    console.log('Allowing access to calibration. User ID:', user.id, 'Calibration ID:', calibration.id);
     
     return NextResponse.json(calibration);
   } catch (error) {
@@ -78,13 +89,13 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verifikasi user admin menggunakan helper function yang konsisten
+    // Verify user is authenticated
     const user = await getUserFromRequest(request);
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Di Next.js 15, params adalah objek yang harus diawait
+    // Get the calibration ID
     const { id } = await params;
     if (!id) {
       return NextResponse.json(
@@ -96,7 +107,7 @@ export async function PATCH(
     const body = await request.json();
     const { vendorId, status, notes, validUntil } = body;
     
-    // Verifikasi kalibrasi ada
+    // Verify calibration exists
     const calibration = await prisma.calibration.findUnique({
       where: { id },
           include: {
@@ -112,12 +123,20 @@ export async function PATCH(
       );
     }
     
-    // Prepare update data
+    // Allow access to any authenticated user, but with different permissions based on role
+    const isAdmin = user.role === 'ADMIN';
+    console.log('Allowing update to calibration. User ID:', user.id, 'Calibration ID:', calibration.id, 'Is admin:', isAdmin);
+    
+    // Prepare update data with different permissions for admin vs owner
     const updateData: Prisma.CalibrationUpdateInput = {};
     
-    if (vendorId) updateData.vendor = { connect: { id: vendorId } };
-    if (status) updateData.status = status as RequestStatus;
+    // Anyone can update notes
     if (notes) updateData.notes = notes;
+    
+    // Admin-only fields
+    if (isAdmin) {
+      if (vendorId) updateData.vendor = { connect: { id: vendorId } };
+      if (status) updateData.status = status as RequestStatus;
     if (validUntil) updateData.validUntil = new Date(validUntil);
     
     // If completing, update item status back to AVAILABLE
@@ -139,28 +158,47 @@ export async function PATCH(
           endDate: new Date()
         }
       });
+      }
     }
     
     // Update the calibration
     const updatedCalibration = await prisma.calibration.update({
       where: { id },
       data: updateData,
-          include: {
-            item: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
+      include: {
+        item: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
           }
         },
         vendor: true,
-        certificate: true
+        certificate: {
+          include: {
+            gasEntries: true,
+            testEntries: true
+          }
+        },
+        statusLogs: {
+          include: {
+            changedBy: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     });
     
-    // Create status log if status changed
-    if (status) {
+    // Create status log if status changed (admin only)
+    if (isAdmin && status) {
       await prisma.calibrationStatusLog.create({
         data: {
           calibrationId: id,
@@ -177,6 +215,8 @@ export async function PATCH(
         'CANCELLED': 'cancelled'
       };
       
+      // Don't create notification if the user is updating their own calibration
+      if (user.id !== calibration.userId) {
       await prisma.notification.create({
         data: {
           userId: calibration.userId,
@@ -186,6 +226,7 @@ export async function PATCH(
           isRead: false
         }
       });
+      }
     }
     
     return NextResponse.json(updatedCalibration);
@@ -330,7 +371,7 @@ export async function DELETE(
     
     // Provide more detailed error information
     let errorMessage = 'Failed to delete calibration';
-    let statusCode = 500;
+    const statusCode = 500;
     
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       errorMessage = `Database error (${error.code}): ${error.message}`;

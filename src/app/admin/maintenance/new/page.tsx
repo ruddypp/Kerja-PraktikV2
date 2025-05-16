@@ -38,10 +38,10 @@ export default function AdminNewMaintenancePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isStartingMaintenance, setIsStartingMaintenance] = useState(false);
   const [selectedItemSerial, setSelectedItemSerial] = useState<string | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
@@ -195,19 +195,21 @@ export default function AdminNewMaintenancePage() {
   // Improved debounce search with useEffect and cleanup
   useEffect(() => {
     // Clear any existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
     
     // Set new timeout for debouncing
-    searchTimeoutRef.current = setTimeout(() => {
+    const timeout = setTimeout(() => {
       searchItems(searchTerm);
     }, 300);
     
+    setSearchTimeout(timeout);
+    
     // Cleanup on unmount or searchTerm change
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
       }
     };
   }, [searchTerm, searchItems]);

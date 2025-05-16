@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ItemStatus, RequestStatus, ActivityType } from '@prisma/client';
-import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 import { z } from 'zod';
 
 // Schema untuk validasi data penyelesaian kalibrasi
@@ -50,9 +50,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Mendapatkan user dari session dan memverifikasi status admin
+    // Mendapatkan user dari session
     const user = await getUserFromRequest(request);
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -117,6 +117,9 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Allow any authenticated user to complete any calibration
+    console.log('Allowing user to complete calibration. User ID:', user.id, 'Calibration owner ID:', calibration.userId);
 
     // Pastikan kalibrasi belum selesai
     if (calibration.status === 'COMPLETED') {
@@ -330,13 +333,13 @@ export async function PATCH(
       }
     });
 
-    // Buat notifikasi untuk user
+    // Buat notifikasi untuk admin
     await prisma.notification.create({
       data: {
         userId: calibration.userId,
         type: 'CALIBRATION_STATUS_CHANGE',
         title: 'Calibration Completed',
-        message: `Your calibration for ${calibration.item.name} has been completed`,
+        message: `Calibration for ${calibration.item.name} has been completed`,
         isRead: false
       }
     });

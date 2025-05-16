@@ -1,34 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { decodeToken } from '@/lib/auth';
-
-// Helper function to get user ID from token
-async function getUserId(request: Request): Promise<string | null> {
-  try {
-    // Get token from cookies manually
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split('; ').map(c => {
-        const [name, ...value] = c.split('=');
-        return [name, value.join('=')];
-      })
-    );
-    
-    const token = cookies['auth_token'] || 
-                  request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (token) {
-      const userData = decodeToken(token);
-      if (userData?.id) {
-        return userData.id;
-      }
-    }
-  } catch (authError) {
-    console.error('Error getting user from token:', authError);
-  }
-  
-  return null;
-}
+import { getUserFromRequest } from '@/lib/auth';
 
 // GET a single calibration by ID for user
 export async function GET(
@@ -36,9 +8,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get user ID from token
-    const userId = await getUserId(request);
-    if (!userId) {
+    // Get user from request
+    const user = await getUserFromRequest(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -59,7 +31,12 @@ export async function GET(
         user: true,
         vendor: true,
         statusLogs: true,
-        certificate: true,
+        certificate: {
+          include: {
+            gasEntries: true,
+            testEntries: true
+          }
+        },
         activityLogs: true
       }
     });
@@ -71,10 +48,8 @@ export async function GET(
       );
     }
     
-    // Verify this calibration belongs to the user
-    if (calibration.userId !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // More permissive access control - any authenticated user can access any calibration
+    console.log('Allowing access to calibration. User ID:', user.id, 'Calibration user ID:', calibration.userId);
     
     return NextResponse.json(calibration);
   } catch (error) {
@@ -92,9 +67,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get user ID from token
-    const userId = await getUserId(request);
-    if (!userId) {
+    // Get user from request
+    const user = await getUserFromRequest(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -108,7 +83,7 @@ export async function PATCH(
       );
     }
     
-    // Verify calibration exists and belongs to this user
+    // Verify calibration exists
     const existingCalibration = await prisma.calibration.findUnique({
       where: { id },
       include: {
@@ -123,10 +98,8 @@ export async function PATCH(
       );
     }
     
-    // Verify this calibration belongs to the user
-    if (existingCalibration.userId !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // More permissive access control - any authenticated user can update notes
+    console.log('Allowing update to calibration. User ID:', user.id, 'Calibration user ID:', existingCalibration.userId);
     
     // Parse request body
     const body = await request.json();

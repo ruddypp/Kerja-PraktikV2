@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon } from "lucide-react";
 import Link from "next/link";
@@ -97,14 +97,17 @@ interface MaintenanceData {
   }>;
 }
 
-export default function MaintenanceDetailPage() {
+export default function MaintenanceDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   
-  // Use the useParams hook from next/navigation for client components
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+  // Use React.use to unwrap the params Promise
+  const id = React.use(params).id;
 
   useEffect(() => {
     if (id) {

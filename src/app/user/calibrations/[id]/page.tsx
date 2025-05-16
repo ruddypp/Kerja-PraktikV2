@@ -154,14 +154,6 @@ export default function CalibrationDetailPage() {
     return format(new Date(dateString), 'dd MMM yyyy');
   };
 
-  const getStatusBadgeColor = (statusName: string) => {
-    const status = statusName.toLowerCase();
-    if (status === 'completed' || status === 'approved') return 'bg-green-100 text-green-800';
-    if (status === 'pending') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'rejected' || status === 'failed') return 'bg-red-100 text-red-800';
-    return 'bg-blue-100 text-blue-800';
-  };
-
   const isCompleted = calibration?.status.name.toLowerCase() === 'completed';
 
   if (loading) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiCheckCircle, FiEdit2, FiDownload, FiX, FiPlus } from 'react-icons/fi';
+import { FiCheckCircle, FiEdit2, FiDownload, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
@@ -64,8 +64,7 @@ interface User {
 enum ItemStatus {
   AVAILABLE = 'AVAILABLE',
   IN_CALIBRATION = 'IN_CALIBRATION',
-  RENTED = 'RENTED',
-  IN_MAINTENANCE = 'IN_MAINTENANCE'
+
 }
 
 // RequestStatus bisa berupa enum atau string status
@@ -130,7 +129,39 @@ export default function CalibrationPage() {
    
   // Tambahkan state untuk modal edit sertifikat
   const [showEditCertificateModal, setShowEditCertificateModal] = useState(false);
-  const [certificateData, setCertificateData] = useState({
+  const [certificateData, setCertificateData] = useState<{
+    gasType: string;
+    gasConcentration: string;
+    gasBalance: string;
+    gasBatchNumber: string;
+    testSensor: string;
+    testSpan: string;
+    testResult: string;
+    manufacturer: string;
+    instrumentName: string;
+    modelNumber: string;
+    configuration: string;
+    approvedBy: string;
+    vendorName: string;
+    vendorAddress: string;
+    vendorPhone: string;
+    // Add missing certificate fields
+    certificateNumber: string;
+    calibrationDate: string;
+    validUntil: string;
+    // Add arrays for multiple entries
+    gasEntries: Array<{
+      gasType: string;
+      gasConcentration: string;
+      gasBalance: string;
+      gasBatchNumber: string;
+    }>;
+    testEntries: Array<{
+      testSensor: string;
+      testSpan: string;
+      testResult: string;
+    }>;
+  }>({
     gasType: '',
     gasConcentration: '',
     gasBalance: '',
@@ -145,7 +176,14 @@ export default function CalibrationPage() {
     approvedBy: '',
     vendorName: '',
     vendorAddress: '',
-    vendorPhone: ''
+    vendorPhone: '',
+    // Initialize new fields
+    certificateNumber: '',
+    calibrationDate: '',
+    validUntil: '',
+    // Initialize empty arrays
+    gasEntries: [],
+    testEntries: []
   });
   
   // Form states
@@ -159,10 +197,44 @@ export default function CalibrationPage() {
   });
   
   // Complete form states
-  const [certificateNumber, setCertificateNumber] = useState('');
-  const [calibrationDate, setCalibrationDate] = useState('');
-  const [nextCalibrationDate, setNextCalibrationDate] = useState('');
-  const [calibrationResult, setCalibrationResult] = useState('');
+  const [completeForm, setCompleteForm] = useState({
+    id: '',
+    
+    // Detail Gas Kalibrasi - changed to arrays to support multiple entries
+    gasEntries: [{
+      gasType: '',
+      gasConcentration: '',
+      gasBalance: '',
+      gasBatchNumber: ''
+    }],
+    
+    // Hasil Test - changed to arrays to support multiple entries
+    testEntries: [{
+      testSensor: '',
+      testSpan: '',
+      testResult: 'Pass' as 'Pass' | 'Fail'
+    }],
+    
+    // Detail Alat - auto-filled from item data
+    instrumentName: '',
+    modelNumber: '',
+    configuration: '',
+    
+    // Approval
+    approvedBy: '',
+    
+    // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
+    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+    
+    // Certificate Number
+    certificateNumber: '',
+    
+    // Calibration Date
+    calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+    
+    // Notes
+    notes: ''
+  });
   
   // Filter state
   const [filter, setFilter] = useState({
@@ -173,10 +245,28 @@ export default function CalibrationPage() {
   
   // Reset complete form
   const resetCompleteForm = () => {
-    setCertificateNumber('');
-    setCalibrationDate('');
-    setNextCalibrationDate('');
-    setCalibrationResult('');
+    setCompleteForm({
+      id: '',
+      gasEntries: [{
+        gasType: '',
+        gasConcentration: '',
+        gasBalance: '',
+        gasBatchNumber: ''
+      }],
+      testEntries: [{
+        testSensor: '',
+        testSpan: '',
+        testResult: 'Pass' as 'Pass' | 'Fail'
+      }],
+      instrumentName: '',
+      modelNumber: '',
+      configuration: '',
+      approvedBy: '',
+      validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+      certificateNumber: '',
+      calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+      notes: ''
+    });
   };
   
   // Mengganti useEffect dengan SWR untuk data vendors dan statuses
@@ -219,13 +309,14 @@ export default function CalibrationPage() {
   
   // Load data on component mount
   useEffect(() => {
+    // Define fetchCalibrations inside useEffect to avoid circular reference
     fetchCalibrations();
-  }, [filter]);
+  }, [filter, mutate]); // Include mutate in dependencies since it's used inside
   
-  const fetchCalibrations = async () => {
-    // Ganti dengan mutate dari SWR
-    return mutate();
-  };
+  // Define the fetchCalibrations function
+    const fetchCalibrations = async () => {
+      return mutate();
+    };
   
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -269,8 +360,48 @@ export default function CalibrationPage() {
   };
   
   const openCompleteModal = (calibration: Calibration) => {
+    if (!calibration) return;
+    
     setSelectedCalibration(calibration);
-    setCalibrationDate(calibration.calibrationDate.split('T')[0]);
+    setCompleteForm({
+      id: calibration.id,
+      
+      // Detail Gas Kalibrasi - changed to arrays to support multiple entries
+      gasEntries: [{
+        gasType: '',
+        gasConcentration: '',
+        gasBalance: '',
+        gasBatchNumber: ''
+      }],
+      
+      // Hasil Test - changed to arrays to support multiple entries
+      testEntries: [{
+        testSensor: '',
+        testSpan: '',
+        testResult: 'Pass' as 'Pass' | 'Fail'
+      }],
+      
+      // Detail Alat - auto-filled from item data
+      instrumentName: calibration.item?.name || '',
+      modelNumber: calibration.item?.partNumber || '',
+      configuration: calibration.item?.sensor || '',
+      
+      // Approval
+      approvedBy: '',
+      
+      // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
+      validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+      
+      // Certificate Number
+      certificateNumber: '',
+      
+      // Calibration Date
+      calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+      
+      // Notes
+      notes: ''
+    });
+    
     setCompleteModal(true);
   };
   
@@ -375,12 +506,9 @@ export default function CalibrationPage() {
   const getStatusBadgeColor = (statusName: string) => {
     switch (statusName.toLowerCase()) {
       case 'in_progress':
-      case 'pending':
         return 'bg-purple-100 text-purple-800'; // Changed to purple like the user page
       case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -395,9 +523,108 @@ export default function CalibrationPage() {
     return statusName;
   };
   
+  const handleCompleteFormChange = (
+    e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>, 
+    index?: number
+  ) => {
+    const { name, value } = e.target;
+    
+    // Handle gas entries fields
+    if (name === 'gasType' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasType: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    } 
+    else if (name === 'gasConcentration' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasConcentration: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
+    else if (name === 'gasBalance' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasBalance: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
+    else if (name === 'gasBatchNumber' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasBatchNumber: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
+    // Handle test entries fields
+    else if (name === 'testSensor' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedTestEntries = [...prev.testEntries];
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testSensor: value 
+        };
+        return { ...prev, testEntries: updatedTestEntries };
+      });
+    }
+    else if (name === 'testSpan' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedTestEntries = [...prev.testEntries];
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testSpan: value 
+        };
+        return { ...prev, testEntries: updatedTestEntries };
+      });
+    }
+    else if (name === 'testResult' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedTestEntries = [...prev.testEntries];
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testResult: value as 'Pass' | 'Fail'
+        };
+        return { ...prev, testEntries: updatedTestEntries };
+      });
+    }
+    // Handle other fields
+    else {
+      setCompleteForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
+  
   const handleComplete = async (id: string) => {
     try {
       setActionInProgress(true);
+      
+      // Extract the first entries to maintain backward compatibility with the API
+      const firstGasEntry = completeForm.gasEntries[0] || { 
+        gasType: '', 
+        gasConcentration: '', 
+        gasBalance: '', 
+        gasBatchNumber: '' 
+      };
+      
+      const firstTestEntry = completeForm.testEntries[0] || {
+        testSensor: '',
+        testSpan: '',
+        testResult: 'Pass' as 'Pass' | 'Fail'
+      };
+      
       const response = await fetch(`/api/admin/calibrations/${id}/complete`, {
         method: 'PATCH',
         headers: {
@@ -406,10 +633,35 @@ export default function CalibrationPage() {
         credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           status: 'COMPLETED',
-          certificateNumber: certificateNumber,
-          calibrationDate: calibrationDate,
-          nextCalibrationDate: nextCalibrationDate,
-          result: calibrationResult,
+          certificateNumber: completeForm.certificateNumber,
+          calibrationDate: completeForm.calibrationDate,
+          validUntil: completeForm.validUntil,
+          
+          // Gas calibration details
+          gasType: firstGasEntry.gasType,
+          gasConcentration: firstGasEntry.gasConcentration,
+          gasBalance: firstGasEntry.gasBalance,
+          gasBatchNumber: firstGasEntry.gasBatchNumber,
+          
+          // Test results
+          testSensor: firstTestEntry.testSensor,
+          testSpan: firstTestEntry.testSpan,
+          testResult: firstTestEntry.testResult,
+          
+          // Instrument details
+          instrumentName: completeForm.instrumentName,
+          modelNumber: completeForm.modelNumber,
+          configuration: completeForm.configuration,
+          
+          // Approval
+          approvedBy: completeForm.approvedBy,
+          
+          // Notes
+          notes: completeForm.notes,
+          
+          // Include all entries as JSON strings for future API updates
+          allGasEntries: JSON.stringify(completeForm.gasEntries),
+          allTestEntries: JSON.stringify(completeForm.testEntries)
         }),
       });
       
@@ -543,9 +795,14 @@ export default function CalibrationPage() {
         setActionInProgress(false);
         return;
       }
+
+      // Prepare gas entries and test entries
+      const gasEntries = data.certificate.gasEntries || [];
+      const testEntries = data.certificate.testEntries || [];
       
       // Set data sertifikat ke state
       setCertificateData({
+        // Keep legacy fields for backward compatibility
         gasType: data.certificate.gasType || '',
         gasConcentration: data.certificate.gasConcentration || '',
         gasBalance: data.certificate.gasBalance || '',
@@ -553,6 +810,8 @@ export default function CalibrationPage() {
         testSensor: data.certificate.testSensor || '',
         testSpan: data.certificate.testSpan || '',
         testResult: data.certificate.testResult || '',
+        
+        // Other fields
         manufacturer: data.certificate.manufacturer || '',
         instrumentName: data.certificate.instrumentName || '',
         modelNumber: data.certificate.modelNumber || '',
@@ -560,11 +819,29 @@ export default function CalibrationPage() {
         approvedBy: data.certificate.approvedBy || '',
         vendorName: data.certificate.vendorName || '',
         vendorAddress: data.certificate.vendorAddress || '',
-        vendorPhone: data.certificate.vendorPhone || ''
+        vendorPhone: data.certificate.vendorPhone || '',
+        
+        // Add certificate information fields from calibration record
+        certificateNumber: data.certificateNumber || '',
+        calibrationDate: data.calibrationDate ? data.calibrationDate.split('T')[0] : '',
+        validUntil: data.validUntil ? data.validUntil.split('T')[0] : '',
+        
+        // Add multiple entries
+        gasEntries: gasEntries.length > 0 ? gasEntries : [{ 
+          gasType: data.certificate.gasType || '',
+          gasConcentration: data.certificate.gasConcentration || '',
+          gasBalance: data.certificate.gasBalance || '',
+          gasBatchNumber: data.certificate.gasBatchNumber || ''
+        }],
+        testEntries: testEntries.length > 0 ? testEntries : [{
+          testSensor: data.certificate.testSensor || '',
+          testSpan: data.certificate.testSpan || '',
+          testResult: data.certificate.testResult || ''
+        }]
       });
       
       setShowEditCertificateModal(true);
-    } catch (error: Error | unknown) {
+    } catch (error: unknown) {
       console.error('Error fetching certificate:', error);
       toast.error(error instanceof Error ? error.message : 'Gagal mengambil data sertifikat');
     } finally {
@@ -578,12 +855,93 @@ export default function CalibrationPage() {
   };
   
   // Fungsi untuk handle perubahan form edit sertifikat
-  const handleCertificateFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleCertificateFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+    index?: number,
+    entryType?: 'gas' | 'test'
+  ) => {
     const { name, value } = e.target;
+    
+    if (entryType === 'gas' && typeof index === 'number') {
+      // Handle changes to a specific gas entry
+      setCertificateData(prev => {
+        const newGasEntries = [...prev.gasEntries];
+        newGasEntries[index] = {
+          ...newGasEntries[index],
+          [name]: value
+        };
+        return {
+          ...prev,
+          gasEntries: newGasEntries
+        };
+      });
+    } else if (entryType === 'test' && typeof index === 'number') {
+      // Handle changes to a specific test entry
+      setCertificateData(prev => {
+        const newTestEntries = [...prev.testEntries];
+        newTestEntries[index] = {
+          ...newTestEntries[index],
+          [name]: value
+        };
+        return {
+          ...prev,
+          testEntries: newTestEntries
+        };
+      });
+    } else {
+      // Handle changes to other certificate fields
+      setCertificateData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+  
+  // Add functions to handle adding and removing entries
+  const addGasEntry = () => {
     setCertificateData(prev => ({
       ...prev,
-      [name]: value
+      gasEntries: [
+        ...prev.gasEntries,
+        { gasType: '', gasConcentration: '', gasBalance: '', gasBatchNumber: '' }
+      ]
     }));
+  };
+  
+  const removeGasEntry = (index: number) => {
+    if (certificateData.gasEntries.length <= 1) return; // Keep at least one entry
+    
+    setCertificateData(prev => {
+      const newGasEntries = [...prev.gasEntries];
+      newGasEntries.splice(index, 1);
+      return {
+        ...prev,
+        gasEntries: newGasEntries
+      };
+    });
+  };
+  
+  const addTestEntry = () => {
+    setCertificateData(prev => ({
+      ...prev,
+      testEntries: [
+        ...prev.testEntries,
+        { testSensor: '', testSpan: '', testResult: 'Pass' }
+      ]
+    }));
+  };
+  
+  const removeTestEntry = (index: number) => {
+    if (certificateData.testEntries.length <= 1) return; // Keep at least one entry
+    
+    setCertificateData(prev => {
+      const newTestEntries = [...prev.testEntries];
+      newTestEntries.splice(index, 1);
+      return {
+        ...prev,
+        testEntries: newTestEntries
+      };
+    });
   };
   
   // Fungsi untuk menyimpan perubahan sertifikat
@@ -595,20 +953,27 @@ export default function CalibrationPage() {
     try {
       setActionInProgress(true);
       
-      // Hanya kirim data gas kalibrasi dan hasil test ke API
+      // Kirim data sertifikat yang sudah diupdate dengan multiple entries
       const certificateDataToSend = {
-        gasType: certificateData.gasType,
-        gasConcentration: certificateData.gasConcentration,
-        gasBalance: certificateData.gasBalance,
-        gasBatchNumber: certificateData.gasBatchNumber,
-        testSensor: certificateData.testSensor,
-        testSpan: certificateData.testSpan,
-        testResult: certificateData.testResult
+        // Send instrument and approval info
+        instrumentName: certificateData.instrumentName,
+        modelNumber: certificateData.modelNumber,
+        configuration: certificateData.configuration,
+        approvedBy: certificateData.approvedBy,
+        
+        // Add certificate information fields
+        certificateNumber: certificateData.certificateNumber,
+        calibrationDate: certificateData.calibrationDate,
+        validUntil: certificateData.validUntil,
+        
+        // Send as JSON strings
+        allGasEntries: JSON.stringify(certificateData.gasEntries),
+        allTestEntries: JSON.stringify(certificateData.testEntries)
       };
       
       const response = await fetch(`/api/admin/calibrations/${selectedCalibration.id}/certificate`, {
         method: 'PATCH',
-          headers: {
+        headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -1296,25 +1661,35 @@ export default function CalibrationPage() {
         {/* Complete Modal */}
         {completeModal && selectedCalibration && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
               <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
-                <h3 className="text-lg font-semibold">Complete Calibration</h3>
-                <button onClick={closeCompleteModal} className="text-white hover:text-gray-200" aria-label="Close">
+                <h2 className="text-lg font-semibold">Complete Calibration</h2>
+                <button 
+                  onClick={closeCompleteModal} 
+                  className="text-white hover:text-gray-200"
+                  aria-label="Close modal"
+                  title="Close complete calibration form"
+                >
                   <FiX size={20} />
                 </button>
               </div>
               
-              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
+              <div className="overflow-y-auto flex-grow p-4 max-h-[calc(90vh-56px)]">
                 <p className="text-sm mb-4">Please enter the details to complete the calibration for: <strong>{selectedCalibration.item ? selectedCalibration.item.name : 'Item tidak tersedia'}</strong></p>
               
                 <form onSubmit={(e) => { e.preventDefault(); handleComplete(selectedCalibration.id.toString()); }} className="space-y-4">
+                  {/* Certificate Information */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">Certificate Number</label>
                   <input
                     type="text"
                     id="certificateNumber"
-                    value={certificateNumber}
-                    onChange={(e) => setCertificateNumber(e.target.value)}
+                          name="certificateNumber"
+                          value={completeForm.certificateNumber}
+                          onChange={(e) => handleCompleteFormChange(e)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter certificate number"
                     required
@@ -1326,35 +1701,329 @@ export default function CalibrationPage() {
                   <input
                     type="date"
                     id="calibrationDate"
-                    value={calibrationDate}
-                    onChange={(e) => setCalibrationDate(e.target.value)}
+                          name="calibrationDate"
+                          value={completeForm.calibrationDate}
+                          onChange={(e) => handleCompleteFormChange(e)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     required
                   />
                 </div>
                 
                   <div>
-                    <label htmlFor="nextCalibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Next Calibration Date</label>
+                        <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
                   <input
                     type="date"
-                    id="nextCalibrationDate"
-                    value={nextCalibrationDate}
-                    onChange={(e) => setNextCalibrationDate(e.target.value)}
+                          id="validUntil"
+                          name="validUntil"
+                          value={completeForm.validUntil}
+                          onChange={(e) => handleCompleteFormChange(e)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     required
                   />
                 </div>
                 
                   <div>
-                    <label htmlFor="calibrationResult" className="block text-sm font-medium text-gray-700 mb-1">Result</label>
+                        <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
+                        <input
+                          type="text"
+                          id="approvedBy"
+                          name="approvedBy"
+                          value={completeForm.approvedBy}
+                          onChange={(e) => handleCompleteFormChange(e)}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter approver name"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Instrument Details Section */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">Instrument Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Instrument</label>
+                        <input
+                          type="text"
+                          name="instrumentName"
+                          value={completeForm.instrumentName}
+                          onChange={(e) => handleCompleteFormChange(e)}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter instrument name"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Manufacturer</label>
+                        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
+                          {selectedCalibration?.item.name || 'Not specified'}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Model</label>
+                        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
+                          {completeForm.modelNumber || 'Not specified'}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Sensor</label>
+                        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
+                          {completeForm.configuration || 'Not specified'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Calibration Gases Section */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-700">Calibration Gases</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCompleteForm(prev => ({
+                            ...prev,
+                            gasEntries: [
+                              ...prev.gasEntries,
+                              { gasType: '', gasConcentration: '', gasBalance: '', gasBatchNumber: '' }
+                            ]
+                          }));
+                        }}
+                        className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
+                        aria-label="Add new gas entry"
+                        title="Add gas entry"
+                      >
+                        <FiPlus className="mr-1" size={14} /> Add Gas
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Gas Type</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Concentration</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Balance</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Batch No.</th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {completeForm.gasEntries.map((gasEntry, index) => (
+                            <tr key={`gas-${index}`}>
+                              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasType"
+                                  value={gasEntry.gasType}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="H2S"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasConcentration"
+                                  value={gasEntry.gasConcentration}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="25 ppm"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasBalance"
+                                  value={gasEntry.gasBalance}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="Nitrogen"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasBatchNumber"
+                                  value={gasEntry.gasBatchNumber}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="WO261451"
+                                />
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                {completeForm.gasEntries.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCompleteForm(prev => {
+                                        const updatedEntries = [...prev.gasEntries];
+                                        updatedEntries.splice(index, 1);
+                                        return { ...prev, gasEntries: updatedEntries };
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                    aria-label="Remove gas entry"
+                                    title="Remove"
+                                  >
+                                    <FiTrash2 size={14} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  {/* Test Results Section */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-700">Test Results</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCompleteForm(prev => ({
+                            ...prev,
+                            testEntries: [
+                              ...prev.testEntries,
+                              { testSensor: '', testSpan: '', testResult: 'Pass' }
+                            ]
+                          }));
+                        }}
+                        className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
+                        aria-label="Add new test result"
+                        title="Add test result"
+                      >
+                        <FiPlus className="mr-1" size={14} /> Add Test Result
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Sensor</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Span</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Result</th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {completeForm.testEntries.map((testEntry, index) => (
+                            <tr key={`test-${index}`}>
+                              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="testSensor"
+                                  value={testEntry.testSensor}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="H2S"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="testSpan"
+                                  value={testEntry.testSpan}
+                                  onChange={(e) => handleCompleteFormChange(e, index)}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                  placeholder="25 ppm"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <div className="flex items-center space-x-2">
+                                  <label className="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={`testResult-${index}`}
+                                      checked={testEntry.testResult === 'Pass'}
+                                      onChange={() => {
+                                        setCompleteForm(prev => {
+                                          const updatedTestEntries = [...prev.testEntries];
+                                          updatedTestEntries[index] = { 
+                                            ...updatedTestEntries[index], 
+                                            testResult: 'Pass' 
+                                          };
+                                          return { ...prev, testEntries: updatedTestEntries };
+                                        });
+                                      }}
+                                      className="form-radio h-3 w-3 text-green-600"
+                                    />
+                                    <span className="ml-1 text-xs">Pass</span>
+                                  </label>
+                                  <label className="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={`testResult-${index}`}
+                                      checked={testEntry.testResult === 'Fail'}
+                                      onChange={() => {
+                                        setCompleteForm(prev => {
+                                          const updatedTestEntries = [...prev.testEntries];
+                                          updatedTestEntries[index] = { 
+                                            ...updatedTestEntries[index], 
+                                            testResult: 'Fail' 
+                                          };
+                                          return { ...prev, testEntries: updatedTestEntries };
+                                        });
+                                      }}
+                                      className="form-radio h-3 w-3 text-red-600"
+                                    />
+                                    <span className="ml-1 text-xs">Fail</span>
+                                  </label>
+                                </div>
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                {completeForm.testEntries.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCompleteForm(prev => {
+                                        const updatedEntries = [...prev.testEntries];
+                                        updatedEntries.splice(index, 1);
+                                        return { ...prev, testEntries: updatedEntries };
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                    aria-label="Remove test entry"
+                                    title="Remove"
+                                  >
+                                    <FiTrash2 size={14} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  {/* Notes Section */}
+                  <div>
+                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea
-                    id="calibrationResult"
-                    value={calibrationResult}
-                    onChange={(e) => setCalibrationResult(e.target.value)}
+                      id="notes"
+                      name="notes"
+                      value={completeForm.notes}
+                      onChange={(e) => handleCompleteFormChange(e)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                     rows={3}
-                    placeholder="Enter calibration results"
-                    required
+                      placeholder="Enter any additional notes"
                   ></textarea>
                 </div>
                 
@@ -1447,266 +2116,349 @@ export default function CalibrationPage() {
         {/* Edit Certificate Modal */}
         {showEditCertificateModal && selectedCalibration && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
               <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
-                <h3 className="text-lg font-semibold">Edit Calibration Certificate</h3>
-                <button onClick={closeEditCertificateModal} className="text-white hover:text-gray-200" aria-label="Close">
+                <h2 className="text-lg font-semibold">Edit Calibration Certificate</h2>
+                <button 
+                  onClick={closeEditCertificateModal} 
+                  className="text-white hover:text-gray-200"
+                  aria-label="Close modal"
+                  title="Close edit certificate form"
+                >
                   <FiX size={20} />
                 </button>
               </div>
               
-              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
-              <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700">Item:</p>
-                  <p className="text-sm">{selectedCalibration.item?.name || 'Unknown Item'}</p>
-                <p className="text-xs text-gray-500">{selectedCalibration.item?.serialNumber || 'No S/N'}</p>
-              </div>
-              
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                <p className="text-blue-700 text-sm">
-                    <strong>Note:</strong> Only Gas Calibration and Test Result information can be edited. Other information is read-only.
-                </p>
-              </div>
+              <div className="overflow-y-auto flex-grow p-4 max-h-[calc(90vh-56px)]">
+                <p className="text-sm mb-4">Edit calibration certificate for: <strong>{selectedCalibration.item ? selectedCalibration.item.name : 'Item not available'}</strong></p>
               
                 <form onSubmit={handleUpdateCertificate} className="space-y-4">
-                  {/* Vendor Information */}
+                  {/* Certificate Information */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Vendor Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label htmlFor="vendorName" className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                  <input
-                    type="text"
-                    id="vendorName"
-                    name="vendorName"
-                    value={certificateData.vendorName}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                
+                        <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">Certificate Number</label>
+                        <input
+                          type="text"
+                          id="certificateNumber"
+                          name="certificateNumber"
+                          value={certificateData.certificateNumber}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Enter certificate number"
+                        />
+                      </div>
+                      
                       <div>
-                        <label htmlFor="vendorAddress" className="block text-sm font-medium text-gray-700 mb-1">Vendor Address</label>
-                  <input
-                    type="text"
-                    id="vendorAddress"
-                    name="vendorAddress"
-                    value={certificateData.vendorAddress}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                
+                        <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Calibration Date</label>
+                        <input
+                          type="date"
+                          id="calibrationDate"
+                          name="calibrationDate"
+                          value={certificateData.calibrationDate}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      
                       <div>
-                        <label htmlFor="vendorPhone" className="block text-sm font-medium text-gray-700 mb-1">Vendor Phone</label>
-                  <input
-                    type="text"
-                    id="vendorPhone"
-                    name="vendorPhone"
-                    value={certificateData.vendorPhone}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                    </div>
-                </div>
-                
-                  {/* Instrument Information */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Instrument Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="manufacturer" className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
-                  <input
-                    type="text"
-                    id="manufacturer"
-                    name="manufacturer"
-                    value={certificateData.manufacturer}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="instrumentName" className="block text-sm font-medium text-gray-700 mb-1">Instrument Name</label>
-                  <input
-                    type="text"
-                    id="instrumentName"
-                    name="instrumentName"
-                    value={certificateData.instrumentName}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="modelNumber" className="block text-sm font-medium text-gray-700 mb-1">Model Number</label>
-                  <input
-                    type="text"
-                    id="modelNumber"
-                    name="modelNumber"
-                    value={certificateData.modelNumber}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="configuration" className="block text-sm font-medium text-gray-700 mb-1">Sensor</label>
-                  <input
-                    type="text"
-                    id="configuration"
-                    name="configuration"
-                    value={certificateData.configuration}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
-                </div>
-                    </div>
-                </div>
-                
-                  {/* Calibration Gas Information - Editable */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Calibration Gas Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="gasType" className="block text-sm font-medium text-gray-700 mb-1">Gas Type</label>
-                  <input
-                    type="text"
-                    id="gasType"
-                    name="gasType"
-                    value={certificateData.gasType}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="gasConcentration" className="block text-sm font-medium text-gray-700 mb-1">Gas Concentration</label>
-                  <input
-                    type="text"
-                    id="gasConcentration"
-                    name="gasConcentration"
-                    value={certificateData.gasConcentration}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="gasBalance" className="block text-sm font-medium text-gray-700 mb-1">Balance Gas</label>
-                  <input
-                    type="text"
-                    id="gasBalance"
-                    name="gasBalance"
-                    value={certificateData.gasBalance}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="gasBatchNumber" className="block text-sm font-medium text-gray-700 mb-1">Batch/Lot Number</label>
-                  <input
-                    type="text"
-                    id="gasBatchNumber"
-                    name="gasBatchNumber"
-                    value={certificateData.gasBatchNumber}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                    </div>
-                </div>
-                
-                  {/* Test Results - Editable */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 border-b pb-1 mb-2">Test Results</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="testSensor" className="block text-sm font-medium text-gray-700 mb-1">Sensor</label>
-                  <input
-                    type="text"
-                    id="testSensor"
-                    name="testSensor"
-                    value={certificateData.testSensor}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="testSpan" className="block text-sm font-medium text-gray-700 mb-1">Span</label>
-                  <input
-                    type="text"
-                    id="testSpan"
-                    name="testSpan"
-                    value={certificateData.testSpan}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                      <div>
-                        <label htmlFor="testResult" className="block text-sm font-medium text-gray-700 mb-1">Result</label>
-                  <select
-                    id="testResult"
-                    name="testResult"
-                    value={certificateData.testResult}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="Pass">Pass</option>
-                    <option value="Fail">Fail</option>
-                  </select>
-                </div>
-                
-                      <div>
-                        <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
-                  <input
-                    type="text"
-                    id="approvedBy"
-                    name="approvedBy"
-                    value={certificateData.approvedBy}
-                    onChange={handleCertificateFormChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 focus:outline-none"
-                    disabled
-                  />
+                        <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
+                        <input
+                          type="date"
+                          id="validUntil"
+                          name="validUntil"
+                          value={certificateData.validUntil}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        />
                       </div>
                     </div>
-                </div>
-                
-                  <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeEditCertificateModal}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
-                  >
+                  </div>
+                  
+                  {/* Vendor Information */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">Vendor Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg">
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Vendor</label>
+                        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
+                          {certificateData.vendorName || 'Not specified'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Address</label>
+                        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
+                          {certificateData.vendorAddress || 'Not specified'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Instrument Details */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">Instrument Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="instrumentName" className="block text-sm font-medium text-gray-700 mb-1">Instrument</label>
+                        <input
+                          type="text"
+                          id="instrumentName"
+                          name="instrumentName"
+                          value={certificateData.instrumentName}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="MeshGuard H2S"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="modelNumber" className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                        <input
+                          type="text"
+                          id="modelNumber"
+                          name="modelNumber"
+                          value={certificateData.modelNumber}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="FTD 2000 S"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="configuration" className="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                        <input
+                          type="text"
+                          id="configuration"
+                          name="configuration"
+                          value={certificateData.configuration}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="H2S"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
+                        <input
+                          type="text"
+                          id="approvedBy"
+                          name="approvedBy"
+                          value={certificateData.approvedBy}
+                          onChange={handleCertificateFormChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="John Doe"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Calibration Gases Section with Multiple Entries */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-700">Calibration Gases</h3>
+                      <button
+                        type="button"
+                        onClick={addGasEntry}
+                        className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
+                        aria-label="Add new gas entry"
+                        title="Add gas entry"
+                      >
+                        <FiPlus className="mr-1" size={14} /> Add Gas
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Gas Type</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Concentration</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Balance</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Batch No.</th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {certificateData.gasEntries.map((gasEntry, index) => (
+                            <tr key={`gas-${index}`}>
+                              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasType"
+                                  value={gasEntry.gasType}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'gas')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="H2S"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasConcentration"
+                                  value={gasEntry.gasConcentration}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'gas')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="25 ppm"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasBalance"
+                                  value={gasEntry.gasBalance}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'gas')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="Nitrogen"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="gasBatchNumber"
+                                  value={gasEntry.gasBatchNumber}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'gas')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="WO261451-1"
+                                />
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removeGasEntry(index)}
+                                  disabled={certificateData.gasEntries.length <= 1}
+                                  className={`p-1 rounded-full ${certificateData.gasEntries.length <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-50'}`}
+                                  aria-label="Remove gas entry"
+                                  title="Remove gas entry"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  {/* Test Results Section with Multiple Entries */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-700">Test Results</h3>
+                      <button
+                        type="button"
+                        onClick={addTestEntry}
+                        className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
+                        aria-label="Add new test entry"
+                        title="Add test result"
+                      >
+                        <FiPlus className="mr-1" size={14} /> Add Test
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Sensor</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Span</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Result</th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {certificateData.testEntries.map((testEntry, index) => (
+                            <tr key={`test-${index}`}>
+                              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">{index + 1}</td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="testSensor"
+                                  value={testEntry.testSensor}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'test')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="H2S"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="text"
+                                  name="testSpan"
+                                  value={testEntry.testSpan}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'test')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  placeholder="25 ppm"
+                                />
+                              </td>
+                              <td className="px-2 py-1">
+                                <select
+                                  name="testResult"
+                                  value={testEntry.testResult}
+                                  onChange={(e) => handleCertificateFormChange(e, index, 'test')}
+                                  required
+                                  className="w-full p-1 text-xs border border-gray-300 rounded-md"
+                                  aria-label={`Test result for ${testEntry.testSensor || 'entry'} ${index + 1}`}
+                                >
+                                  <option value="Pass">Pass</option>
+                                  <option value="Fail">Fail</option>
+                                </select>
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removeTestEntry(index)}
+                                  disabled={certificateData.testEntries.length <= 1}
+                                  className={`p-1 rounded-full ${certificateData.testEntries.length <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-50'}`}
+                                  aria-label="Remove test entry"
+                                  title="Remove test entry"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end mt-6">
+                    <button
+                      type="button"
+                      onClick={closeEditCertificateModal}
+                      className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                      disabled={actionInProgress}
+                    >
                       Cancel
-                  </button>
-                  <button
-                    type="submit"
-                      className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
-                    disabled={actionInProgress}
-                  >
-                    {actionInProgress ? (
-                      <>
-                        <span className="animate-spin mr-2">⟳</span>
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      disabled={actionInProgress}
+                    >
+                      {actionInProgress ? (
+                        <>
+                          <svg className="inline w-4 h-4 mr-2 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
                           Saving...
-                      </>
-                    ) : (
+                        </>
+                      ) : (
                         'Save Changes'
-                    )}
-                  </button>
-                </div>
-              </form>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>

@@ -27,11 +27,13 @@ interface Maintenance {
 interface MaintenanceFormProps {
   maintenance: Maintenance;
   onSuccess: () => void;
+  apiPath?: string;
 }
 
 export default function MaintenanceForm({
   maintenance,
   onSuccess,
+  apiPath
 }: MaintenanceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("service");
@@ -131,8 +133,11 @@ export default function MaintenanceForm({
       console.log("Service Report Parts:", serviceReportParts);
       console.log("Technical Report Parts:", technicalReportParts);
       
+      // Get the API path to use
+      const completeEndpoint = apiPath || `/api/user/maintenance/${maintenance.id}/complete`;
+      
       // Submit the form
-      const response = await fetch(`/api/user/maintenance/${maintenance.id}/complete`, {
+      const response = await fetch(completeEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -162,17 +162,6 @@ model CalibrationCertificate {
   vendorFax         String?    // Nomor fax vendor
   vendorName        String?    // Nama vendor untuk historis
   
-  // Detail Gas Kalibrasi
-  gasType           String?    // Jenis gas (contoh: Hydrogen Sulphide (H2S))
-  gasConcentration  String?    // Konsentrasi gas (contoh: 25 ppm)
-  gasBalance        String?    // Balance gas (contoh: Nitrogen)
-  gasBatchNumber    String?    // Batch/Lot No (contoh: WO261451-1)
-  
-  // Hasil Test
-  testSensor        String?    // Sensor yang diuji (contoh: Hydrogen Sulphide (H2S))
-  testSpan          String?    // Span pengujian (contoh: 25 ppm)
-  testResult        String?    // Pass atau Fail
-  
   // Detail Alat
   manufacturer      String?    // Pembuat alat (contoh: RAE Systems)
   instrumentName    String?    // Nama instrumen (contoh: MeshGuard H2S)
@@ -182,6 +171,35 @@ model CalibrationCertificate {
   // Approval
   approvedBy        String?    // Nama yang menyetujui kalibrasi
   
+  // Relations to multiple entries
+  gasEntries        GasCalibrationEntry[]
+  testEntries       TestResultEntry[]
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+// Model for gas calibration entries
+model GasCalibrationEntry {
+  id                String     @id @default(uuid())
+  certificate       CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  certificateId     String
+  gasType           String    // Jenis gas (contoh: Hydrogen Sulphide (H2S))
+  gasConcentration  String    // Konsentrasi gas (contoh: 25 ppm)
+  gasBalance        String    // Balance gas (contoh: Nitrogen)
+  gasBatchNumber    String    // Batch/Lot No (contoh: WO261451-1)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+// Model for test result entries
+model TestResultEntry {
+  id                String     @id @default(uuid())
+  certificate       CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  certificateId     String
+  testSensor        String    // Sensor yang diuji (contoh: Hydrogen Sulphide (H2S))
+  testSpan          String    // Span pengujian (contoh: 25 ppm)
+  testResult        String    // Pass atau Fail
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 }

@@ -141,9 +141,10 @@ export default function NewRentalRequestPage() {
       
       // Redirect to rental list page
       router.push('/user/rental?success=true');
-    } catch (err: any) {
-      setError(err.message || 'Terjadi kesalahan saat mengajukan rental');
-      console.error(err);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat mengajukan rental';
+      setError(errorMessage);
+      console.error(error);
     } finally {
       setSubmitting(false);
     }

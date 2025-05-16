@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { ActivityType } from '@prisma/client';
+
+// Define interfaces for the entry types
+interface GasEntry {
+  gasType: string;
+  gasConcentration: string;
+  gasBalance: string;
+  gasBatchNumber: string;
+}
+
+interface TestEntry {
+  testSensor: string;
+  testSpan: string;
+  testResult: string;
+}
 
 // GET untuk mengakses sertifikat kalibrasi (proxy ke endpoint user)
 export async function GET(
@@ -11,19 +26,24 @@ export async function GET(
     // Verifikasi session admin
     const user = await getUserFromRequest(request);
     
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Di Next.js 15, params adalah objek yang harus diawait
     const { id: calibrationId } = await params;
-    console.log('Admin accessing certificate for calibration ID:', calibrationId);
+    console.log('Accessing certificate for calibration ID:', calibrationId, 'User:', user.id);
     
     // Ambil data kalibrasi untuk memastikan ada
     const calibration = await prisma.calibration.findUnique({
       where: { id: calibrationId },
       include: {
-        certificate: true // Include certificate untuk debugging
+        certificate: {
+          include: {
+            gasEntries: true,
+            testEntries: true
+          }
+        } // Include certificate dengan gas dan test entries
       }
     });
     
@@ -49,14 +69,17 @@ export async function GET(
     // Buat URL ke endpoint certificate user
     const certificateUrl = new URL(`/api/user/calibrations/${calibrationId}/certificate`, request.url);
     
-    // Forward request ke endpoint user dengan menambahkan header admin
-    console.log('Forwarding request to user certificate endpoint with admin access');
-    const response = await fetch(certificateUrl.toString(), {
-      headers: {
-        'x-admin-access': 'true',
+    // Forward request ke endpoint user dengan menambahkan header admin jika user adalah admin
+    console.log('Forwarding request to user certificate endpoint');
+    const headers: HeadersInit = {
         'Cookie': request.headers.get('cookie') || '',
+    };
+    
+    if (user.role === 'ADMIN') {
+      headers['x-admin-access'] = 'true';
       }
-    });
+    
+    const response = await fetch(certificateUrl.toString(), { headers });
     
     if (!response.ok) {
       const errorText = await response.text();
@@ -143,28 +166,124 @@ export async function PATCH(
     // Parse request body
     const body = await request.json();
     const { 
+      // Legacy fields, masih disimpan untuk backwards compatibility
       gasType, 
       gasConcentration, 
       gasBalance, 
       gasBatchNumber,
       testSensor,
       testSpan,
-      testResult
+      testResult,
+      // Instrument details
+      instrumentName,
+      modelNumber,
+      configuration,
+      approvedBy,
+      // Certificate information
+      certificateNumber,
+      calibrationDate,
+      validUntil,
+      // Arrays of entries - stored as JSON strings
+      allGasEntries,
+      allTestEntries
     } = body;
     
-    // Update sertifikat kalibrasi
-    const updatedCertificate = await prisma.calibrationCertificate.update({
-      where: { 
-        calibrationId 
-      },
-      data: {
-        gasType: gasType || undefined,
-        gasConcentration: gasConcentration || undefined,
-        gasBalance: gasBalance || undefined,
-        gasBatchNumber: gasBatchNumber || undefined,
-        testSensor: testSensor || undefined,
-        testSpan: testSpan || undefined,
-        testResult: testResult || undefined
+    // Parse gas entries and test entries from JSON strings
+    let gasEntriesData: GasEntry[] = [];
+    let testEntriesData: TestEntry[] = [];
+
+    try {
+      if (allGasEntries) {
+        gasEntriesData = JSON.parse(allGasEntries);
+      } else if (gasType) {
+        // Create a single entry from legacy fields
+        gasEntriesData = [{
+          gasType,
+          gasConcentration,
+          gasBalance,
+          gasBatchNumber
+        }];
+      }
+    } catch (e) {
+      console.error('Error parsing gas entries:', e);
+    }
+
+    try {
+      if (allTestEntries) {
+        testEntriesData = JSON.parse(allTestEntries);
+      } else if (testSensor) {
+        // Create a single entry from legacy fields
+        testEntriesData = [{
+          testSensor,
+          testSpan,
+          testResult
+        }];
+      }
+    } catch (e) {
+      console.error('Error parsing test entries:', e);
+    }
+    
+    // Update certificate in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Update certificate with basic details
+      await tx.calibrationCertificate.update({
+        where: { id: calibration.certificate!.id },
+        data: {
+          instrumentName: instrumentName || undefined,
+          modelNumber: modelNumber || undefined,
+          configuration: configuration || undefined,
+          approvedBy: approvedBy || undefined
+        }
+      });
+      
+      // Update main calibration record with certificate number and dates
+      if (certificateNumber || calibrationDate || validUntil) {
+        await tx.calibration.update({
+          where: { id: calibrationId },
+          data: {
+            certificateNumber: certificateNumber || undefined,
+            calibrationDate: calibrationDate ? new Date(calibrationDate) : undefined,
+            validUntil: validUntil ? new Date(validUntil) : undefined
+          }
+        });
+      }
+      
+      // Delete existing entries if we have new ones
+      if (gasEntriesData.length > 0) {
+        await tx.gasCalibrationEntry.deleteMany({
+          where: { certificateId: calibration.certificate!.id }
+        });
+        
+        // Create new gas entries
+        for (const entry of gasEntriesData) {
+          await tx.gasCalibrationEntry.create({
+            data: {
+              certificateId: calibration.certificate!.id,
+              gasType: entry.gasType || '',
+              gasConcentration: entry.gasConcentration || '',
+              gasBalance: entry.gasBalance || '',
+              gasBatchNumber: entry.gasBatchNumber || ''
+            }
+          });
+        }
+      }
+      
+      if (testEntriesData.length > 0) {
+        await tx.testResultEntry.deleteMany({
+          where: { certificateId: calibration.certificate!.id }
+        });
+        
+        // Create new test entries
+        for (const entry of testEntriesData) {
+          await tx.testResultEntry.create({
+            data: {
+              certificateId: calibration.certificate!.id,
+              testSensor: entry.testSensor || '',
+              testSpan: entry.testSpan || '',
+              testResult: entry.testResult || 'Pass'
+            }
+          });
+        }
       }
     });
     
@@ -173,12 +292,26 @@ export async function PATCH(
       data: {
         userId: user.id,
         action: 'EDITED_CERTIFICATE',
-        details: `Edited calibration certificate gas data and test results for calibration ID: ${calibrationId}`,
-        itemSerial: calibration.itemSerial
+        details: `Edited calibration certificate data for calibration ID: ${calibrationId}`,
+        itemSerial: calibration.itemSerial,
+        type: ActivityType.CALIBRATION_UPDATED
       }
     });
     
-    return NextResponse.json(updatedCertificate);
+    // Fetch and return the updated certificate with all entries
+    const updatedCalibration = await prisma.calibration.findUnique({
+      where: { id: calibrationId },
+      include: {
+        certificate: {
+          include: {
+            gasEntries: true,
+            testEntries: true
+          }
+        }
+      }
+    });
+    
+    return NextResponse.json(updatedCalibration);
     
   } catch (error) {
     console.error('Error updating calibration certificate:', error);

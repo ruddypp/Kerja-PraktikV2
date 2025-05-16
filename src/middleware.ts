@@ -67,6 +67,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin-dashboard', request.url));
       } else if (decoded.role === Role.USER) {
         return NextResponse.redirect(new URL('/user/barang', request.url));
+      } else if (decoded.role === Role.MANAGER) {
+        return NextResponse.redirect(new URL('/manager/barang', request.url));
       }
     }
     

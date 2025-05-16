@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
+import MaintenanceForm from "@/components/maintenance/MaintenanceForm";
 import DashboardLayout from "@/components/DashboardLayout";
 
 interface MaintenanceData {
@@ -45,7 +46,7 @@ export default function AdminMaintenanceDetailPage({
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const id = params.id;
+  const id = React.use(params).id;
 
   useEffect(() => {
     if (id) {
@@ -127,6 +128,8 @@ export default function AdminMaintenanceDetailPage({
       </DashboardLayout>
     );
   }
+
+  const isPending = maintenance.status === "PENDING";
 
   return (
     <DashboardLayout>
@@ -258,86 +261,108 @@ export default function AdminMaintenanceDetailPage({
           )}
         </div>
 
-        {/* Laporan Maintenance */}
-        <div className="bg-white rounded-lg border border-gray-100 p-6">
-          <h2 className="text-xl font-bold mb-4">Laporan Maintenance</h2>
+        {isPending ? (
+          <MaintenanceForm 
+            maintenance={{
+              id: maintenance.id,
+              itemSerial: maintenance.itemSerial,
+              userId: maintenance.user.id,
+              status: maintenance.status as any,
+              startDate: maintenance.startDate,
+              endDate: maintenance.endDate,
+              item: {
+                serialNumber: maintenance.item.serialNumber,
+                name: maintenance.item.name,
+                customer: { name: "" }  // You may want to add customer info if available
+              }
+            }} 
+            onSuccess={() => {
+              fetchMaintenanceDetails();
+              toast.success("Maintenance berhasil diselesaikan");
+            }}
+            apiPath={`/api/admin/maintenance/${maintenance.id}/complete`}
+          />
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-100 p-6">
+            <h2 className="text-xl font-bold mb-4">Laporan Maintenance</h2>
 
-          {maintenance.serviceReport && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2 flex items-center">
-                <FileTextIcon className="mr-2 h-5 w-5 text-green-600" />
-                Customer Service Report
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
-                <div>
-                  <p className="text-gray-600">Alasan Maintenance</p>
-                  <p className="font-medium">{maintenance.serviceReport.reasonForReturn || "-"}</p>
+            {maintenance.serviceReport && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2 flex items-center">
+                  <FileTextIcon className="mr-2 h-5 w-5 text-green-600" />
+                  Customer Service Report
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
+                  <div>
+                    <p className="text-gray-600">Alasan Maintenance</p>
+                    <p className="font-medium">{maintenance.serviceReport.reasonForReturn || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Temuan</p>
+                    <p className="font-medium">{maintenance.serviceReport.findings || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Tindakan</p>
+                    <p className="font-medium">{maintenance.serviceReport.action || "-"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-600">Temuan</p>
-                  <p className="font-medium">{maintenance.serviceReport.findings || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Tindakan</p>
-                  <p className="font-medium">{maintenance.serviceReport.action || "-"}</p>
-                </div>
+                <a
+                  href={`/api/admin/maintenance/${maintenance.id}/report?type=csr`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-green-600 hover:text-green-800"
+                >
+                  <span className="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                  </span>
+                  Download Customer Service Report
+                </a>
               </div>
-              <a
-                href={`/api/admin/maintenance/${maintenance.id}/report?type=csr`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-green-600 hover:text-green-800"
-              >
-                <span className="mr-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                  </svg>
-                </span>
-                Download Customer Service Report
-              </a>
-            </div>
-          )}
+            )}
 
-          {maintenance.technicalReport && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center">
-                <ClipboardListIcon className="mr-2 h-5 w-5 text-green-600" />
-                Technical Report
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
-                <div>
-                  <p className="text-gray-600">Nomor CSR</p>
-                  <p className="font-medium">{maintenance.technicalReport.csrNumber || "-"}</p>
+            {maintenance.technicalReport && (
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center">
+                  <ClipboardListIcon className="mr-2 h-5 w-5 text-green-600" />
+                  Technical Report
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-md">
+                  <div>
+                    <p className="text-gray-600">Nomor CSR</p>
+                    <p className="font-medium">{maintenance.technicalReport.csrNumber || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Alasan Maintenance</p>
+                    <p className="font-medium">{maintenance.technicalReport.reasonForReturn || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Temuan</p>
+                    <p className="font-medium">{maintenance.technicalReport.findings || "-"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-600">Alasan Maintenance</p>
-                  <p className="font-medium">{maintenance.technicalReport.reasonForReturn || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Temuan</p>
-                  <p className="font-medium">{maintenance.technicalReport.findings || "-"}</p>
-                </div>
+                <a
+                  href={`/api/admin/maintenance/${maintenance.id}/report?type=technical`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-green-600 hover:text-green-800"
+                >
+                  <span className="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                  </span>
+                  Download Technical Report
+                </a>
               </div>
-              <a
-                href={`/api/admin/maintenance/${maintenance.id}/report?type=technical`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-green-600 hover:text-green-800"
-              >
-                <span className="mr-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                  </svg>
-                </span>
-                Download Technical Report
-              </a>
-            </div>
-          )}
+            )}
 
-          {!maintenance.serviceReport && !maintenance.technicalReport && (
-            <p className="text-gray-500 italic">Tidak ada laporan tersedia.</p>
-          )}
-        </div>
+            {!maintenance.serviceReport && !maintenance.technicalReport && (
+              <p className="text-gray-500 italic">Tidak ada laporan tersedia.</p>
+            )}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

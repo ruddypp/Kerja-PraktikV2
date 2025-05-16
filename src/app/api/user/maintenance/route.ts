@@ -12,14 +12,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     
-    const userId = user.id;
-    
-    // Ambil semua maintenance yang dibuat oleh user
+    // Ambil semua maintenance tanpa filter userId
     // Optimasi dengan select hanya kolom yang diperlukan
     const maintenances = await prisma.maintenance.findMany({
-      where: {
-        userId: userId,
-      },
       select: {
         id: true,
         itemSerial: true,

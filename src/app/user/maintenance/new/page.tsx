@@ -38,10 +38,12 @@ export default function NewMaintenancePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [itemSearchTerm, setItemSearchTerm] = useState("");
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isStartingMaintenance, setIsStartingMaintenance] = useState(false);
   const [selectedItemSerial, setSelectedItemSerial] = useState<string | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
@@ -195,19 +197,21 @@ export default function NewMaintenancePage() {
   // Improved debounce search with useEffect and cleanup
   useEffect(() => {
     // Clear any existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
     
     // Set new timeout for debouncing
-    searchTimeoutRef.current = setTimeout(() => {
+    const timeout = setTimeout(() => {
       searchItems(searchTerm);
     }, 300);
     
+    setSearchTimeout(timeout);
+    
     // Cleanup on unmount or searchTerm change
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
       }
     };
   }, [searchTerm, searchItems]);
@@ -216,6 +220,7 @@ export default function NewMaintenancePage() {
   const handleItemSelect = (item: Item) => {
     setSelectedItemSerial(item.serialNumber);
     setSearchTerm('');
+    setItemSearchTerm('');
     setShowSuggestions(false);
   };
 
@@ -224,12 +229,12 @@ export default function NewMaintenancePage() {
     setShowSuggestions(false);
     // Reset pagination to first page when searching
     setPagination({...pagination, page: 1});
-    fetchItems(1, pagination.limit, searchTerm);
+    fetchItems(1, pagination.limit, itemSearchTerm);
   };
 
   const handlePageChange = (newPage: number) => {
     setPagination({...pagination, page: newPage});
-    fetchItems(newPage, pagination.limit, searchTerm);
+    fetchItems(newPage, pagination.limit, itemSearchTerm);
   };
 
   const startMaintenance = async () => {
@@ -295,8 +300,11 @@ export default function NewMaintenancePage() {
                   <input
                     type="text"
                       placeholder="Cari barang berdasarkan nama atau serial number"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={itemSearchTerm}
+                    onChange={(e) => {
+                      setItemSearchTerm(e.target.value);
+                      setSearchTerm(e.target.value);
+                    }}
                       className="w-full p-3 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -304,10 +312,13 @@ export default function NewMaintenancePage() {
                     </div>
                     
                     {/* Clear search button */}
-                  {searchTerm && (
+                  {itemSearchTerm && (
                     <button
                       type="button"
-                        onClick={() => setSearchTerm('')}
+                        onClick={() => {
+                          setItemSearchTerm('');
+                          setSearchTerm('');
+                        }}
                         className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                         title="Clear search"
                     >

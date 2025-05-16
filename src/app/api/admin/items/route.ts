@@ -57,7 +57,9 @@ export async function GET(request: Request) {
     
     // Get pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    // For calibration form, support larger limit values
+    const requestedLimit = parseInt(searchParams.get('limit') || '10');
+    const limit = requestedLimit > 1000 ? 50000 : requestedLimit; // Support larger limits for calibration form
     
     // Calculate skip value for pagination
     const skip = (page - 1) * limit;
@@ -88,8 +90,16 @@ export async function GET(request: Request) {
     
     console.log('Database query where clause:', where);
     
+    // For optimized large requests, use simplified selects and skip status counts
+    const isLargeRequest = limit > 1000;
+    
+    // Only get count by status for normal requests, skip for large calibration requests
+    let totalItems: number;
+    let countByStatus = null;
+    
+    if (!isLargeRequest) {
     // Get count by status - optimasi dengan Promise.all
-    const [totalItems, countByStatus] = await Promise.all([
+      [totalItems, countByStatus] = await Promise.all([
       // Get total count for pagination
       prisma.item.count({ where }),
       
@@ -103,11 +113,16 @@ export async function GET(request: Request) {
         return { AVAILABLE, IN_CALIBRATION, RENTED, IN_MAINTENANCE };
       })
     ]);
+    }
     
-    // Create the actual data fetch promise, including maintenance and calibration history
-    const items = await prisma.item.findMany({
-      where,
-      select: {
+    // For large calibration requests, use a simplified select
+    const select = isLargeRequest ? {
+      serialNumber: true,
+      name: true,
+      partNumber: true,
+      sensor: true,
+      status: true,
+    } : {
         serialNumber: true,
         name: true,
         partNumber: true,
@@ -124,7 +139,7 @@ export async function GET(request: Request) {
             name: true
           }
         },
-        calibrations: {
+      calibrations: !isLargeRequest ? {
           select: {
             id: true,
             status: true,
@@ -144,8 +159,8 @@ export async function GET(request: Request) {
             calibrationDate: 'desc'
           },
           take: 1
-        },
-        maintenances: {
+      } : undefined,
+      maintenances: !isLargeRequest ? {
           select: {
             id: true,
             status: true,
@@ -159,8 +174,8 @@ export async function GET(request: Request) {
             startDate: 'desc'
           },
           take: 1
-        },
-        rentals: {
+      } : undefined,
+      rentals: !isLargeRequest ? {
           select: {
             id: true,
             status: true,
@@ -179,14 +194,25 @@ export async function GET(request: Request) {
             returnDate: null
           },
           take: 1
-        }
-      },
+      } : undefined
+    };
+    
+    // Create the actual data fetch promise, including maintenance and calibration history
+    const items = await prisma.item.findMany({
+      where,
+      select,
       orderBy: {
         name: 'asc'
       },
       skip: skip,
       take: limit
     });
+    
+    // If we skipped count earlier for large requests, calculate it now from results
+    if (isLargeRequest) {
+      totalItems = items.length;
+      countByStatus = null;
+    }
     
     console.log(`Found ${items.length} items in database (page ${page} of ${Math.ceil(totalItems / limit)})`);
     

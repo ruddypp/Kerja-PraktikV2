@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { FiPlus, FiFileText, FiDownload, FiX, FiSearch, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiFileText, FiDownload, FiX, FiTrash2 } from 'react-icons/fi';
+import useSWR from 'swr';
 
 // Define Types and Interfaces
 enum RequestStatus {
@@ -107,7 +106,11 @@ export default function UserCalibrationPage() {
   const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
   const vendorSearchRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  
+  // Add pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const PAGE_SIZE = 10;
   
   // Simplified form for direct calibration
   const [calibrationForm, setCalibrationForm] = useState({
@@ -136,6 +139,12 @@ export default function UserCalibrationPage() {
   const [completeForm, setCompleteForm] = useState({
     id: '',
     
+    // Certificate Information - adding certificateNumber field
+    certificateNumber: '',
+    calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+    approvedBy: '',
+    
     // Detail Gas Kalibrasi - changed to arrays to support multiple entries
     gasEntries: [{
     gasType: '',
@@ -156,12 +165,6 @@ export default function UserCalibrationPage() {
     modelNumber: '',
     configuration: '',
     
-    // Approval
-    approvedBy: '',
-    
-    // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
-    validUntil: format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
-    
     // Notes
     notes: ''
   });
@@ -174,10 +177,33 @@ export default function UserCalibrationPage() {
     dateTo: ''
   });
   
+  // Konfigurasi SWR
+  const SWR_CONFIG = {
+    dedupingInterval: 300000, // 5 menit - menghindari request berulang dalam waktu dekat
+    revalidateOnFocus: false, // tidak reload data saat tab mendapat fokus kembali
+    revalidateIfStale: false, // tidak reload data secara otomatis jika data dianggap stale
+  };
+  
+  // Fetcher function for SWR
+  const fetcher = async (url: string) => {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    });
+    
+    if (!res.ok) {
+      const error = new Error('An error occurred while fetching the data.');
+      throw error;
+    }
+    
+    return res.json();
+  };
+  
   useEffect(() => {
     fetchCalibrations();
     fetchAvailableItems();
-    fetchVendors();
     
     // Handler for clicking outside the suggestions to close them
     const handleClickOutside = (event: MouseEvent) => {
@@ -193,7 +219,21 @@ export default function UserCalibrationPage() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [currentPage]);
+  
+  // Gunakan SWR untuk mendapatkan data vendors
+  useSWR('/api/vendors?limit=10000', fetcher, {
+    onSuccess: (data) => {
+      if (Array.isArray(data)) {
+        setVendors(data);
+      } else if (data && typeof data === 'object') {
+        setVendors(data.items || []);
+      } else {
+        setVendors([]);
+      }
+    },
+    ...SWR_CONFIG
+  });
   
   // Filter items based on search term
   useEffect(() => {
@@ -229,10 +269,42 @@ export default function UserCalibrationPage() {
     setShowVendorSuggestions(true);
   }, [vendorSearch, vendors]);
   
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+    // Reset to first page when filter changes
+    setCurrentPage(1);
+  };
+  
+  const resetFilters = () => {
+    setFilters({
+      status: '',
+      item: '',
+      dateFrom: '',
+      dateTo: ''
+    });
+    // Reset to first page when filters are reset
+    setCurrentPage(1);
+  };
+  
   const fetchCalibrations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/user/calibrations', {
+      
+      // Prepare query parameters including filters
+      const queryParams = new URLSearchParams();
+      queryParams.append('page', currentPage.toString());
+      queryParams.append('limit', PAGE_SIZE.toString());
+      
+      // Add any active filters
+      if (filters.status) {
+        queryParams.append('status', filters.status);
+      }
+      
+      // Note: Other filters like item name, dateFrom, dateTo are handled on the client side
+      // since the API doesn't directly support these filters
+      
+      const response = await fetch(`/api/user/calibrations?${queryParams.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -248,16 +320,26 @@ export default function UserCalibrationPage() {
       
       const data = await response.json();
       
-      // Validate that data is an array
+      // Handle both array response and paginated response object
       if (Array.isArray(data)) {
       setCalibrations(data);
-      } else if (data && typeof data === 'object' && Array.isArray(data.calibrations)) {
-        // Handle if API returns { calibrations: [...] }
+        setTotalItems(data.length);
+      } else if (data && typeof data === 'object') {
+        if (Array.isArray(data.items)) {
+          setCalibrations(data.items);
+          setTotalItems(data.total || data.items.length);
+        } else if (Array.isArray(data.calibrations)) {
         setCalibrations(data.calibrations);
+          setTotalItems(data.total || data.calibrations.length);
       } else {
-        // Set to empty array if format is unknown
         console.error('Unexpected data format from calibrations API:', data);
         setCalibrations([]);
+          setTotalItems(0);
+        }
+      } else {
+        console.error('Unexpected data format from calibrations API:', data);
+        setCalibrations([]);
+        setTotalItems(0);
       }
       
       setError('');
@@ -265,6 +347,7 @@ export default function UserCalibrationPage() {
       console.error('Error fetching calibrations:', err);
       setError('Failed to load calibration requests. Please try refreshing the page.');
       setCalibrations([]); // Set empty array on error
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -272,7 +355,8 @@ export default function UserCalibrationPage() {
   
   const fetchAvailableItems = async () => {
     try {
-      const res = await fetch('/api/user/items?status=AVAILABLE', {
+      // Add a timestamp and high limit to get all items, important for searching through 10,000+ items
+      const res = await fetch('/api/user/items?status=AVAILABLE&limit=10000&timestamp=' + new Date().getTime(), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -299,30 +383,6 @@ export default function UserCalibrationPage() {
     } catch (err) {
       console.error('Error fetching available items:', err);
       setItems([]); // Set empty array sebagai fallback
-    }
-  };
-  
-  const fetchVendors = async () => {
-    try {
-      const response = await fetch('/api/vendors', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
-      }
-      
-      const data = await response.json();
-      setVendors(data);
-    } catch (err) {
-      console.error('Error fetching vendors:', err);
-      // Don't set global error for vendors as it's not the primary data
     }
   };
   
@@ -369,7 +429,7 @@ export default function UserCalibrationPage() {
     setSelectedCalibration(null);
   };
   
-  const handleCalibrationSubmit = async (e: React.FormEvent) => {
+  const handleCalibrationSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     try {
       const response = await fetch('/api/user/calibrations', {
@@ -409,49 +469,30 @@ export default function UserCalibrationPage() {
       // Refresh data
       fetchCalibrations();
       fetchAvailableItems();
-    } catch (err: any) {
-      console.error('Error creating calibration:', err);
-      setError(err.message || 'Failed to create calibration request');
+    } catch (error: unknown) {
+      console.error('Error completing calibration:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to complete calibration';
+      setError(errorMsg);
     }
   };
   
-  const isStatusMatching = (status: any, target: RequestStatus) => {
-    // Handle both string and enum comparison
+  const isStatusMatching = (status: RequestStatus | string, target: RequestStatus): boolean => {
     if (typeof status === 'string') {
       return status === target;
     }
     return status === target;
   };
   
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const resetFilters = () => {
-    setFilters({
-      status: '',
-      item: '',
-      dateFrom: '',
-      dateTo: ''
-    });
-  };
-  
   // Apply filters to calibrations
   const filteredCalibrations = Array.isArray(calibrations) 
     ? calibrations.filter(calibration => {
-        // Status filter
-        if (filters.status && calibration.status !== filters.status) {
-          return false;
-        }
-        
-        // Item filter
+        // Item filter - client-side filtering for item name/serial since server doesn't support this
         if (filters.item && !calibration.item.name.toLowerCase().includes(filters.item.toLowerCase()) &&
             !calibration.item.serialNumber.toLowerCase().includes(filters.item.toLowerCase())) {
           return false;
         }
         
-        // Date range filter
+        // Date range filter - client-side filtering for date range since server doesn't support this
         if (filters.dateFrom) {
           const fromDate = new Date(filters.dateFrom);
           const calibrationDate = new Date(calibration.calibrationDate);
@@ -479,15 +520,15 @@ export default function UserCalibrationPage() {
     return format(new Date(dateString), 'dd MMM yyyy');
   };
   
-  // Konversi status dari database ke tampilan UI
+  // Get display status for UI
   const getDisplayStatus = (status: RequestStatus | string): string => {
-    if (status === RequestStatus.PENDING || status === 'PENDING') {
-      return 'IN_CALIBRATION'; // PENDING ditampilkan sebagai IN_CALIBRATION
+    if (status === RequestStatus.PENDING) {
+      return 'IN_CALIBRATION';
     }
     return status.toString();
   };
   
-  // Get status badge style based on status
+  // Get status badge style
   const getStatusBadgeStyle = (status: RequestStatus | string) => {
     switch (status) {
       case RequestStatus.PENDING:
@@ -512,6 +553,14 @@ export default function UserCalibrationPage() {
     setCompleteForm({
       id: calibration.id,
       
+      // Certificate Information
+      certificateNumber: '',
+      calibrationDate: format(new Date(), 'yyyy-MM-dd'),
+      validUntil: calibration.validUntil ? 
+        format(new Date(calibration.validUntil), 'yyyy-MM-dd') : 
+        format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
+      approvedBy: calibration.approvedBy || '',
+      
       // Detail Gas Kalibrasi - changed to arrays to support multiple entries
       gasEntries: [{
       gasType: calibration.gasType || '',
@@ -532,14 +581,6 @@ export default function UserCalibrationPage() {
       modelNumber: calibration.item.partNumber || '',
       configuration: calibration.item.sensor || '',
       
-      // Approval
-      approvedBy: calibration.approvedBy || '',
-      
-      // Valid Until - default 1 tahun dari tanggal kalibrasi jika belum diisi
-      validUntil: calibration.validUntil ? 
-        format(new Date(calibration.validUntil), 'yyyy-MM-dd') : 
-        format(new Date(Date.now() + 365*24*60*60*1000), 'yyyy-MM-dd'),
-      
       // Notes
       notes: calibration.notes || ''
     });
@@ -554,51 +595,92 @@ export default function UserCalibrationPage() {
   };
   
   // Handle changes in the complete form
-  const handleCompleteFormChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>, index?: number) => {
+  const handleCompleteFormChange = (
+    e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>, 
+    index?: number
+  ) => {
     const { name, value } = e.target;
     
-    // Handle gas entries and test entries fields
-    if (name.startsWith('gas') && index !== undefined) {
+    // Handle gas entries fields
+    if (name === 'gasType' && index !== undefined) {
       setCompleteForm(prev => {
         const updatedGasEntries = [...prev.gasEntries];
-        // Remove the "gas" prefix to get the actual field name (e.g., "gasType" -> "Type")
-        const fieldName = name.replace('gas', '') as keyof typeof updatedGasEntries[0];
         updatedGasEntries[index] = { 
           ...updatedGasEntries[index], 
-          [fieldName.charAt(0).toLowerCase() + fieldName.slice(1)]: value 
+          gasType: value 
         };
         return { ...prev, gasEntries: updatedGasEntries };
       });
     } 
+    else if (name === 'gasConcentration' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasConcentration: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
+    else if (name === 'gasBalance' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasBalance: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
+    else if (name === 'gasBatchNumber' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedGasEntries = [...prev.gasEntries];
+        updatedGasEntries[index] = { 
+          ...updatedGasEntries[index], 
+          gasBatchNumber: value 
+        };
+        return { ...prev, gasEntries: updatedGasEntries };
+      });
+    }
     // Handle test entries fields
-    else if (name.startsWith('test') && index !== undefined) {
+    else if (name === 'testSensor' && index !== undefined) {
       setCompleteForm(prev => {
         const updatedTestEntries = [...prev.testEntries];
-        // Handle "testResult" separately as it doesn't follow the same pattern
-        if (name === 'testResult') {
-          updatedTestEntries[index] = { 
-            ...updatedTestEntries[index], 
-            testResult: value as 'Pass' | 'Fail' 
-          };
-        } else {
-          // Remove the "test" prefix to get the actual field name
-          const fieldName = name.replace('test', '') as keyof typeof updatedTestEntries[0];
-          updatedTestEntries[index] = { 
-            ...updatedTestEntries[index], 
-            [fieldName.charAt(0).toLowerCase() + fieldName.slice(1)]: value 
-          };
-        }
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testSensor: value 
+        };
         return { ...prev, testEntries: updatedTestEntries };
       });
-    } 
+    }
+    else if (name === 'testSpan' && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedTestEntries = [...prev.testEntries];
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testSpan: value 
+        };
+        return { ...prev, testEntries: updatedTestEntries };
+      });
+    }
+    else if (name.startsWith('testResult-') && index !== undefined) {
+      setCompleteForm(prev => {
+        const updatedTestEntries = [...prev.testEntries];
+        updatedTestEntries[index] = { 
+          ...updatedTestEntries[index], 
+          testResult: value as 'Pass' | 'Fail'
+        };
+        return { ...prev, testEntries: updatedTestEntries };
+      });
+    }
     // Handle other fields
     else {
-    setCompleteForm(prev => ({ ...prev, [name]: value }));
+      setCompleteForm(prev => ({ ...prev, [name]: value }));
     }
   };
   
   // Handle the submission of the complete calibration form
-  const handleCompleteSubmit = async (e: React.FormEvent) => {
+  const handleCompleteSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     
     console.log('Submitting calibration completion form:', completeForm);
@@ -623,6 +705,11 @@ export default function UserCalibrationPage() {
       const apiData = {
         id: completeForm.id,
         
+        // Certificate Information
+        certificateNumber: completeForm.certificateNumber,
+        calibrationDate: completeForm.calibrationDate,
+        validUntil: completeForm.validUntil,
+        
         // Use first gas entry for now (API needs to be updated to handle multiple entries)
         gasType: firstGasEntry.gasType,
         gasConcentration: firstGasEntry.gasConcentration,
@@ -639,7 +726,6 @@ export default function UserCalibrationPage() {
         modelNumber: completeForm.modelNumber,
         configuration: completeForm.configuration,
         approvedBy: completeForm.approvedBy,
-        validUntil: completeForm.validUntil,
         notes: completeForm.notes,
         
         // Include all entries as JSON strings for future API updates
@@ -668,7 +754,8 @@ export default function UserCalibrationPage() {
       try {
         // Parse the text response as JSON
         data = JSON.parse(responseText);
-      } catch (parseError) {
+      } catch {
+        // No variable needed
         console.error('Failed to parse response as JSON:', responseText);
         throw new Error('Server returned invalid response format');
       }
@@ -683,9 +770,10 @@ export default function UserCalibrationPage() {
       
       // Refresh data
       fetchCalibrations();
-    } catch (err: any) {
-      console.error('Error completing calibration:', err);
-      setError(err.message || 'Failed to complete calibration');
+    } catch (error: unknown) {
+      console.error('Error completing calibration:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to complete calibration';
+      setError(errorMsg);
     }
   };
   
@@ -712,12 +800,15 @@ export default function UserCalibrationPage() {
     setCalibrationForm(prev => ({
       ...prev,
       vendorId: vendor.id,
-      // Field address dan phone tetap ada tapi diisi kosong
-      // karena data ini sudah ada di data vendor yang dipilih
+      // Only set address and phone to empty, leave fax field as is
       address: '',
-      phone: '',
-      fax: ''
+      phone: ''
     }));
+  };
+  
+  // Function to handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
   
   return (
@@ -917,6 +1008,44 @@ export default function UserCalibrationPage() {
                     ))}
                   </tbody>
                 </table>
+            </div>
+          )}
+          
+          {/* Pagination Controls */}
+          {!loading && filteredCalibrations.length > 0 && (
+            <div className="flex justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-4">
+              <div className="text-sm text-gray-700">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} results
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  Previous
+                </button>
+                
+                {Array.from({ length: Math.ceil(totalItems / PAGE_SIZE) }, (_, i) => i + 1)
+                  .filter(page => page === 1 || page === Math.ceil(totalItems / PAGE_SIZE) || (page >= currentPage - 1 && page <= currentPage + 1))
+                  .map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                
+                <button
+                  onClick={() => handlePageChange(Math.min(Math.ceil(totalItems / PAGE_SIZE), currentPage + 1))}
+                  disabled={currentPage === Math.ceil(totalItems / PAGE_SIZE)}
+                  className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1273,6 +1402,65 @@ export default function UserCalibrationPage() {
       
       <div className="overflow-y-auto flex-grow p-4 max-h-[calc(90vh-56px)]">
         <form onSubmit={handleCompleteSubmit} className="space-y-4">
+          {/* Certificate Information */}
+          <div>
+            <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">Certificate Number</label>
+                <input
+                  type="text"
+                  id="certificateNumber"
+                  name="certificateNumber"
+                  value={completeForm.certificateNumber}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Enter certificate number"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Calibration Date</label>
+                <input
+                  type="date"
+                  id="calibrationDate"
+                  name="calibrationDate"
+                  value={completeForm.calibrationDate}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
+                <input
+                  type="date"
+                  id="validUntil"
+                  name="validUntil"
+                  value={completeForm.validUntil}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
+                <input
+                  type="text"
+                  id="approvedBy"
+                  name="approvedBy"
+                  value={completeForm.approvedBy}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Enter approver name"
+                />
+              </div>
+            </div>
+          </div>
+          
           {/* Instrument Details Section */}
           <div>
             <h3 className="font-medium text-gray-700 mb-2">Instrument Details</h3>
@@ -1482,22 +1670,15 @@ export default function UserCalibrationPage() {
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <div className="flex space-x-2">
+                        <div className="flex items-center space-x-2">
                     <label className="inline-flex items-center">
                       <input
                         type="radio"
                               name={`testResult-${index}`}
                         value="Pass"
                               checked={testEntry.testResult === 'Pass'}
-                              onChange={(e) => {
-                                const newValue = e.target.value as 'Pass' | 'Fail';
-                                setCompleteForm(prev => {
-                                  const updatedEntries = [...prev.testEntries];
-                                  updatedEntries[index] = { ...updatedEntries[index], testResult: newValue };
-                                  return { ...prev, testEntries: updatedEntries };
-                                });
-                              }}
-                              className="form-radio h-3 w-3 text-blue-600"
+                              onChange={(e) => handleCompleteFormChange(e, index)}
+                              className="form-radio h-3 w-3 text-green-600"
                             />
                             <span className="ml-1 text-xs">Pass</span>
                     </label>
@@ -1507,14 +1688,7 @@ export default function UserCalibrationPage() {
                               name={`testResult-${index}`}
                         value="Fail"
                               checked={testEntry.testResult === 'Fail'}
-                              onChange={(e) => {
-                                const newValue = e.target.value as 'Pass' | 'Fail';
-                                setCompleteForm(prev => {
-                                  const updatedEntries = [...prev.testEntries];
-                                  updatedEntries[index] = { ...updatedEntries[index], testResult: newValue };
-                                  return { ...prev, testEntries: updatedEntries };
-                                });
-                              }}
+                              onChange={(e) => handleCompleteFormChange(e, index)}
                               className="form-radio h-3 w-3 text-red-600"
                             />
                             <span className="ml-1 text-xs">Fail</span>
@@ -1547,49 +1721,18 @@ export default function UserCalibrationPage() {
                 </div>
               </div>
             
-          {/* Certificate Information */}
+          {/* Notes Section */}
               <div>
-            <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block mb-1 text-sm font-medium text-gray-700">Approved By</label>
-                <input
-                  type="text"
-                  name="approvedBy"
-                  value={completeForm.approvedBy}
-                  onChange={(e) => handleCompleteFormChange(e)}
-                  required
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Contoh: Fachmi R.F"
-                />
-              </div>
-              
-              <div>
-                <label className="block mb-1 text-sm font-medium text-gray-700" id="valid-until-label">Valid Until</label>
-                <input
-                  type="date"
-                  name="validUntil"
-                  value={completeForm.validUntil}
-                  onChange={(e) => handleCompleteFormChange(e)}
-                  required
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  aria-labelledby="valid-until-label"
-                  title="Select the date until which the calibration is valid"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block mb-1 text-sm font-medium text-gray-700">Notes</label>
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea
+              id="notes"
                   name="notes"
                   value={completeForm.notes}
                   onChange={(e) => handleCompleteFormChange(e)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  placeholder="This instrument has been calibrated using valid calibration gases and instrument manual operation procedure."
-                  rows={2}
+              rows={3}
+              placeholder="Enter any additional notes"
                 ></textarea>
-              </div>
-            </div>
               </div>
               
           <div className="p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-xs">

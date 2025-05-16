@@ -4,7 +4,7 @@ import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getUserFromRequest(req);
@@ -13,18 +13,8 @@ export async function GET(
       return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
     }
     
-    // Extract maintenanceId from URL path as a fallback
-    let maintenanceId: string;
-    try {
-      // Access id property by using context.params
-      // In Next.js 15, we need to use context.params as a Promise
-      const params = await context.params;
-      maintenanceId = params.id;
-    } catch (err) {
-      // Fallback: Extract from URL path if context.params fails
-      const urlParts = req.url.split('/');
-      maintenanceId = urlParts[urlParts.length - 1]; // Get ID from path
-    }
+    // Need to await params in Next.js route handlers
+    const { id: maintenanceId } = await params;
     
     // Ambil informasi maintenance
     const maintenance = await prisma.maintenance.findUnique({
@@ -60,14 +50,6 @@ export async function GET(
       return NextResponse.json(
         { error: "Maintenance tidak ditemukan" },
         { status: 404 }
-      );
-    }
-    
-    // Cek apakah user memiliki akses ke maintenance ini
-    if (maintenance.userId !== user.id && user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Tidak memiliki akses ke data maintenance ini" },
-        { status: 403 }
       );
     }
     

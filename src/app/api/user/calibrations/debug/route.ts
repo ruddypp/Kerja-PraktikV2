@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const showAll = searchParams.get('showAll') === 'true';
     
     // Build query based on parameters
-    let where: any = {};
+    const where: Record<string, string | { userId: string } | undefined> = {};
     
     if (id) {
       where.id = id;

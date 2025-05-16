@@ -18,7 +18,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const requestedLimit = parseInt(searchParams.get('limit') || '10');
+    
+    // For calibration vendor selection, allow much higher limits
+    const limit = requestedLimit > 1000 ? 10000 : requestedLimit;
+    
+    // Log query params for debugging
+    console.log('Admin vendor query params:', { search, page, limit, timestamp: searchParams.get('timestamp') });
     
     // Calculate skip for pagination
     const skip = (page - 1) * limit;

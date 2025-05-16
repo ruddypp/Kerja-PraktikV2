@@ -7,19 +7,39 @@ import { toast } from "react-hot-toast";
 import { PlusIcon, ClipboardCheckIcon } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
+// Define any missing interfaces for the maintenance reports
+interface MaintenanceReport {
+  id: string;
+  file: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Add any other necessary fields
+}
+
 interface Maintenance {
   id: string;
   itemSerial: string;
+  userId: string;
   status: string;
+  description: string;
+  vendorId: string | null;
+  completedDate: string | null;
   startDate: string;
   endDate: string | null;
+  serviceReport: MaintenanceReport | null;
+  technicalReport: MaintenanceReport | null;
+  createdAt: string;
+  updatedAt: string;
   item: {
     serialNumber: string;
     name: string;
     partNumber: string;
   };
-  serviceReport: any;
-  technicalReport: any;
+  vendor: {
+    id: string;
+    name: string;
+  } | null;
+  // Add any other necessary fields
 }
 
 export default function MaintenancePage() {
