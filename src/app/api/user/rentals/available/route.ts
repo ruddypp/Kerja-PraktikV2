@@ -3,26 +3,63 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { ItemStatus } from '@prisma/client';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
+    const skip = (page - 1) * limit;
+    const search = searchParams.get('search') || '';
+
+    // Build where clause for search
+    const whereClause: any = {
+      status: ItemStatus.AVAILABLE
+    };
+    
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { partNumber: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.item.count({
+      where: whereClause
+    });
+    
+    const totalPages = Math.ceil(totalCount / limit);
+
     // Get available items (status = AVAILABLE)
     const availableItems = await prisma.item.findMany({
-      where: {
-        status: ItemStatus.AVAILABLE
-      },
+      where: whereClause,
       orderBy: {
         name: 'asc'
-      }
+      },
+      skip,
+      take: limit
     });
 
-    return NextResponse.json(availableItems);
+    // Return data with pagination metadata
+    return NextResponse.json({
+      data: availableItems,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error('Error fetching available items:', error);
     return NextResponse.json(

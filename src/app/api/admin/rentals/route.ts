@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
 
 // GET - Get all rentals with optional filters
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,6 +18,9 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get('userId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
 
     // Build the where clause
     const whereClause: any = {};
@@ -48,6 +50,10 @@ export async function GET(req: NextRequest) {
         lte: new Date(endDate)
       };
     }
+    
+    // Get total count for pagination
+    const totalCount = await prisma.rental.count({ where: whereClause });
+    const totalPages = Math.ceil(totalCount / limit);
 
     // Get rentals with related data
     const rentals = await prisma.rental.findMany({
@@ -77,10 +83,21 @@ export async function GET(req: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip,
+      take: limit
     });
 
-    return NextResponse.json(rentals);
+    // Return data with pagination metadata
+    return NextResponse.json({
+      data: rentals,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error('Error fetching rentals:', error);
     return NextResponse.json(
@@ -93,13 +110,13 @@ export async function GET(req: NextRequest) {
 // PATCH - Update rental status
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminId = session.user.id;
+    const adminId = user.id;
     const { id, status, notes } = await req.json();
 
     if (!id || !status) {

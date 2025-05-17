@@ -363,7 +363,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
               {/* Rental */}
               <li>
                 <Link 
-                  href="/user/rental" 
+                  href="/user/rentals" 
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/rental') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >

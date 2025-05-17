@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 import { RequestStatus, ActivityType, NotificationType } from '@prisma/client';
 
 export async function POST(
@@ -9,13 +8,13 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const rentalId = params.id;
     const { notes } = await req.json();
 
@@ -92,7 +91,7 @@ export async function POST(
           data: {
             userId: admin.id,
             title: 'Rental Return Request',
-            message: `${session.user.name} has initiated a return for ${rental.item.name}`,
+            message: `${user.name} has initiated a return for ${rental.item.name}`,
             type: NotificationType.RENTAL_STATUS_CHANGE,
             relatedId: rentalId
           }

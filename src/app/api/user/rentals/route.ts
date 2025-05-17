@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
 
 // GET - Get user's rentals
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '6');
+    const skip = (page - 1) * limit;
 
     // Build where clause
     const whereClause: any = { userId };
@@ -23,7 +25,11 @@ export async function GET(req: NextRequest) {
       whereClause.status = status;
     }
 
-    // Get user's rentals
+    // Get total count for pagination
+    const totalCount = await prisma.rental.count({ where: whereClause });
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get user's rentals with pagination
     const rentals = await prisma.rental.findMany({
       where: whereClause,
       include: {
@@ -38,10 +44,21 @@ export async function GET(req: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip,
+      take: limit
     });
 
-    return NextResponse.json(rentals);
+    // Return data with pagination metadata
+    return NextResponse.json({
+      data: rentals,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error('Error fetching rentals:', error);
     return NextResponse.json(
@@ -54,13 +71,13 @@ export async function GET(req: NextRequest) {
 // POST - Create a new rental request
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromRequest(req);
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const { itemSerial, startDate, endDate, poNumber, doNumber } = await req.json();
 
     // Validate required fields
@@ -147,7 +164,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: admin.id,
             title: 'New Rental Request',
-            message: `${session.user.name} has requested to rent ${item.name}`,
+            message: `${user.name} has requested to rent ${item.name}`,
             type: NotificationType.RENTAL_REQUEST,
             relatedId: rental.id
           }
