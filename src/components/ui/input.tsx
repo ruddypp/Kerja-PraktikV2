@@ -28,7 +28,43 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substring(2, 11)}`;
+    // Use a stable ID with client-side enhancement to avoid hydration issues
+    const [generatedId] = React.useState('input');
+    const inputId = id || generatedId;
+    
+    // Generate a unique ID on the client side after hydration
+    React.useEffect(() => {
+      // Only run this if no ID was provided and we're on the client
+      if (!id && typeof document !== 'undefined') {
+        const uniqueId = `input-${Math.random().toString(36).substring(2, 11)}`;
+        const inputElement = document.getElementById(inputId);
+        if (inputElement) {
+          inputElement.id = uniqueId;
+          
+          // Update any associated labels or aria attributes
+          if (label) {
+            const labelElement = document.querySelector(`label[for="${inputId}"]`);
+            if (labelElement) {
+              labelElement.setAttribute('for', uniqueId);
+            }
+          }
+          
+          if (error) {
+            const errorElement = document.getElementById(`${inputId}-error`);
+            if (errorElement) {
+              errorElement.id = `${uniqueId}-error`;
+              inputElement.setAttribute('aria-describedby', `${uniqueId}-error`);
+            }
+          } else if (helperText) {
+            const helperElement = document.getElementById(`${inputId}-helper`);
+            if (helperElement) {
+              helperElement.id = `${uniqueId}-helper`;
+              inputElement.setAttribute('aria-describedby', `${uniqueId}-helper`);
+            }
+          }
+        }
+      }
+    }, [id, inputId, label, error, helperText]);
     
     return (
       <div className={`${fullWidth ? 'w-full' : ''} ${containerClassName}`}>
@@ -61,7 +97,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             `}
             disabled={disabled}
             required={required}
-            aria-invalid={error ? 'true' : 'false'}
+            {...(error ? {'aria-invalid': 'true'} : {})}
             aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
             {...props}
           />
