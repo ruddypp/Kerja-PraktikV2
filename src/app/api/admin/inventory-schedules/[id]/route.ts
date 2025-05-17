@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { ActivityType } from '@prisma/client';
+
+// Type definition for params as Promise
+type ParamsType = { id: string };
 
 // GET a specific inventory schedule
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: ParamsType }
 ) {
   try {
     // Verify admin authentication
@@ -14,6 +18,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get ID properly from params
+    // Using destructuring to avoid direct property access
     const { id } = params;
     
     if (!id) {
@@ -47,7 +53,7 @@ export async function GET(
 // PATCH update an inventory schedule
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: ParamsType }
 ) {
   try {
     // Verify admin authentication
@@ -56,6 +62,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get ID properly from params
+    // Using destructuring to avoid direct property access
     const { id } = params;
     
     if (!id) {
@@ -84,8 +92,19 @@ export async function PATCH(
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
+        name,
         notes: description,
         scheduledDate: new Date(nextDate)
+      }
+    });
+    
+    // Create activity log
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'UPDATED_INVENTORY_CHECK',
+        details: `Updated inventory check scheduled for ${new Date(nextDate).toLocaleDateString()}`,
+        type: ActivityType.ITEM_UPDATED
       }
     });
     
@@ -102,7 +121,7 @@ export async function PATCH(
 // DELETE an inventory schedule
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: ParamsType }
 ) {
   try {
     // Verify admin authentication
@@ -111,6 +130,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get ID properly from params
+    // Using destructuring to avoid direct property access
     const { id } = params;
     
     if (!id) {
@@ -147,7 +168,8 @@ export async function DELETE(
       data: {
         userId: user.id,
         action: 'DELETED_INVENTORY_CHECK',
-        details: `Deleted inventory check scheduled for ${new Date(schedule.scheduledDate).toLocaleDateString()}`
+        details: `Deleted inventory check scheduled for ${new Date(schedule.scheduledDate).toLocaleDateString()}`,
+        type: ActivityType.ITEM_DELETED
       }
     });
     
@@ -162,4 +184,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}

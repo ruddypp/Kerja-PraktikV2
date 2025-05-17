@@ -6,8 +6,7 @@ import { ItemStatus } from '@prisma/client';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiFilter, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { useRouter } from 'next/navigation';
+
 
 // Item schema for form validation
 const itemSchema = z.object({
@@ -194,23 +193,6 @@ export default function AdminInventoryPage() {
     });
   }, []);
 
-  // Debounce function
-  const debounce = useCallback((func: Function, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  }, []);
-  
-  // Debounced search
-  const debouncedFetchData = useCallback(
-    debounce((page: number, filters: {search: string, status: string, category: string}) => {
-      fetchData(page, filters);
-    }, 500), // 500ms delay
-    []
-  );
-  
   // Fetch data
   const fetchData = useCallback(async (page = currentPage, currentFilters = filters) => {
     try {
@@ -301,7 +283,7 @@ export default function AdminInventoryPage() {
     }
   }, [currentPage, filters, getCacheKey]);
   
-  // Handle search and filter changes with debounce
+  // Handle search and filter changes
   const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
@@ -310,9 +292,9 @@ export default function AdminInventoryPage() {
     // Reset to page 1 when filters change
     setCurrentPage(1);
     
-    // Use debounced fetch for search to prevent too many requests
-    debouncedFetchData(1, newFilters);
-  }, [filters, debouncedFetchData]);
+    // Directly fetch data with the new filters
+    fetchData(1, newFilters);
+  }, [filters, fetchData]);
 
   // Fetch vendors
   const fetchVendors = async () => {
@@ -565,9 +547,9 @@ export default function AdminInventoryPage() {
           }
         }, 300);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting form:', error);
-      toast.error(error.message || 'Failed to save item');
+      toast.error(error instanceof Error ? error.message : 'Failed to save item');
     } finally {
       setFormSubmitting(false);
     }
@@ -643,23 +625,12 @@ export default function AdminInventoryPage() {
           setLoading(false);
         }
       }, 300);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting item:', error);
-      toast.error(error.message || 'Failed to delete item');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete item');
     }
   };
   
-  // Reset filters
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      status: '',
-      category: ''
-    });
-    setCurrentPage(1);
-    fetchData(1, { search: '', status: '', category: '' });
-  };
-
   // Get status badge color
   const getStatusBadgeClass = (status: ItemStatus): string => {
     switch (status) {
@@ -683,17 +654,6 @@ export default function AdminInventoryPage() {
 
   // Calculate total pages
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  // Default form data for resetting the form
-  const defaultFormData: ItemFormData = {
-    serialNumber: '',
-    name: '',
-    partNumber: '',
-    sensor: '',
-    description: '',
-    customerId: '',
-    status: ItemStatus.AVAILABLE
-  };
 
   // Default filters
   const defaultFilters = {
@@ -922,7 +882,7 @@ export default function AdminInventoryPage() {
                   const maxVisiblePages = 5; // Jumlah maksimal halaman yang ditampilkan
                   
                   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                  const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
                   
                   // Adjust startPage if we're at the end of the range
                   if (endPage - startPage + 1 < maxVisiblePages) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+import { ActivityType } from '@prisma/client';
 
 // Validation schema for inventory schedule
 const inventoryCheckSchema = z.object({
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
       },
       select: {
         id: true,
+        name: true,
         notes: true,
         scheduledDate: true,
         completedDate: true,
@@ -90,6 +92,7 @@ export async function POST(request: Request) {
     // Create schedule
     const schedule = await prisma.inventoryCheck.create({
       data: {
+        name: name,
         notes: description,
         scheduledDate: new Date(nextDate),
         userId: user.id
@@ -101,7 +104,8 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         action: 'SCHEDULED_INVENTORY',
-        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}`
+        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}`,
+        type: ActivityType.ITEM_UPDATED
       }
     });
     
@@ -170,12 +174,13 @@ export async function PATCH(request: Request) {
       );
     }
     
-    const { description, nextDate } = validationResult.data;
+    const { name, description, nextDate } = validationResult.data;
     
     // Update schedule
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
+        name: name,
         notes: description,
         scheduledDate: new Date(nextDate)
       }
@@ -186,7 +191,8 @@ export async function PATCH(request: Request) {
       data: {
         userId: user.id,
         action: 'UPDATED_SCHEDULE',
-        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}`
+        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}`,
+        type: ActivityType.ITEM_UPDATED
       }
     });
     
@@ -249,7 +255,8 @@ export async function DELETE(request: Request) {
       data: {
         userId: user.id,
         action: 'DELETED_SCHEDULE',
-        details: `Deleted inventory check schedule with ID ${id}`
+        details: `Deleted inventory check schedule with ID ${id}`,
+        type: ActivityType.ITEM_DELETED
       }
     });
     

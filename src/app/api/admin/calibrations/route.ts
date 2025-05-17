@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ItemStatus, RequestStatus } from '@prisma/client';
+import { ItemStatus, RequestStatus, ActivityType } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -467,7 +467,8 @@ export async function PATCH(request: Request) {
         userId: user.id,
         action: actionMap[status] || 'UPDATED_CALIBRATION',
         details: `Updated calibration for ${calibration.item.name} to ${status}`,
-        itemSerial: calibration.itemSerial
+        itemSerial: calibration.itemSerial,
+        type: ActivityType.CALIBRATION_UPDATED
       }
     });
     

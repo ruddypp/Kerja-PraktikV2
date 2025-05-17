@@ -1,7 +1,6 @@
 import { sign, verify } from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 import prisma from './prisma';
-import { compare } from 'bcrypt';
 
 export interface UserData {
   id: string;

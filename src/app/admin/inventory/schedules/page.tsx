@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiCheckCircle, FiArrowLeft } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiCheckCircle, FiArrowLeft, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
 
 // Updated interface to match InventoryCheck model
 interface InventoryCheck {
   id: string;
+  name: string | null;
   scheduledDate: string;
   completedDate: string | null;
   notes: string | null;
@@ -26,7 +27,7 @@ export default function InventorySchedulesPage() {
     id: '',
     name: '',
     description: '',
-    frequency: 'MONTHLY' as 'MONTHLY' | 'QUARTERLY' | 'YEARLY',
+    frequency: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
     nextDate: new Date().toISOString().split('T')[0]
   });
   const [isEditing, setIsEditing] = useState(false);
@@ -34,6 +35,8 @@ export default function InventorySchedulesPage() {
   const [selectedSchedule, setSelectedSchedule] = useState<InventoryCheck | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
   const fetchSchedules = async () => {
     try {
@@ -126,7 +129,7 @@ export default function InventorySchedulesPage() {
     
     setFormData({
       id: schedule.id,
-      name: 'Inventory Check', // Default name
+      name: schedule.name || '',
       description: schedule.notes || '',
       frequency: 'MONTHLY', // Default frequency
       nextDate
@@ -137,16 +140,19 @@ export default function InventorySchedulesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this schedule?')) {
-      return;
-    }
+  const handleDeleteClick = (id: string) => {
+    setScheduleToDelete(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!scheduleToDelete) return;
     
     try {
       setIsSubmitting(true);
       setError('');
       
-      const res = await fetch(`/api/admin/inventory-schedules/${id}`, {
+      const res = await fetch(`/api/admin/inventory-schedules/${scheduleToDelete}`, {
         method: 'DELETE'
       });
       
@@ -155,7 +161,8 @@ export default function InventorySchedulesPage() {
         throw new Error(errorData.error || 'Failed to delete schedule');
       }
       
-      fetchSchedules();
+      // Update the UI immediately by filtering out the deleted schedule
+      setSchedules(prevSchedules => prevSchedules.filter(schedule => schedule.id !== scheduleToDelete));
       
       const message = 'Schedule deleted successfully';
       setSuccessMessage(message);
@@ -165,9 +172,19 @@ export default function InventorySchedulesPage() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete schedule. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
+      
+      // If there was an error, refresh the schedules to ensure UI is in sync
+      fetchSchedules();
     } finally {
       setIsSubmitting(false);
+      setShowDeleteConfirmation(false);
+      setScheduleToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirmation(false);
+    setScheduleToDelete(null);
   };
 
   const cancelForm = () => {
@@ -245,87 +262,86 @@ export default function InventorySchedulesPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-        <h1 className="text-2xl font-semibold text-gray-900">Inventory Schedules</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/admin/inventory"
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-          >
-              <FiArrowLeft className="mr-2" /> Back to Inventory
-          </Link>
-          {!showForm && !performingInventory && (
-            <button
-              onClick={() => setShowForm(true)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Inventory Schedules</h1>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/inventory"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
             >
-                <FiPlus className="mr-2" /> Add Schedule
+              <FiArrowLeft size={16} />
+              Back to Inventory
+            </Link>
+            <button
+              onClick={() => fetchSchedules()}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
+              {loading ? "Loading..." : "Refresh"}
             </button>
-          )}
+            {!showForm && !performingInventory && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+              >
+                <FiPlus size={16} />
+                Add Schedule
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-sm animate-fadeIn" role="alert">
-            <div className="flex items-center">
-              <svg className="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm-1-5a1 1 0 112 0v2a1 1 0 11-2 0v-2zm0-6a1 1 0 112 0v2a1 1 0 11-2 0V5z" clipRule="evenodd" />
-              </svg>
-              <p className="font-medium">{error}</p>
-            </div>
-        </div>
-      )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
 
-      {successMessage && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md shadow-sm animate-fadeIn" role="alert">
-            <div className="flex items-center">
-              <svg className="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.707-6.707a1 1 0 011.414 0L11 12.586V8a1 1 0 112 0v4.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              <p className="font-medium">{successMessage}</p>
-            </div>
-        </div>
-      )}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            {successMessage}
+          </div>
+        )}
 
-      {showForm && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-6 animate-fadeIn">
-            <h2 className="text-lg font-medium mb-4 text-green-700 border-b pb-2">
-            {isEditing ? 'Edit Schedule' : 'Add New Inventory Schedule'}
-          </h2>
+        {showForm && (
+          <div className="bg-white rounded-lg border border-gray-100 p-6">
+            <h2 className="text-lg font-medium mb-4 border-b pb-2">
+              {isEditing ? 'Edit Schedule' : 'Add New Inventory Schedule'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                     Schedule Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                  required
-                />
-              </div>
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
+                  />
+                </div>
                 
-              <div>
-                <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
+                <div>
+                  <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
                     Frequency <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="frequency"
-                  name="frequency"
-                  value={formData.frequency}
-                  onChange={handleFormChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                  required
+                  </label>
+                  <select
+                    id="frequency"
+                    name="frequency"
+                    value={formData.frequency}
+                    onChange={handleFormChange}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
                   >
                     <option value="MONTHLY">Monthly</option>
-                    <option value="QUARTERLY">Quarterly</option>
                     <option value="YEARLY">Yearly</option>
-                </select>
+                  </select>
                 </div>
               </div>
               
@@ -339,7 +355,7 @@ export default function InventorySchedulesPage() {
                   name="nextDate"
                   value={formData.nextDate}
                   onChange={handleFormChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   required
                 />
               </div>
@@ -354,7 +370,7 @@ export default function InventorySchedulesPage() {
                   value={formData.description}
                   onChange={handleFormChange}
                   rows={3}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 ></textarea>
               </div>
               
@@ -362,14 +378,14 @@ export default function InventorySchedulesPage() {
                 <button
                   type="button"
                   onClick={cancelForm}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 inline-flex items-center"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -388,8 +404,8 @@ export default function InventorySchedulesPage() {
         )}
 
         {performingInventory && selectedSchedule && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-6 animate-fadeIn">
-            <h2 className="text-lg font-medium mb-4 text-green-700 border-b pb-2">Perform Inventory Check</h2>
+          <div className="bg-white rounded-lg border border-gray-100 p-6">
+            <h2 className="text-lg font-medium mb-4 border-b pb-2">Perform Inventory Check</h2>
             <div className="rounded-md bg-blue-50 p-4 mb-4">
               <div className="flex">
                 <div className="flex-shrink-0">
@@ -423,7 +439,7 @@ export default function InventorySchedulesPage() {
               <button
                 type="button"
                 onClick={cancelInventoryCheck}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -431,7 +447,7 @@ export default function InventorySchedulesPage() {
               <button
                 type="button"
                 onClick={completeInventoryCheck}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -449,51 +465,106 @@ export default function InventorySchedulesPage() {
                 )}
               </button>
             </div>
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirmation && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl animate-scaleIn">
+              <div className="flex items-center mb-4">
+                <div className="bg-red-100 p-3 rounded-full mr-4">
+                  <FiAlertTriangle className="text-red-600 text-xl" />
+                </div>
+                <h3 className="text-xl font-medium text-gray-900">Konfirmasi Penghapusan</h3>
+              </div>
+              
+              <p className="text-gray-700 mb-6 pl-1">
+                Apakah Anda yakin ingin menghapus jadwal inventaris ini? Tindakan ini tidak dapat dibatalkan.
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center transition-colors"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Menghapus...
+                    </>
+                  ) : (
+                    <>
+                      <FiTrash2 className="mr-2" size={16} /> Hapus Jadwal
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
           </div>
         ) : schedules.length === 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-md text-center">
+          <div className="bg-white rounded-lg border border-gray-100 p-6 text-center">
             <FiCalendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 mb-4">No inventory schedules found.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory schedules found</h3>
+            <p className="text-gray-500 mb-4">Get started by creating your first inventory schedule.</p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 inline-flex items-center"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
-              <FiPlus className="mr-2" /> Create Your First Schedule
+              <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+              Create Schedule
             </button>
-        </div>
-      ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nama Jadwal
+                    </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Scheduled Date
-                </th>
+                    </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
-                </th>
+                    </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Notes
-                </th>
+                    </th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {schedules.map((schedule) => (
-                    <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {schedules.map((schedule) => (
+                    <tr key={schedule.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{schedule.name || 'Inventory Check'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{formatDate(schedule.scheduledDate)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           schedule.completedDate 
                             ? 'bg-green-100 text-green-800' 
@@ -501,52 +572,46 @@ export default function InventorySchedulesPage() {
                         }`}>
                           {schedule.completedDate ? 'Completed' : 'Scheduled'}
                         </span>
-                  </td>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-500 max-w-md truncate">
                           {schedule.notes || 'No notes provided'}
-                    </div>
-                  </td>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         {!schedule.completedDate && (
                           <div className="flex justify-end items-center space-x-3">
-                      <button
-                        onClick={() => startInventoryCheck(schedule)}
-                              className="text-indigo-600 hover:text-indigo-900 transition-colors"
+                            <button
+                              onClick={() => startInventoryCheck(schedule)}
+                              className="text-indigo-600 hover:text-indigo-900"
                               title="Perform Inventory Check"
                             >
-                              <div className="flex items-center">
-                                <FiCheckCircle className="w-5 h-5" />
-                              </div>
-                      </button>
-                      <button
-                        onClick={() => handleEdit(schedule)}
-                              className="text-blue-600 hover:text-blue-900 transition-colors"
+                              <FiCheckCircle className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(schedule)}
+                              className="text-blue-600 hover:text-blue-900"
                               title="Edit Schedule"
                             >
-                              <div className="flex items-center">
-                                <FiEdit2 className="w-5 h-5" />
-                              </div>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(schedule.id)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
+                              <FiEdit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(schedule.id)}
+                              className="text-red-600 hover:text-red-900"
                               title="Delete Schedule"
                             >
-                              <div className="flex items-center">
-                                <FiTrash2 className="w-5 h-5" />
-                              </div>
-                      </button>
-                    </div>
+                              <FiTrash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </div>
-      )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -1,221 +1,106 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Use consistent import
-import { RentalStatus } from '@prisma/client'; // Import from Prisma instead of redefining
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
 
-// Interface for the rental response
-interface RentalResponse {
-  id: string;
-  userId: string;
-  itemId: string;
-  startDate: Date;
-  endDate: Date;
-  requestDate: Date;
-  status: RentalStatus;
-  reason: string | null;
-  actualReturnDate: Date | null;
-  approvedById: string | null;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  item: {
-    id: string;
-    name: string;
-    serialNumber: string | null;
-  };
-  approvedBy?: {
-    id: string;
-    name: string;
-  } | null;
-}
-
-// GET rental requests with optional status filter
+// GET - Get all rentals with optional filters
 export async function GET(req: NextRequest) {
   try {
-    // Get the status filter from URL params if provided
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get query parameters
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const userId = searchParams.get('userId');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Build the query with filters if provided
+    // Build the where clause
     const whereClause: any = {};
     
     if (status && status !== 'ALL') {
-      whereClause.status = status as RentalStatus;
+      whereClause.status = status;
     }
     
     if (userId) {
-      whereClause.userId = parseInt(userId);
+      whereClause.userId = userId;
     }
 
-    // Fetch rental requests with related user and item data
-    const rentalRequests = await prisma.rentalRequest.findMany({
+    // Date range filter
+    if (startDate && endDate) {
+      whereClause.startDate = {
+        gte: new Date(startDate)
+      };
+      whereClause.endDate = {
+        lte: new Date(endDate)
+      };
+    } else if (startDate) {
+      whereClause.startDate = {
+        gte: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereClause.endDate = {
+        lte: new Date(endDate)
+      };
+    }
+
+    // Get rentals with related data
+    const rentals = await prisma.rental.findMany({
       where: whereClause,
       include: {
+        item: true,
         user: {
           select: {
             id: true,
             name: true,
-            email: true,
-          },
+            email: true
+          }
         },
-        item: {
-          select: {
-            id: true,
-            name: true,
-            serialNumber: true,
+        statusLogs: {
+          include: {
+            changedBy: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           },
-        },
-        approvedBy: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       },
       orderBy: {
-        requestDate: 'desc',
-      },
-    });
-    
-    // Format the response to ensure consistent types
-    const formattedRentals: RentalResponse[] = rentalRequests.map(rental => ({
-      id: rental.id.toString(),
-      userId: rental.userId.toString(),
-      itemId: rental.itemId.toString(),
-      startDate: rental.startDate,
-      endDate: rental.endDate,
-      requestDate: rental.requestDate,
-      status: rental.status,
-      reason: rental.reason,
-      actualReturnDate: rental.actualReturnDate,
-      approvedById: rental.approvedById?.toString() || null,
-      user: {
-        id: rental.user.id.toString(),
-        name: rental.user.name,
-        email: rental.user.email
-      },
-      item: {
-        id: rental.item.id.toString(),
-        name: rental.item.name,
-        serialNumber: rental.item.serialNumber
-      },
-      approvedBy: rental.approvedBy ? {
-        id: rental.approvedBy.id.toString(),
-        name: rental.approvedBy.name
-      } : null
-    }));
-
-    return NextResponse.json(formattedRentals);
-  } catch (error) {
-    console.error('Error fetching rental requests:', error);
-    // Return empty array to prevent UI crash
-    return NextResponse.json([], { status: 500 });
-  }
-}
-
-// POST endpoint to create a new rental request
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    
-    // Validate required fields
-    const { userId, itemId, startDate, endDate, reason } = body;
-    
-    if (!userId || !itemId || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Check if item is available
-    const item = await prisma.item.findUnique({
-      where: { id: parseInt(itemId) }
-    });
-
-    if (!item) {
-      return NextResponse.json(
-        { error: 'Item not found' },
-        { status: 404 }
-      );
-    }
-
-    // Create new rental request
-    const rentalRequest = await prisma.rentalRequest.create({
-      data: {
-        userId: parseInt(userId),
-        itemId: parseInt(itemId),
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        reason,
-        status: RentalStatus.PENDING
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        item: {
-          select: {
-            id: true,
-            name: true,
-            serialNumber: true,
-          },
-        },
-      },
-    });
-
-    // Create activity log
-    await prisma.activityLog.create({
-      data: {
-        userId: parseInt(userId),
-        activity: `Created rental request for item: ${item.name}`
+        createdAt: 'desc'
       }
     });
-    
-    // Format the response
-    const formattedRental = {
-      id: rentalRequest.id.toString(),
-      userId: rentalRequest.userId.toString(),
-      itemId: rentalRequest.itemId.toString(),
-      startDate: rentalRequest.startDate,
-      endDate: rentalRequest.endDate,
-      requestDate: rentalRequest.requestDate,
-      status: rentalRequest.status,
-      reason: rentalRequest.reason,
-      actualReturnDate: rentalRequest.actualReturnDate,
-      user: {
-        id: rentalRequest.user.id.toString(),
-        name: rentalRequest.user.name,
-        email: rentalRequest.user.email
-      },
-      item: {
-        id: rentalRequest.item.id.toString(),
-        name: rentalRequest.item.name,
-        serialNumber: rentalRequest.item.serialNumber
-      }
-    };
 
-    return NextResponse.json(formattedRental, { status: 201 });
+    return NextResponse.json(rentals);
   } catch (error) {
-    console.error('Error creating rental request:', error);
+    console.error('Error fetching rentals:', error);
     return NextResponse.json(
-      { error: 'Failed to create rental request' },
+      { error: 'Failed to fetch rentals' },
       { status: 500 }
     );
   }
 }
 
-// PATCH endpoint to update a rental request status
+// PATCH - Update rental status
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { id, status, userId } = body;
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const adminId = session.user.id;
+    const { id, status, notes } = await req.json();
 
     if (!id || !status) {
       return NextResponse.json(
@@ -224,104 +109,99 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update the rental request status
-    const updatedRental = await prisma.rentalRequest.update({
-      where: { id: parseInt(id) },
-      data: {
-        status: status as RentalStatus,
-        ...(status === RentalStatus.APPROVED && userId
-          ? { approvedById: parseInt(userId) }
-          : {}),
-        ...(status === RentalStatus.RETURNED
-          ? { actualReturnDate: new Date() }
-          : {}),
-      },
+    // Get the current rental state
+    const currentRental = await prisma.rental.findUnique({
+      where: { id },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        item: {
-          select: {
-            id: true,
-            name: true,
-            serialNumber: true,
-          },
-        },
-        approvedBy: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+        item: true,
+        user: true
+      }
     });
-    
-    // Update the item status based on the rental status
-    if (status === RentalStatus.APPROVED) {
-      await prisma.item.update({
-        where: { id: updatedRental.itemId },
-        data: { status: 'IN_RENTAL' }
-      });
-      
-      // Create activity log for approval
-      await prisma.activityLog.create({
-        data: {
-          userId: parseInt(userId),
-          activity: `Approved rental request for item: ${updatedRental.item.name}`
-        }
-      });
-    } else if (status === RentalStatus.RETURNED) {
-      await prisma.item.update({
-        where: { id: updatedRental.itemId },
-        data: { status: 'AVAILABLE' }
-      });
-      
-      // Create activity log for return
-      await prisma.activityLog.create({
-        data: {
-          userId: parseInt(userId) || updatedRental.userId,
-          activity: `Marked rental as returned for item: ${updatedRental.item.name}`
-        }
-      });
-    }
-    
-    // Format the response
-    const formattedRental = {
-      id: updatedRental.id.toString(),
-      userId: updatedRental.userId.toString(),
-      itemId: updatedRental.itemId.toString(),
-      startDate: updatedRental.startDate,
-      endDate: updatedRental.endDate,
-      requestDate: updatedRental.requestDate,
-      status: updatedRental.status,
-      reason: updatedRental.reason,
-      actualReturnDate: updatedRental.actualReturnDate,
-      approvedById: updatedRental.approvedById?.toString() || null,
-      user: {
-        id: updatedRental.user.id.toString(),
-        name: updatedRental.user.name,
-        email: updatedRental.user.email
-      },
-      item: {
-        id: updatedRental.item.id.toString(),
-        name: updatedRental.item.name,
-        serialNumber: updatedRental.item.serialNumber
-      },
-      approvedBy: updatedRental.approvedBy ? {
-        id: updatedRental.approvedBy.id.toString(),
-        name: updatedRental.approvedBy.name
-      } : null
-    };
 
-    return NextResponse.json(formattedRental);
+    if (!currentRental) {
+      return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
+    }
+
+    // Perform different actions based on the requested status change
+    let updatedRental;
+    
+    // Start a transaction to ensure all updates are atomic
+    await prisma.$transaction(async (tx) => {
+      // Update the rental status
+      updatedRental = await tx.rental.update({
+        where: { id },
+        data: {
+          status: status as RequestStatus,
+          // If completing a rental, set the returnDate if not already set
+          ...(status === RequestStatus.COMPLETED && !currentRental.returnDate
+            ? { returnDate: new Date() }
+            : {})
+        },
+        include: {
+          item: true,
+          user: true
+        }
+      });
+
+      // Create a status log
+      await tx.rentalStatusLog.create({
+        data: {
+          rentalId: id,
+          status: status as RequestStatus,
+          userId: adminId,
+          notes: notes || `Status changed to ${status}`
+        }
+      });
+
+      // Update item status based on rental status
+      let newItemStatus: ItemStatus | undefined;
+      
+      if (status === RequestStatus.APPROVED) {
+        newItemStatus = ItemStatus.RENTED;
+      } else if (status === RequestStatus.COMPLETED) {
+        newItemStatus = ItemStatus.AVAILABLE;
+      } else if (status === RequestStatus.REJECTED) {
+        // If rejected, ensure item remains AVAILABLE
+        newItemStatus = ItemStatus.AVAILABLE;
+      }
+
+      // Update the item status if needed
+      if (newItemStatus) {
+        await tx.item.update({
+          where: { serialNumber: currentRental.itemSerial },
+          data: { status: newItemStatus }
+        });
+      }
+
+      // Create activity log
+      await tx.activityLog.create({
+        data: {
+          type: ActivityType.RENTAL_UPDATED,
+          action: `Updated rental status to ${status}`,
+          userId: adminId,
+          itemSerial: currentRental.itemSerial,
+          rentalId: id,
+          affectedUserId: currentRental.userId
+        }
+      });
+
+      // Create notification for the user
+      await tx.notification.create({
+        data: {
+          userId: currentRental.userId,
+          title: 'Rental Status Updated',
+          message: `Your rental for ${currentRental.item.name} has been ${status.toLowerCase()}`,
+          type: NotificationType.RENTAL_STATUS_CHANGE,
+          relatedId: id
+        }
+      });
+    });
+
+    return NextResponse.json(updatedRental);
   } catch (error) {
-    console.error('Error updating rental request:', error);
+    console.error('Error updating rental status:', error);
     return NextResponse.json(
-      { error: 'Failed to update rental request' },
+      { error: 'Failed to update rental status' },
       { status: 500 }
     );
   }

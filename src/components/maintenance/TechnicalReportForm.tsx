@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "react-hot-toast";
+import Image from "next/image";
 
 interface TechnicalReportPart {
   itemNumber: number;
@@ -307,11 +308,13 @@ export default function TechnicalReportForm({
             <div className="space-y-1 text-center">
               {data.beforePhotoUrl ? (
                 <div>
-                  <img
-                    src={data.beforePhotoUrl}
-                    alt="Before Maintenance"
-                    className="mx-auto h-32 w-auto"
-                  />
+                    <Image
+                      src={data.beforePhotoUrl}
+                      alt="Before Maintenance"
+                      width={128} // ganti sesuai ukuran
+                      height={128} // ganti sesuai ukuran
+                      className="mx-auto h-32 w-auto"
+                    />
                   <p className="text-xs text-gray-500 mt-2">
                     Klik untuk mengganti foto
                   </p>
@@ -350,9 +353,11 @@ export default function TechnicalReportForm({
             <div className="space-y-1 text-center">
               {data.afterPhotoUrl ? (
                 <div>
-                  <img
+                  <Image
                     src={data.afterPhotoUrl}
                     alt="After Maintenance"
+                    width={128} // ganti sesuai ukuran
+                    height={128} // ganti sesuai ukuran
                     className="mx-auto h-32 w-auto"
                   />
                   <p className="text-xs text-gray-500 mt-2">

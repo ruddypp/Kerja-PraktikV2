@@ -110,6 +110,8 @@ model Rental {
   itemSerial   String
   user         User          @relation(fields: [userId], references: [id])
   userId       String
+  poNumber     String?       // Purchase Order Number (opsional)
+  doNumber     String?       // Delivery Order Number (opsional)
   status       RequestStatus @default(PENDING)
   startDate    DateTime
   endDate      DateTime?
@@ -395,6 +397,7 @@ model VendorHistory {
 // Inventarisasi berkala
 model InventoryCheck {
   id           String      @id @default(uuid())
+  name         String?     // Nama jadwal inventory check
   scheduledDate DateTime
   completedDate DateTime?
   notes        String?

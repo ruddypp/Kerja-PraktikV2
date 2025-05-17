@@ -65,9 +65,9 @@ export default function VendorsPage() {
   }, []);
   
   // Debounce function
-  const debounce = useCallback((func: Function, wait: number) => {
+  const debounce = useCallback(<T extends (...args: unknown[]) => void>(func: T, wait: number) => {
     let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
+    return (...args: Parameters<T>) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
     };
@@ -245,8 +245,8 @@ export default function VendorsPage() {
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to add vendor');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add vendor');
       
       // Clear error message after 3 seconds
       setTimeout(() => {

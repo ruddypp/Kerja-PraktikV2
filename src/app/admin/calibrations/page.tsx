@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FiCheckCircle, FiEdit2, FiDownload, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Link from 'next/link';
@@ -307,16 +307,15 @@ export default function CalibrationPage() {
     setFilter(prev => ({ ...prev, page }));
   };
   
+  // Define the fetchCalibrations function using useCallback to avoid dependency issues
+  const fetchCalibrations = useCallback(async () => {
+    return mutate();
+  }, [mutate]);
+  
   // Load data on component mount
   useEffect(() => {
-    // Define fetchCalibrations inside useEffect to avoid circular reference
     fetchCalibrations();
-  }, [filter, mutate]); // Include mutate in dependencies since it's used inside
-  
-  // Define the fetchCalibrations function
-    const fetchCalibrations = async () => {
-      return mutate();
-    };
+  }, [fetchCalibrations]); // Include fetchCalibrations in dependencies
   
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;

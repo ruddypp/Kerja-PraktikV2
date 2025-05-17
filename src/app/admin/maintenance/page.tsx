@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2, PlusIcon } from "lucide-react";
@@ -35,6 +35,7 @@ export default function AdminMaintenancePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [maintenanceToDelete, setMaintenanceToDelete] = useState<MaintenanceItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Konstanta untuk caching
   const CACHE_DURATION = 60000; // 1 menit
@@ -48,32 +49,38 @@ export default function AdminMaintenancePage() {
   }, []);
 
   // Debounce function
-  const debounce = useCallback((func: Function, wait: number) => {
+  const debounce = useCallback(<T extends (...args: unknown[]) => void>(func: T, wait: number) => {
     let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
+    return (...args: Parameters<T>) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
     };
   }, []);
 
-  useEffect(() => {
-    fetchMaintenances();
-  }, []);
-
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      applyFilters();
-    }, 500), // 500ms delay
-    [maintenances, statusFilter]
-  );
-
-  useEffect(() => {
-    applyFilters();
+  // Declare applyFilters with useCallback before it's used
+  const applyFilters = useCallback(() => {
+    let result = [...maintenances];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      result = result.filter(
+        (item) =>
+          item.item.name.toLowerCase().includes(lowerSearchTerm) ||
+          item.item.serialNumber.toLowerCase().includes(lowerSearchTerm) ||
+          item.user.name.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== "ALL") {
+      result = result.filter((item) => item.status === statusFilter);
+    }
+    
+    setFilteredMaintenances(result);
   }, [maintenances, searchTerm, statusFilter]);
 
-  const fetchMaintenances = async () => {
+  const fetchMaintenances = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -120,7 +127,36 @@ export default function AdminMaintenancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [CACHE_KEY, CACHE_TIMESTAMP_KEY, CACHE_DURATION]);
+
+  useEffect(() => {
+    fetchMaintenances();
+  }, [fetchMaintenances]);
+
+  // Debounced search
+  const debouncedSearch = useCallback((term: string) => {
+    // If we have an existing timeout, clear it
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    
+    // Set a new timeout
+    searchTimeout.current = setTimeout(() => {
+      setSearchTerm(term);
+      applyFilters();
+    }, 500);
+    
+    // Return a cleanup function
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [applyFilters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [maintenances, searchTerm, statusFilter, applyFilters]);
 
   // Fungsi untuk membuka modal konfirmasi hapus
   const openDeleteModal = (maintenance: MaintenanceItem) => {
@@ -161,28 +197,6 @@ export default function AdminMaintenancePage() {
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const applyFilters = () => {
-    let result = [...maintenances];
-    
-    // Apply search filter
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.item.name.toLowerCase().includes(lowerSearchTerm) ||
-          item.item.serialNumber.toLowerCase().includes(lowerSearchTerm) ||
-          item.user.name.toLowerCase().includes(lowerSearchTerm)
-      );
-    }
-    
-    // Apply status filter
-    if (statusFilter !== "ALL") {
-      result = result.filter((item) => item.status === statusFilter);
-    }
-    
-    setFilteredMaintenances(result);
   };
 
   // Handle search input change with debounce

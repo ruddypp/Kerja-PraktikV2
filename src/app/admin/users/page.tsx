@@ -287,10 +287,10 @@ export default function AdminUsersPage() {
       // Close the modal
       setModalOpen(false);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting form:', error);
-      setError(error.message || 'An unexpected error occurred');
-      toast.error(error.message || 'Failed to save user');
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      toast.error(error instanceof Error ? error.message : 'Failed to save user');
     } finally {
       setFormSubmitting(false);
     }
@@ -325,10 +325,10 @@ export default function AdminUsersPage() {
       // Close the confirmation
       setConfirmDeleteOpen(false);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting user:', error);
-      setError(error.message || 'An unexpected error occurred');
-      toast.error(error.message || 'Failed to delete user');
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete user');
     } finally {
       setFormSubmitting(false);
     }

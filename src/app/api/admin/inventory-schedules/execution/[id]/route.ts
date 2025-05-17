@@ -29,7 +29,7 @@ export async function GET(
   { params }: { params: Params }
 ) {
   try {
-    const id = parseInt(params.id);
+    const id = parseInt(params?.id);
     
     if (isNaN(id)) {
       return NextResponse.json(

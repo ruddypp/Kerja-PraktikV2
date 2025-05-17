@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon, UserIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon } from "lucide-react";
 import Link from "next/link";
 import MaintenanceForm from "@/components/maintenance/MaintenanceForm";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -25,8 +24,8 @@ interface MaintenanceData {
     name: string;
     email: string;
   };
-  serviceReport: any;
-  technicalReport: any;
+  serviceReport: Record<string, unknown>;
+  technicalReport: Record<string, unknown>;
   statusLogs: Array<{
     id: string;
     status: string;
@@ -45,19 +44,11 @@ export default function AdminMaintenanceDetailPage({
 }) {
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const id = React.use(params).id;
 
-  useEffect(() => {
-    if (id) {
-      fetchMaintenanceDetails();
-    }
-  }, [id]);
-
-  const fetchMaintenanceDetails = async () => {
+  const fetchMaintenanceDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/maintenance/${id}`);
+      const response = await fetch(`/api/admin/maintenance/${params.id}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -71,7 +62,13 @@ export default function AdminMaintenanceDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchMaintenanceDetails();
+    }
+  }, [params.id, fetchMaintenanceDetails]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -267,7 +264,7 @@ export default function AdminMaintenanceDetailPage({
               id: maintenance.id,
               itemSerial: maintenance.itemSerial,
               userId: maintenance.user.id,
-              status: maintenance.status as any,
+              status: maintenance.status as string,
               startDate: maintenance.startDate,
               endDate: maintenance.endDate,
               item: {

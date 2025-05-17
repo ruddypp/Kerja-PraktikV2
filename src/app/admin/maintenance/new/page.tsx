@@ -55,8 +55,6 @@ export default function AdminNewMaintenancePage() {
   });
 
   useEffect(() => {
-    fetchItems(pagination.page, pagination.limit);
-    
     // Handler untuk menutup suggestion ketika klik di luar
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -68,14 +66,19 @@ export default function AdminNewMaintenancePage() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [pagination.limit]);
+  }, []);
+
+  // Load items on initial render
+  useEffect(() => {
+    fetchItems(pagination.page, pagination.limit);
+  }, [fetchItems, pagination.page, pagination.limit]);
 
   // Fungsi untuk mendapatkan cache key berdasarkan parameter
-  const getCacheKey = (page: number, limit: number, query: string = '') => {
+  const getCacheKey = useCallback((page: number, limit: number, query: string = '') => {
     return `${CACHE_KEY_PREFIX}${query ? 'search_' + query + '_' : ''}page_${page}_limit_${limit}`;
-  };
+  }, [CACHE_KEY_PREFIX]);
 
-  const fetchItems = async (page: number, limit: number, searchQuery: string = '') => {
+  const fetchItems = useCallback(async (page: number, limit: number, searchQuery: string = '') => {
     try {
       setLoading(true);
       
@@ -139,7 +142,7 @@ export default function AdminNewMaintenancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getCacheKey, CACHE_DURATION]);
 
   // Fungsi untuk mencari item dengan caching
   const searchItems = useCallback(async (term: string) => {
@@ -212,7 +215,7 @@ export default function AdminNewMaintenancePage() {
         clearTimeout(searchTimeout);
       }
     };
-  }, [searchTerm, searchItems]);
+  }, [searchTerm, searchItems, searchTimeout]);
 
   // Handle item selection
   const handleItemSelect = (item: Item) => {

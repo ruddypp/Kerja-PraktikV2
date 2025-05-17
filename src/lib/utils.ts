@@ -92,7 +92,7 @@ export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
 /**
  * Debounces a function
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -109,4 +109,4 @@ export function debounce<T extends (...args: any[]) => any>(
     }
     timeout = setTimeout(later, wait);
   };
-} 
+}
