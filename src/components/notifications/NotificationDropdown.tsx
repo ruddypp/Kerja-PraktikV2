@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { NotificationType } from '@prisma/client';
-import { io, Socket } from 'socket.io-client';
+import { Button } from '@/components/ui/button';
 
 interface Notification {
   id: string;
@@ -23,207 +23,17 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
-  
-  // Intelligent polling settings
-  const [userActive, setUserActive] = useState<boolean>(true);
-  const lastFetchTimeRef = useRef<string>(new Date().toISOString());
-  const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isActiveRef = useRef(true); // Track if page is active/visible
   
   // Constants for caching
   const CACHE_DURATION = 300000; // 5 minutes
+  const POLLING_INTERVAL = 300000; // 5 minutes
   const CACHE_KEY = `notifications_${userId}`;
   const CACHE_TIMESTAMP_KEY = `notifications_timestamp_${userId}`;
-  
-  // Polling intervals based on activity
-  const POLLING_INTERVALS = {
-    ACTIVE: 60000,     // 1 minute when user is active
-    INACTIVE: 300000,  // 5 minutes when user is inactive
-    BACKGROUND: 600000 // 10 minutes when tab is in background
-  };
-  
-  // Initialize Socket.IO connection
-  const initSocketConnection = useCallback(() => {
-    if (!userId || socketRef.current) return;
-    
-    try {
-      // Create socket instance
-      const socket = io({
-        path: '/api/socketio',
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-      });
-      
-      socketRef.current = socket;
-      
-      // Connection events
-      socket.on('connect', () => {
-        console.log('Socket connected');
-        
-        // Authenticate with userId
-        socket.emit('authenticate', userId);
-        
-        // Set initial adaptive polling config
-        socket.emit('set_polling_config', { 
-          userId,
-          isActive: userActive, 
-          priority: 'normal' 
-        });
-      });
-      
-      // Handle reconnection
-      socket.on('reconnect', () => {
-        console.log('Socket reconnected');
-        socket.emit('authenticate', userId);
-        
-        // Force refresh notifications on reconnect
-        fetchNotifications(true);
-      });
-      
-      // Handle new notifications from server
-      socket.on('new_notification', (data: { notification: Notification, priority: string }) => {
-        setNotifications(prev => {
-          const exists = prev.some(n => n.id === data.notification.id);
-          if (exists) return prev;
-          
-          const updated = [data.notification, ...prev];
-          // Keep array at reasonable size
-          return updated.slice(0, 50);
-        });
-        
-        if (!data.notification.isRead) {
-          setUnreadCount(prev => prev + 1);
-        }
-        
-        // Update cache
-        updateNotificationCache(data.notification);
-      });
-      
-      // Handle notification status changes
-      socket.on('notification_marked_read', ({ id }: { id: string }) => {
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === id ? { ...notif, isRead: true } : notif
-          )
-        );
-        
-        calculateUnreadCount();
-        updateCache();
-      });
-      
-      socket.on('notifications_marked_read', () => {
-        setNotifications(prev => 
-          prev.map(notif => ({ ...notif, isRead: true }))
-        );
-        
-        setUnreadCount(0);
-        updateCache();
-      });
-      
-      // Handle browser push notifications for high priority notifications
-      socket.on('push_notification', (data: { title: string, message: string, icon?: string }) => {
-        if (Notification.permission === 'granted' && document.hidden) {
-          new Notification(data.title, {
-            body: data.message,
-            icon: data.icon || '/favicon.ico'
-          });
-        }
-      });
-      
-      // Handle errors
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        setError('Connection error. Retrying...');
-        
-        // Fallback to traditional polling on connection error
-        setupIntelligentPolling();
-      });
-      
-      socket.on('error', (error) => {
-        console.error('Socket error:', error);
-        setError(error.message || 'An error occurred');
-      });
-      
-      socket.on('disconnect', () => {
-        console.log('Socket disconnected');
-        
-        // Fallback to traditional polling on disconnection
-        setupIntelligentPolling();
-      });
-      
-      return () => {
-        socket.disconnect();
-        socketRef.current = null;
-      };
-    } catch (error) {
-      console.error('Error initializing socket:', error);
-      setError('Failed to establish real-time connection. Using polling instead.');
-      
-      // Fallback to traditional polling
-      setupIntelligentPolling();
-    }
-  }, [userId, userActive]);
-  
-  // Request browser notification permission
-  const requestNotificationPermission = useCallback(async () => {
-    if ('Notification' in window) {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        await Notification.requestPermission();
-      }
-    }
-  }, []);
-  
-  // Function to update notification cache
-  const updateNotificationCache = useCallback((newNotification: Notification) => {
-    try {
-      const cachedData = sessionStorage.getItem(CACHE_KEY);
-      if (cachedData) {
-        const data = JSON.parse(cachedData);
-        
-        // Check if notification already exists
-        const exists = data.notifications.some((n: Notification) => n.id === newNotification.id);
-        if (!exists) {
-          data.notifications = [newNotification, ...data.notifications];
-          
-          if (!newNotification.isRead) {
-            data.unreadCount += 1;
-          }
-          
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        }
-      }
-    } catch {
-      // Ignore cache errors
-    }
-  }, [CACHE_KEY]);
-  
-  // Update entire cache
-  const updateCache = useCallback(() => {
-    try {
-      const cacheData = {
-        notifications,
-        unreadCount,
-        lastFetchTime: new Date().toISOString(),
-      };
-      
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-      sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-    } catch {
-      // Ignore cache errors
-    }
-  }, [CACHE_KEY, notifications, unreadCount]);
-  
-  // Recalculate unread count
-  const calculateUnreadCount = useCallback(() => {
-    const count = notifications.filter(n => !n.isRead).length;
-    setUnreadCount(count);
-  }, [notifications]);
-  
-  // Fetch notifications with caching and incremental loading
+  const isActiveRef = useRef(true); // Track if page is active/visible
+
+  // Fetch notifications with caching and error handling
   const fetchNotifications = useCallback(async (forceRefresh = false) => {
+    // Skip if no userId
     if (!userId) return;
     
     try {
@@ -241,23 +51,18 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           const data = JSON.parse(cachedData);
           setNotifications(data.notifications);
           setUnreadCount(data.unreadCount);
-          lastFetchTimeRef.current = data.lastFetchTime || new Date().toISOString();
           setLoading(false);
           return;
         }
       }
       
-      // Make API request with retry logic and incremental loading
+      // Make API request with retry logic
       let retries = 0;
       const maxRetries = 3;
       
       while (retries < maxRetries) {
         try {
-          // Use lastFetchTime for incremental loading
-          const url = `/api/admin/notifications?userId=${userId}&limit=10` + 
-                      (forceRefresh ? '' : `&lastFetchTime=${encodeURIComponent(lastFetchTimeRef.current)}`);
-          
-          const response = await fetch(url, {
+          const response = await fetch(`/api/admin/notifications?userId=${userId}&limit=10`, {
             cache: 'no-store'
           });
           
@@ -267,35 +72,16 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           
           const data = await response.json();
           
-          if (forceRefresh) {
-            // Replace all notifications
-            setNotifications(data.notifications);
-          } else {
-            // Merge new notifications with existing ones
-            setNotifications(prev => {
-              const merged = [...data.notifications];
-              
-              // Add existing notifications that aren't in the new batch
-              prev.forEach(notification => {
-                if (!merged.some(n => n.id === notification.id)) {
-                  merged.push(notification);
-                }
-              });
-              
-              // Sort by createdAt descending
-              return merged.sort((a, b) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              );
-            });
-          }
-          
-          setUnreadCount(data.unreadCount);
-          
-          // Update lastFetchTime for next incremental fetch
-          lastFetchTimeRef.current = data.lastFetchTime || new Date().toISOString();
-          
           // Cache the results
-          updateCache();
+          const cacheData = {
+            notifications: data.notifications,
+            unreadCount: data.unreadCount
+          };
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+          sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+          
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
           break; // Success, exit retry loop
         } catch (error) {
           retries++;
@@ -319,98 +105,22 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           const data = JSON.parse(cachedData);
           setNotifications(data.notifications);
           setUnreadCount(data.unreadCount);
-          lastFetchTimeRef.current = data.lastFetchTime || new Date().toISOString();
-        } catch {
+        } catch (e) {
           // Ignore parsing errors
         }
       }
     } finally {
       setLoading(false);
     }
-  }, [userId, CACHE_DURATION, CACHE_KEY, updateCache]);
+  }, [userId]);
   
-  // Setup intelligent polling based on user activity
-  const setupIntelligentPolling = useCallback(() => {
-    // Clear any existing intervals
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current);
-    }
-    
-    // Set appropriate polling interval based on user activity and tab visibility
-    let interval = POLLING_INTERVALS.ACTIVE;
-    
-    if (!isActiveRef.current) {
-      interval = POLLING_INTERVALS.BACKGROUND;
-    } else if (!userActive) {
-      interval = POLLING_INTERVALS.INACTIVE;
-    }
-    
-    // Set up new polling interval
-    pollingTimeoutRef.current = setTimeout(() => {
-      if (isActiveRef.current || interval === POLLING_INTERVALS.BACKGROUND) {
-        fetchNotifications();
-      }
-      
-      // Recursively setup next poll
-      setupIntelligentPolling();
-    }, interval);
-  }, [fetchNotifications, userActive, POLLING_INTERVALS]);
-  
-  // Track user activity
-  const handleUserActivity = useCallback(() => {
-    setUserActive(true);
-    
-    // Reset activity timeout
-    if (activityTimeoutRef.current) {
-      clearTimeout(activityTimeoutRef.current);
-    }
-    
-    // Set user as inactive after 2 minutes of no activity
-    activityTimeoutRef.current = setTimeout(() => {
-      setUserActive(false);
-      
-      // Update socket.io preference if connected
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('set_polling_config', { 
-          userId, 
-          isActive: false,
-          priority: 'normal' 
-        });
-      }
-      
-      // Adjust polling interval
-      setupIntelligentPolling();
-    }, 120000); // 2 minutes of inactivity
-    
-    // Update socket.io preference if connected
-    if (socketRef.current?.connected && !userActive) {
-      socketRef.current.emit('set_polling_config', { 
-        userId, 
-        isActive: true,
-        priority: 'normal' 
-      });
-    }
-  }, [userId, userActive, setupIntelligentPolling]);
-  
-  // Initialize the component
+  // Fetch notifications on component mount and when userId changes
   useEffect(() => {
     if (!userId) return;
     
-    // Initialize Socket.IO
-    initSocketConnection();
-    
-    // Request notification permissions
-    requestNotificationPermission();
-    
-    // Initial fetch of notifications
     fetchNotifications();
     
-    // Set up activity tracking
-    window.addEventListener('mousemove', handleUserActivity);
-    window.addEventListener('keydown', handleUserActivity);
-    window.addEventListener('click', handleUserActivity);
-    
-    // Track document visibility to adjust polling
+    // Track document visibility to prevent unnecessary polling when tab is not active
     const handleVisibilityChange = () => {
       isActiveRef.current = document.visibilityState === 'visible';
       
@@ -422,46 +132,23 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           fetchNotifications();
         }
       }
-      
-      // Adjust polling interval based on visibility
-      setupIntelligentPolling();
     };
     
+    // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Handle user activity initially
-    handleUserActivity();
+    // Set up polling for new notifications (every 5 minutes, but only when page is visible)
+    const interval = setInterval(() => {
+      if (isActiveRef.current) {
+        fetchNotifications();
+      }
+    }, POLLING_INTERVAL);
     
     return () => {
-      // Clean up event listeners
-      window.removeEventListener('mousemove', handleUserActivity);
-      window.removeEventListener('keydown', handleUserActivity);
-      window.removeEventListener('click', handleUserActivity);
+      clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Clean up intervals and timeouts
-      if (activityTimeoutRef.current) {
-        clearTimeout(activityTimeoutRef.current);
-      }
-      
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
-      
-      // Disconnect socket
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
     };
-  }, [
-    userId,
-    fetchNotifications,
-    handleUserActivity,
-    initSocketConnection,
-    requestNotificationPermission,
-    setupIntelligentPolling,
-    CACHE_DURATION
-  ]);
+  }, [userId, fetchNotifications]);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -475,27 +162,22 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Toggle dropdown and refresh notifications when opening
   const toggleDropdown = () => {
-    if (!isOpen) {
-      // Refresh notifications when opening dropdown
-        fetchNotifications(true);
-    }
-    
     setIsOpen(!isOpen);
+    
+    // Refresh notifications when opening dropdown if it's been a while
+    if (!isOpen) {
+      const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+      const now = Date.now();
+      
+      if (!lastFetch || now - parseInt(lastFetch) > CACHE_DURATION) {
+        fetchNotifications(true);
+      }
+    }
   };
   
-  // Mark notification as read
   const markAsRead = async (id: string) => {
     try {
-      // Check if connected to socket.io
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('mark_notification_read', {
-          userId,
-          notificationId: id
-        });
-      } else {
-        // Fallback to REST API
       const response = await fetch(`/api/admin/notifications?id=${id}`, {
         method: 'PATCH',
         headers: {
@@ -503,37 +185,37 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
         }
       });
       
-        if (!response.ok) {
-          throw new Error('Failed to mark notification as read');
-        }
-      }
-      
+      if (response.ok) {
         // Update the local state
         setNotifications(prev => 
           prev.map(notif => 
             notif.id === id ? { ...notif, isRead: true } : notif
           )
         );
-      
-      // Recalculate unread count
-      calculateUnreadCount();
+        setUnreadCount(prev => Math.max(0, prev - 1));
         
         // Update cache
-      updateCache();
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          try {
+            const data = JSON.parse(cachedData);
+            data.notifications = data.notifications.map((notif: Notification) => 
+              notif.id === id ? { ...notif, isRead: true } : notif
+            );
+            data.unreadCount = Math.max(0, data.unreadCount - 1);
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      setError('Failed to mark as read. Please try again.');
     }
   };
   
-  // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
-      // Check if connected to socket.io
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('mark_all_read', { userId });
-      } else {
-        // Fallback to REST API
       const response = await fetch(`/api/admin/notifications?userId=${userId}&markAllRead=true`, {
         method: 'PATCH',
         headers: {
@@ -541,24 +223,30 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
         }
       });
       
-        if (!response.ok) {
-          throw new Error('Failed to mark all notifications as read');
-        }
-      }
-      
+      if (response.ok) {
         // Update the local state
         setNotifications(prev => 
           prev.map(notif => ({ ...notif, isRead: true }))
         );
-      
-      // Update unread count
         setUnreadCount(0);
         
         // Update cache
-      updateCache();
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          try {
+            const data = JSON.parse(cachedData);
+            data.notifications = data.notifications.map((notif: Notification) => 
+              ({ ...notif, isRead: true })
+            );
+            data.unreadCount = 0;
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      setError('Failed to mark all as read. Please try again.');
     }
   };
   
@@ -570,18 +258,17 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   // Get icon and color based on notification type
   const getNotificationStyle = (type: NotificationType) => {
     switch (type) {
-      case 'RENTAL_REQUEST':
-      case 'RENTAL_STATUS_CHANGE':
+      case 'REQUEST_UPDATE':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           ),
-          color: 'text-orange-500 bg-orange-100'
+          color: 'text-blue-500 bg-blue-100'
         };
-      case 'CALIBRATION_REMINDER':
-      case 'CALIBRATION_STATUS_CHANGE':
+      case 'CALIBRATION_UPDATE':
+      case 'CALIBRATION_EXPIRY':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -590,23 +277,15 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           ),
           color: 'text-purple-500 bg-purple-100'
         };
-      case 'RENTAL_DUE_REMINDER':
-        return {
-          icon: (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ),
-          color: 'text-red-500 bg-red-100'
-        };
-      case 'MAINTENANCE_REMINDER':
+      case 'RENTAL_UPDATE':
+      case 'RENTAL_EXPIRY':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ),
-          color: 'text-blue-500 bg-blue-100'
+          color: 'text-orange-500 bg-orange-100'
         };
       case 'INVENTORY_SCHEDULE':
         return { 
@@ -617,16 +296,7 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           ),
           color: 'text-green-500 bg-green-100'
         };
-      case 'VENDOR_INFO':
-        return {
-          icon: (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          ),
-          color: 'text-indigo-500 bg-indigo-100'
-        };
-      case 'GENERAL_INFO':
+      case 'SYSTEM':
       default:
         return { 
           icon: (

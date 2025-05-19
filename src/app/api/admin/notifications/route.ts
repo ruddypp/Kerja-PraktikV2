@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { NotificationType } from '@prisma/client';
-import { 
-  getUserNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead,
-  createNotification as createNotificationService
-} from '@/lib/notificationService';
 
 interface NotificationResponse {
   id: string;
@@ -16,45 +10,56 @@ interface NotificationResponse {
   createdAt: string;
 }
 
-// GET: Fetch all notifications with support for incremental loading
+// GET: Fetch all notifications
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const lastFetchTime = searchParams.get('lastFetchTime');
     
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     
-    // Use our notification service for getting notifications
-    const { notifications, unreadCount } = await getUserNotifications(
-      userId, 
-      limit, 
-      lastFetchTime ? new Date(lastFetchTime) : undefined
-    );
+    // Use proper where condition for UUID
+    const notifications = await prisma.notification.findMany({
+      where: {
+        userId: userId
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          },
+        },
+      },
+    });
 
-    // Transform data
+    // Transform data to include user email
     const formattedNotifications = notifications.map((notification) => ({
       id: notification.id,
       title: notification.title,
       message: notification.message,
       type: notification.type,
       createdAt: notification.createdAt.toISOString(),
-      isRead: notification.isRead,
+      read: notification.isRead,
       userId: notification.userId,
+      userName: notification.user?.name || null,
+      userEmail: notification.user?.email || null,
     }));
 
-    // Add cache control headers for incremental loading
+    // Add cache control headers
     const response = NextResponse.json({
       notifications: formattedNotifications,
-      unreadCount,
-      lastFetchTime: new Date().toISOString()
+      unreadCount: formattedNotifications.filter(n => !n.read).length
     });
-    
-    // Short cache time for real-time notifications
-    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120');
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
     return response;
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -69,22 +74,24 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, message, type, userId, relatedId } = body;
+    const { title, message, type, userId } = body;
     
-    if (!title || !message || !type || !userId) {
+    if (!title || !message || !type) {
       return NextResponse.json(
-        { error: 'Title, message, type, and userId are required' },
+        { error: 'Title, message, and type are required' },
         { status: 400 }
       );
     }
     
-    // Use the notification service to create and deliver notification
-    const notification = await createNotificationService({
-      userId,
-      title,
-      message,
-      type: type as NotificationType,
-      relatedId
+    // Create notification
+    const notification = await prisma.notification.create({
+      data: {
+        title,
+        message,
+        type: type as NotificationType,
+        isRead: false,
+        ...(userId && { user: { connect: { id: userId } } }),
+      }
     });
     
     return NextResponse.json(notification);
@@ -103,14 +110,16 @@ export async function PATCH(req: NextRequest) {
     const userId = searchParams.get('userId');
     
     if (markAllRead === 'true' && userId) {
-      // Mark all notifications as read for user using our service
-      await markAllNotificationsAsRead(userId);
-      
-      // Emit socket event to update all clients
-      const io = (global as any).io;
-      if (io) {
-        io.to(`user:${userId}`).emit('notifications_marked_read');
-      }
+      // Mark all notifications as read for user
+      await prisma.notification.updateMany({
+        where: {
+          userId: userId, // Use string directly for UUID
+          isRead: false
+        },
+        data: {
+          isRead: true
+        }
+      });
       
       return NextResponse.json({ success: true });
     }
@@ -122,14 +131,15 @@ export async function PATCH(req: NextRequest) {
       );
     }
     
-    // Mark single notification as read using our service
-    const notification = await markNotificationAsRead(id);
-    
-    // Emit socket event
-    const io = (global as any).io;
-    if (io && notification) {
-      io.to(`user:${notification.userId}`).emit('notification_marked_read', { id });
-    }
+    // Mark single notification as read
+    await prisma.notification.update({
+      where: {
+        id: id // Use string directly for UUID
+      },
+      data: {
+        isRead: true
+      }
+    });
     
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -153,28 +163,12 @@ export async function DELETE(req: NextRequest) {
       );
     }
     
-    // Get the notification first to have the userId
-    const notification = await prisma.notification.findUnique({
-      where: { id }
-    });
-    
-    if (!notification) {
-      return NextResponse.json(
-        { error: 'Notification not found' },
-        { status: 404 }
-      );
-    }
-    
     // Delete notification
     await prisma.notification.delete({
-      where: { id }
+      where: {
+        id: id // Use string directly for UUID
+      }
     });
-    
-    // Emit socket event
-    const io = (global as any).io;
-    if (io) {
-      io.to(`user:${notification.userId}`).emit('notification_deleted', { id });
-    }
     
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -4,15 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:socket": "node server.js",
     "build": "next build",
     "start": "next start",
-    "start:socket": "cross-env NODE_ENV=production node server.js",
     "lint": "next lint",
     "seed": "npx ts-node prisma/seed.ts",
     "prisma:seed": "prisma db seed",
-    "standardize-calibration-statuses": "node fix-calibration-statuses.js",
-    "test:notifications": "node scripts/send-test-notifications.js"
+    "standardize-calibration-statuses": "node fix-calibration-statuses.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -27,7 +24,9 @@
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.4.9",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
@@ -61,7 +60,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
-    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
     "prisma": "^6.6.0",
