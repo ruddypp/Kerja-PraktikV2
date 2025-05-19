@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const itemId = searchParams.get("itemId");
     
     // Build the where clause
-    let where: any = {};
+    const where: Record<string, string> = {};
     
     if (status) {
       where.status = status;

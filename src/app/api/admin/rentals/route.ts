@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const whereClause: any = {};
     
     if (status && status !== 'ALL') {
-      whereClause.status = status;
+      whereClause.status = status as RequestStatus;
     }
     
     if (userId) {
@@ -219,6 +219,132 @@ export async function PATCH(req: NextRequest) {
     console.error('Error updating rental status:', error);
     return NextResponse.json(
       { error: 'Failed to update rental status' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create a new rental request by admin
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getUserFromRequest(req);
+    
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { itemSerial, startDate, endDate, poNumber, doNumber, targetUserId } = await req.json();
+
+    if (!itemSerial || !startDate) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check if item exists and is available
+    const item = await prisma.item.findUnique({
+      where: { serialNumber: itemSerial }
+    });
+
+    if (!item) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 404 }
+      );
+    }
+
+    if (item.status !== ItemStatus.AVAILABLE) {
+      return NextResponse.json(
+        { error: 'Item is not available for rental' },
+        { status: 400 }
+      );
+    }
+
+    // Check if the target user exists (if provided)
+    const userId = targetUserId || user.id;
+    
+    if (targetUserId) {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId }
+      });
+      
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: 'Target user not found' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Start a transaction to ensure all updates are atomic
+    const rental = await prisma.$transaction(async (tx) => {
+      // Create a new rental (APPROVED by default when admin creates it)
+      const newRental = await tx.rental.create({
+        data: {
+          itemSerial,
+          userId: userId, // Use the target user or admin as fallback
+          status: RequestStatus.APPROVED, // Auto-approve admin rentals
+          startDate: new Date(startDate),
+          endDate: endDate ? new Date(endDate) : null,
+          poNumber,
+          doNumber
+        },
+        include: {
+          item: true,
+          user: true
+        }
+      });
+
+      // Create a status log
+      await tx.rentalStatusLog.create({
+        data: {
+          rentalId: newRental.id,
+          status: RequestStatus.APPROVED,
+          userId: user.id, // Admin is the one changing the status
+          notes: 'Rental created and approved by admin'
+        }
+      });
+
+      // Update the item status to RENTED
+      await tx.item.update({
+        where: { serialNumber: itemSerial },
+        data: { status: ItemStatus.RENTED }
+      });
+
+      // Create activity log
+      await tx.activityLog.create({
+        data: {
+          type: ActivityType.RENTAL_CREATED,
+          action: `Created new rental for ${item.name}${targetUserId ? ` on behalf of user` : ''}`,
+          userId: user.id,
+          itemSerial,
+          rentalId: newRental.id,
+          affectedUserId: userId
+        }
+      });
+
+      // Create notification for the user if it's not the admin
+      if (targetUserId && targetUserId !== user.id) {
+        await tx.notification.create({
+          data: {
+            userId: targetUserId,
+            title: 'New Rental Created',
+            message: `Admin has created a rental for ${item.name} on your behalf`,
+            type: NotificationType.RENTAL_STATUS_CHANGE,
+            relatedId: newRental.id
+          }
+        });
+      }
+
+      return newRental;
+    });
+
+    return NextResponse.json(rental);
+  } catch (error) {
+    console.error('Error creating rental:', error);
+    return NextResponse.json(
+      { error: 'Failed to create rental' },
       { status: 500 }
     );
   }

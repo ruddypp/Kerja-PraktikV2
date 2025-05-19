@@ -144,9 +144,9 @@ export default function UserRentalPage() {
       case RequestStatus.PENDING:
         return 'bg-yellow-100 text-yellow-800';
       case RequestStatus.APPROVED:
-        return 'bg-blue-100 text-blue-800';
-      case RequestStatus.COMPLETED:
         return 'bg-green-100 text-green-800';
+      case RequestStatus.COMPLETED:
+        return 'bg-green-200 text-green-900';
       case RequestStatus.REJECTED:
         return 'bg-red-100 text-red-800';
       case RequestStatus.CANCELLED:
@@ -219,15 +219,14 @@ export default function UserRentalPage() {
     
     if (totalPages <= 1) return null;
     
-    let pages = [];
+    const pages = [];
     const maxVisible = 5; // Max visible page buttons
     
-    let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    const startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisible - 1);
     
-    if (endPage - startPage + 1 < maxVisible) {
-      startPage = Math.max(1, endPage - maxVisible + 1);
-    }
+    // Adjust startPage if we're near the end
+    const adjustedStartPage = Math.max(1, endPage - maxVisible + 1);
     
     // Previous button
     pages.push(
@@ -242,7 +241,7 @@ export default function UserRentalPage() {
     );
     
     // Page numbers
-    for (let i = startPage; i <= endPage; i++) {
+    for (let i = adjustedStartPage; i <= endPage; i++) {
       pages.push(
         <button
           key={i}
@@ -288,16 +287,16 @@ export default function UserRentalPage() {
           <div className="flex space-x-2">
             <button
               onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="-ml-1 mr-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh
             </button>
             <Link
               href="/user/rentals/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -326,7 +325,7 @@ export default function UserRentalPage() {
         )}
 
         {/* Filter */}
-        <div className="bg-white p-5 rounded-lg shadow mb-6 border border-gray-200">
+        <div className="bg-white p-5 rounded-lg shadow-md mb-6 border border-gray-200 bg-gradient-to-r from-white to-green-50">
           <h2 className="text-lg font-medium text-gray-800 mb-3">Filter Data</h2>
           <div className="flex flex-col sm:flex-row sm:items-center">
             <div className="w-full sm:w-64">
@@ -335,7 +334,7 @@ export default function UserRentalPage() {
                 id="status-filter"
                 value={statusFilter}
                 onChange={handleStatusChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
               >
                 <option value="ALL">Semua Status</option>
                 <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
@@ -349,13 +348,13 @@ export default function UserRentalPage() {
         </div>
         
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow border border-gray-200">
+          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-md border border-gray-200">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600"></div>
             <span className="ml-3 text-lg text-gray-700">Memuat data rental...</span>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
-            <div className="p-5 border-b border-gray-200">
+          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
               <h2 className="text-lg font-medium text-gray-800">Daftar Rental</h2>
               {data?.pagination && (
                 <p className="text-sm text-gray-600 mt-1">
@@ -391,10 +390,10 @@ export default function UserRentalPage() {
               <div className="p-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {rentals.map((rental) => (
-                    <div key={rental.id} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow transition-shadow duration-200">
+                    <div key={rental.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-200">
                       <div className="p-4">
                         <div className="flex items-start">
-                          <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full overflow-hidden flex items-center justify-center">
+                          <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full overflow-hidden flex items-center justify-center shadow-inner">
                             <svg className="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
@@ -451,9 +450,9 @@ export default function UserRentalPage() {
                         
                         <div className="mt-4 pt-3 border-t border-gray-200">
                           {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
-                            <button
+                                                          <button
                               onClick={() => handleReturnRequest(rental.id)}
-                              className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
                             >
                               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

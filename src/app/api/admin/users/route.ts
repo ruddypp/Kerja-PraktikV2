@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Check if user has search param
-    const searchQuery = request.nextUrl.searchParams.get('search');
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const searchQuery = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
     
     // Build where clause
     let whereClause = {};
@@ -27,6 +31,13 @@ export async function GET(request: NextRequest) {
         ]
       };
     }
+    
+    // Get total count for pagination
+    const totalCount = await prisma.user.count({ 
+      where: whereClause 
+    });
+    
+    const totalPages = Math.ceil(totalCount / limit);
     
     // Find users with optimized select
     const users = await prisma.user.findMany({
@@ -41,11 +52,21 @@ export async function GET(request: NextRequest) {
       },
       orderBy: {
         name: 'asc'
-      }
+      },
+      skip,
+      take: limit
     });
     
     // Create response with cache headers
-    const response = NextResponse.json(users);
+    const response = NextResponse.json({
+      data: users,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
+    });
     
     // Set cache control headers - cache for 1 minute
     response.headers.set('Cache-Control', 'public, max-age=60');

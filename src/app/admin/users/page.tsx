@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import { XIcon } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -39,6 +39,7 @@ export default function AdminUsersPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<UserFormData>({
@@ -62,15 +63,6 @@ export default function AdminUsersPage() {
   const invalidateCache = useCallback(() => {
     sessionStorage.removeItem(CACHE_KEY);
     sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
-  }, []);
-  
-  // Debounce function for search
-  const debounce = useCallback((callback: (searchTerm: string) => void, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (searchTerm: string) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => callback(searchTerm), wait);
-    };
   }, []);
   
   // Clear form
@@ -113,22 +105,6 @@ export default function AdminUsersPage() {
     setConfirmDeleteOpen(true);
   }, []);
 
-  // Debounced search handler
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearch(term);
-      fetchData(term);
-    }, 500),
-    []
-  );
-
-  // Handle search input change
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchInput(value);
-    debouncedSearch(value);
-  };
-  
   // Fetch data
   const fetchData = useCallback(async (searchTerm = search) => {
     try {
@@ -161,10 +137,12 @@ export default function AdminUsersPage() {
       }
       
       const usersData = await usersRes.json();
-      setUsers(usersData);
+      // Extract users array from the response data object
+      const usersArray = usersData.data || [];
+      setUsers(usersArray);
       
-      // Cache the results
-      sessionStorage.setItem(cacheKey, JSON.stringify(usersData));
+      // Cache the results (store just the users array)
+      sessionStorage.setItem(cacheKey, JSON.stringify(usersArray));
       sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
       
     } catch (error) {
@@ -175,6 +153,24 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, [search]);
+
+  // Debounced search handler
+  const debouncedSearch = useCallback((term: string) => {
+    setSearch(term);
+    fetchData(term);
+  }, [fetchData]);
+
+  // Handle search input change with debounce
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    // Debounce the search to prevent too many requests
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      debouncedSearch(value);
+    }, 500);
+  };
   
   // Initial data fetch
   useEffect(() => {
@@ -349,40 +345,40 @@ export default function AdminUsersPage() {
   };
 
   return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">User Management</h1>
           <div className="flex items-center gap-2">
-              <button 
-                onClick={refreshData}
+            <button 
+              onClick={refreshData}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-                disabled={loading}
-              >
+              disabled={loading}
+            >
               <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
               {loading ? "Loading..." : "Refresh"}
-              </button>
-              <button
-                onClick={openCreateModal}
+            </button>
+            <button
+              onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
-              >
+            >
               <FiPlus size={16} />
-                Add User
-              </button>
-            </div>
+              Add User
+            </button>
           </div>
+        </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
 
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-              {success}
-            </div>
-          )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            {success}
+          </div>
+        )}
 
         <div className="bg-white rounded-lg border border-gray-100 p-6">
           <div className="flex items-center space-x-4 mb-4">
@@ -498,20 +494,20 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => openEditModal(user)}
+                          <button
+                            onClick={() => openEditModal(user)}
                             className="text-blue-600 hover:text-blue-900"
                             title="Edit user"
-                        >
+                          >
                             <FiEdit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(user)}
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(user)}
                             className="text-red-600 hover:text-red-900"
                             title="Delete user"
-                        >
+                          >
                             <FiTrash2 className="h-5 w-5" />
-                        </button>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -670,4 +666,4 @@ export default function AdminUsersPage() {
       )}
     </DashboardLayout>
   );
-} 
+}

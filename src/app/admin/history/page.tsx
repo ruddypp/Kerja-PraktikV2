@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
-// @ts-expect-error jspdf-autotable doesn't have proper TypeScript types
 import autoTable from 'jspdf-autotable';
 import { FiDownload, FiFilter, FiRefreshCw, FiCalendar, FiUser, FiList, FiPackage } from 'react-icons/fi';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -375,11 +374,11 @@ export default function AdminHistoryPage() {
             <h2 className="text-lg font-semibold mb-4">Filter History</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <FiCalendar size={16} className="text-gray-500" />
-                  Start Date
-                    </div>
+                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiCalendar size={16} className="text-gray-500" />
+                    Start Date
+                  </div>
                 </label>
                 <input
                   type="date"
@@ -387,15 +386,15 @@ export default function AdminHistoryPage() {
                   name="startDate"
                   value={filters.startDate}
                   onChange={handleFilterChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
               <div>
-                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <FiCalendar size={16} className="text-gray-500" />
-                  End Date
-                    </div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiCalendar size={16} className="text-gray-500" />
+                    End Date
+                  </div>
                 </label>
                 <input
                   type="date"
@@ -403,22 +402,22 @@ export default function AdminHistoryPage() {
                   name="endDate"
                   value={filters.endDate}
                   onChange={handleFilterChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
               <div>
-                  <label htmlFor="activityType" className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <FiList size={16} className="text-gray-500" />
-                  Activity Type
-                    </div>
+                <label htmlFor="activityType" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiList size={16} className="text-gray-500" />
+                    Activity Type
+                  </div>
                 </label>
                 <select
                   id="activityType"
                   name="activityType"
                   value={filters.activityType}
                   onChange={handleFilterChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value="">All Activities</option>
                   <optgroup label="Item Activities">
@@ -454,11 +453,11 @@ export default function AdminHistoryPage() {
                 </select>
               </div>
               <div>
-                  <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <FiUser size={16} className="text-gray-500" />
-                  User ID
-                    </div>
+                <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiUser size={16} className="text-gray-500" />
+                    User ID
+                  </div>
                 </label>
                 <input
                   type="text"
@@ -467,15 +466,15 @@ export default function AdminHistoryPage() {
                   value={filters.userId}
                   onChange={handleFilterChange}
                   placeholder="Filter by user ID"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
               <div>
-                  <label htmlFor="itemSerial" className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <FiPackage size={16} className="text-gray-500" />
-                  Item Serial
-                    </div>
+                <label htmlFor="itemSerial" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-1">
+                    <FiPackage size={16} className="text-gray-500" />
+                    Item Serial
+                  </div>
                 </label>
                 <input
                   type="text"
@@ -484,21 +483,21 @@ export default function AdminHistoryPage() {
                   value={filters.itemSerial}
                   onChange={handleFilterChange}
                   placeholder="Filter by item serial"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
               <div className="flex items-end">
-                  <div className="space-x-2">
-                    <button 
-                      onClick={resetFilters} 
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                    >
+                <div className="space-x-2">
+                  <button 
+                    onClick={resetFilters} 
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
                     Reset Filters
                   </button>
-                    <button 
-                      onClick={() => fetchActivityLogs()} 
-                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                    >
+                  <button 
+                    onClick={() => fetchActivityLogs()} 
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
                     Apply Filters
                   </button>
                 </div>
@@ -509,11 +508,11 @@ export default function AdminHistoryPage() {
 
         {/* Display Activity Logs */}
         <div className="bg-white rounded-lg border border-gray-100 p-6">
-        {loading ? (
+          {loading ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-          </div>
-        ) : activityLogs.length === 0 ? (
+  `          `<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          ) : activityLogs.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -522,12 +521,12 @@ export default function AdminHistoryPage() {
               <p className="mt-1 text-sm text-gray-500">
                 Try changing your filter criteria or refresh the page.
               </p>
-          </div>
-        ) : (
+            </div>
+          ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+                <thead className="bg-gray-50">
+                  <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date & Time
                     </th>
@@ -546,11 +545,11 @@ export default function AdminHistoryPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Related ID
                     </th>
-                </tr>
-              </thead>
+                  </tr>
+                </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                {activityLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
+                  {activityLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(log.createdAt)}
                       </td>
@@ -569,6 +568,57 @@ export default function AdminHistoryPage() {
                         {log.details || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {log.itemSerial ? `Item: ${log.itemSerial}` : 
-                       log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
-                       log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...`
+                        {log.itemSerial ? `Item: ${log.itemSerial}` : 
+                        log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
+                        log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
+                        log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
+                        log.affectedUserId ? `User: ${log.affectedUserId.substring(0, 8)}...` :
+                        log.vendorId ? `Vendor: ${log.vendorId.substring(0, 8)}...` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {!loading && activityLogs.length > 0 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{activityLogs.length}</span> of{' '}
+                <span className="font-medium">{pagination.total}</span> results
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium ${
+                    pagination.page >= pagination.totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

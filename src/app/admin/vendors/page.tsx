@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
 import { XIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import {useRef} from 'react';
 
 interface Vendor {
   id: string;
@@ -48,11 +49,12 @@ export default function VendorsPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Constants for caching
   const CACHE_DURATION = 60000; // 1 minute
-  const getCacheKey = (query: string, page: number, limit: number) => 
-    `admin_vendors_${query}_${page}_${limit}`;
+  const getCacheKey = useCallback((query: string, page: number, limit: number) => 
+    `admin_vendors_${query}_${page}_${limit}`, []);
 
   // Invalidate cache function
   const invalidateCache = useCallback(() => {
@@ -64,36 +66,28 @@ export default function VendorsPage() {
     });
   }, []);
   
-  // Debounce function
-  const debounce = useCallback(<T extends (...args: unknown[]) => void>(func: T, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  }, []);
+  // We're using direct setTimeout for debouncing in handleSearchInputChange
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      setSearchQuery(query);
-      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search
-      fetchVendors(query, 1, pagination.limit);
-    }, 500),
-    [pagination.limit]
-  );
+  // Using direct setTimeout for search debouncing in handleSearchInputChange
   
   useEffect(() => {
     fetchVendors(searchQuery, pagination.page, pagination.limit);
-  }, []);
+  }, [fetchVendors, searchQuery, pagination.page, pagination.limit]);
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchInput(query);
-    debouncedSearch(query);
+    
+    // Debounce the search to prevent too many requests
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setSearchQuery(query);
+      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search
+      fetchVendors(query, 1, pagination.limit);
+    }, 500);
   };
   
-  const fetchVendors = async (search: string = searchQuery, page: number = pagination.page, limit: number = pagination.limit) => {
+  const fetchVendors = useCallback(async (search: string = searchQuery, page: number = pagination.page, limit: number = pagination.limit) => {
     try {
       setLoading(true);
       // Build query params
@@ -157,7 +151,7 @@ export default function VendorsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, pagination.page, pagination.limit, getCacheKey]);
   
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -294,8 +288,8 @@ export default function VendorsPage() {
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to update vendor');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update vendor');
       
       // Clear error message after 3 seconds
       setTimeout(() => {
@@ -333,8 +327,8 @@ export default function VendorsPage() {
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete vendor');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete vendor');
       
       // Clear error message after 3 seconds
       setTimeout(() => {

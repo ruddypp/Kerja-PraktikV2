@@ -48,14 +48,7 @@ export default function AdminMaintenancePage() {
     sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
   }, []);
 
-  // Debounce function
-  const debounce = useCallback(<T extends (...args: unknown[]) => void>(func: T, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  }, []);
+  // We're using searchTimeout.current directly instead of a debounce function
 
   // Declare applyFilters with useCallback before it's used
   const applyFilters = useCallback(() => {

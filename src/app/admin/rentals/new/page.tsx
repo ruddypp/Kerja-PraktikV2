@@ -16,6 +16,12 @@ type Item = {
   status: ItemStatus;
 };
 
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 type PaginatedResponse = {
   data: Item[];
   pagination: {
@@ -24,6 +30,10 @@ type PaginatedResponse = {
     totalCount: number;
     totalPages: number;
   };
+};
+
+type UsersResponse = {
+  data: User[];
 };
 
 // Fetcher function for SWR
@@ -37,7 +47,7 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-export default function NewRentalRequestPage() {
+export default function AdminNewRentalRequestPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +61,7 @@ export default function NewRentalRequestPage() {
   const [endDate, setEndDate] = useState<string>('');
   const [poNumber, setPoNumber] = useState('');
   const [doNumber, setDoNumber] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   // Debounce search term to reduce API calls
   useEffect(() => {
@@ -63,7 +74,7 @@ export default function NewRentalRequestPage() {
   }, [searchTerm]);
 
   // Build API URL with search and pagination
-  const apiUrl = `/api/user/rentals/available?page=${currentPage}&limit=12${
+  const apiUrl = `/api/admin/rentals/available?page=${currentPage}&limit=12${
     debouncedSearchTerm ? `&search=${encodeURIComponent(debouncedSearchTerm)}` : ''
   }`;
 
@@ -76,16 +87,29 @@ export default function NewRentalRequestPage() {
       dedupingInterval: 30000, // Dedupe requests within 30 seconds
     }
   );
+  
+  // Fetch users list for the dropdown
+  const { data: usersData, error: usersError } = useSWR<UsersResponse>(
+    '/api/admin/users?limit=100',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // Dedupe requests within 60 seconds
+    }
+  );
 
   // Handle SWR errors
   useEffect(() => {
     if (swrError) {
       setError('Error loading available items. Please try again later.');
       console.error('Error fetching available items:', swrError);
+    } else if (usersError) {
+      setError('Error loading users. Please try again later.');
+      console.error('Error fetching users:', usersError);
     } else {
       setError(null);
     }
-  }, [swrError]);
+  }, [swrError, usersError]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -117,7 +141,7 @@ export default function NewRentalRequestPage() {
     setError(null);
     
     try {
-      const response = await fetch('/api/user/rentals', {
+      const response = await fetch('/api/admin/rentals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +151,8 @@ export default function NewRentalRequestPage() {
           startDate,
           endDate: endDate || null,
           poNumber: poNumber || null,
-          doNumber: doNumber || null
+          doNumber: doNumber || null,
+          targetUserId: selectedUserId || null, // Add the selected user
         }),
       });
       
@@ -137,7 +162,7 @@ export default function NewRentalRequestPage() {
       }
       
       // Redirect to rental list page with success message
-      router.push('/user/rentals?success=true');
+      router.push('/admin/rentals?success=true');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred while submitting the rental request';
       setError(errorMessage);
@@ -227,6 +252,7 @@ export default function NewRentalRequestPage() {
   const isLoading = !data && !swrError;
   const items = data?.data || [];
   const noItemsFound = items.length === 0;
+  const users = usersData?.data || [];
 
   return (
     <DashboardLayout>
@@ -234,7 +260,7 @@ export default function NewRentalRequestPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Ajukan Rental Baru</h1>
           <Link
-            href="/user/rentals"
+            href="/admin/rentals"
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
           >
             <svg className="-ml-1 mr-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,7 +373,39 @@ export default function NewRentalRequestPage() {
           
           <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
             <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
-              <h2 className="text-lg font-medium text-gray-800">2. Detail Rental</h2>
+              <h2 className="text-lg font-medium text-gray-800">2. Pilih Pengguna</h2>
+            </div>
+            <div className="p-5">
+              <label htmlFor="user-select" className="block text-sm font-medium text-gray-700 mb-1">
+                Pilih Pengguna
+                <span className="ml-1 text-gray-500 text-xs">(Opsional, jika tidak dipilih maka admin yang mengajukan)</span>
+              </label>
+              <select
+                id="user-select"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+              >
+                <option value="">-- Pilih Pengguna --</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {users.length === 0 && !usersError
+                  ? 'Memuat daftar pengguna...'
+                  : usersError
+                  ? 'Gagal memuat daftar pengguna'
+                  : 'Pilih pengguna yang akan mengajukan rental ini'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
+              <h2 className="text-lg font-medium text-gray-800">3. Detail Rental</h2>
             </div>
             <div className="p-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -389,7 +447,7 @@ export default function NewRentalRequestPage() {
                       value={poNumber}
                       onChange={(e) => setPoNumber(e.target.value)}
                       placeholder="Masukkan nomor PO (opsional)"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                     />
                   </div>
                   
@@ -401,7 +459,7 @@ export default function NewRentalRequestPage() {
                       value={doNumber}
                       onChange={(e) => setDoNumber(e.target.value)}
                       placeholder="Masukkan nomor DO (opsional)"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                     />
                   </div>
                 </div>

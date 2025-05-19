@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { RequestStatus, ItemStatus } from "@prisma/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import useSWR from "swr";
+import Link from "next/link";
 
 // Define Rental type
 type Rental = {
@@ -131,9 +131,9 @@ export default function RentalsPage() {
       case RequestStatus.PENDING:
         return "bg-yellow-100 text-yellow-800";
       case RequestStatus.APPROVED:
-        return "bg-blue-100 text-blue-800";
-      case RequestStatus.COMPLETED:
         return "bg-green-100 text-green-800";
+      case RequestStatus.COMPLETED:
+        return "bg-green-200 text-green-900";
       case RequestStatus.REJECTED:
         return "bg-red-100 text-red-800";
       case RequestStatus.CANCELLED:
@@ -162,7 +162,7 @@ export default function RentalsPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
-    return format(new Date(dateString), "dd MMMM yyyy", { locale: id });
+    return format(new Date(dateString), "dd MMMM yyyy");
   };
 
   const handleStatusChange = async () => {
@@ -233,15 +233,14 @@ export default function RentalsPage() {
     
     if (totalPages <= 1) return null;
     
-    let pages = [];
+    const pages = [];
     const maxVisible = 5; // Max visible page buttons
     
-    let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    const startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisible - 1);
     
-    if (endPage - startPage + 1 < maxVisible) {
-      startPage = Math.max(1, endPage - maxVisible + 1);
-    }
+    // Adjust startPage if we're near the end
+    const adjustedStartPage = Math.max(1, endPage - maxVisible + 1);
     
     // Previous button
     pages.push(
@@ -256,7 +255,7 @@ export default function RentalsPage() {
     );
     
     // Page numbers
-    for (let i = startPage; i <= endPage; i++) {
+    for (let i = adjustedStartPage; i <= endPage; i++) {
       pages.push(
         <button
           key={i}
@@ -302,13 +301,22 @@ export default function RentalsPage() {
           <div className="flex">
             <button
               onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mr-2"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mr-2 transition-colors duration-200"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh Data
             </button>
+            <Link
+              href="/admin/rentals/new"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+            >
+              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Ajukan Rental Baru
+            </Link>
           </div>
         </div>
         
@@ -319,7 +327,7 @@ export default function RentalsPage() {
         )}
 
         {/* Filters */}
-        <div className="bg-white p-5 rounded-lg shadow mb-6 border border-gray-200">
+        <div className="bg-white p-5 rounded-lg shadow-md mb-6 border border-gray-200 bg-gradient-to-r from-white to-green-50">
           <h2 className="text-lg font-medium text-gray-800 mb-3">Filter Data</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -328,7 +336,7 @@ export default function RentalsPage() {
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "ALL")}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
               >
                 <option value="ALL">Semua Status</option>
                 <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
@@ -346,7 +354,7 @@ export default function RentalsPage() {
                 id="start-date"
                 value={dateFilter.startDate}
                 onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
               />
             </div>
             
@@ -357,7 +365,7 @@ export default function RentalsPage() {
                 id="end-date"
                 value={dateFilter.endDate}
                 onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
               />
             </div>
           </div>
@@ -365,13 +373,13 @@ export default function RentalsPage() {
 
         {/* Rentals Table */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow border border-gray-200">
+          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-md border border-gray-200">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600"></div>
             <span className="ml-3 text-lg text-gray-700">Memuat data rental...</span>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
-            <div className="p-5 border-b border-gray-200">
+          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
               <h2 className="text-lg font-medium text-gray-800">Daftar Rental</h2>
               {data?.pagination && (
                 <p className="text-sm text-gray-600 mt-1">
@@ -462,13 +470,13 @@ export default function RentalsPage() {
                               <div className="flex space-x-2">
                                 <button
                                   onClick={() => handleApprove(rental)}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
                                 >
                                   Setujui
                                 </button>
                                 <button
                                   onClick={() => handleReject(rental)}
-                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs"
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
                                 >
                                   Tolak
                                 </button>
@@ -477,7 +485,7 @@ export default function RentalsPage() {
                             {rental.status === RequestStatus.APPROVED && rental.returnDate && (
                               <button
                                 onClick={() => handleComplete(rental)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
                               >
                                 Verifikasi Pengembalian
                               </button>
