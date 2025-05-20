@@ -110,11 +110,21 @@ export function isAdmin(user: UserData | null): boolean {
 }
 
 /**
+ * Mengecek apakah user adalah manager
+ */
+export function isManager(user: UserData | null): boolean {
+  return user?.role === Role.MANAGER;
+}
+
+/**
  * Fungsi untuk mendapatkan route berdasarkan role
  */
 export function getRedirectPathByRole(role: Role): string {
   if (role === Role.ADMIN) {
     return '/admin-dashboard';
+  }
+  if (role === Role.MANAGER) {
+    return '/manager-dashboard';
   }
   return '/user/barang';
 }

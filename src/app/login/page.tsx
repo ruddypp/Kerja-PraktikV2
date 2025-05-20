@@ -43,6 +43,9 @@ export default function Login() {
       if (data.user.role === 'ADMIN') {
         document.cookie = `redirect=true; path=/`;
         window.location.href = '/admin-dashboard';
+      } else if (data.user.role === 'MANAGER') {
+        document.cookie = `redirect=true; path=/`;
+        window.location.href = '/manager-dashboard';
       } else {
         document.cookie = `redirect=true; path=/`;
         window.location.href = '/user/barang';

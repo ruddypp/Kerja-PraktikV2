@@ -6,6 +6,7 @@ import { RequestStatus, RequestType } from '@prisma/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 // Request interface
 interface Request {
@@ -17,6 +18,11 @@ interface Request {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
   statusLogs: Array<{
     id: string;
     status: RequestStatus;
@@ -29,14 +35,7 @@ interface Request {
   }>;
 }
 
-// Form interface
-interface RequestForm {
-  title: string;
-  description: string;
-  type: RequestType;
-}
-
-export default function UserRequestsPage() {
+export default function ManagerRequestsPage() {
   const router = useRouter();
   
   // States
@@ -47,25 +46,20 @@ export default function UserRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<RequestType | 'ALL'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [newStatus, setNewStatus] = useState<RequestStatus>(RequestStatus.PENDING);
+  const [statusNotes, setStatusNotes] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
-  const [cancelNotes, setCancelNotes] = useState('');
-  
-  // Form state
-  const [requestForm, setRequestForm] = useState<RequestForm>({
-    title: '',
-    description: '',
-    type: RequestType.EQUIPMENT
-  });
   
   // Constants
   const itemsPerPage = 10;
 
-  // Fetch user's requests
+  // Fetch requests
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -84,7 +78,11 @@ export default function UserRequestsPage() {
         params.append('type', typeFilter);
       }
       
-      const response = await fetch(`/api/user/requests?${params.toString()}`);
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+      
+      const response = await fetch(`/api/manager/requests?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch requests');
@@ -101,109 +99,98 @@ export default function UserRequestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, statusFilter, typeFilter]);
+  }, [currentPage, statusFilter, typeFilter, searchTerm]);
 
   // Load data on component mount and when dependencies change
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
 
-  // Handle form input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setRequestForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Handle create request
-  const handleCreateRequest = async (e: React.FormEvent) => {
+  // Handle status update
+  const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!requestForm.title || !requestForm.type) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    
-    setProcessingAction(true);
-    
-    try {
-      const response = await fetch('/api/user/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestForm),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create request');
-      }
-      
-      // Refresh requests
-      await fetchRequests();
-      
-      // Close modal and reset form
-      setShowCreateModal(false);
-      setRequestForm({
-        title: '',
-        description: '',
-        type: RequestType.EQUIPMENT
-      });
-      
-      toast.success('Request created successfully');
-    } catch (error) {
-      console.error('Error creating request:', error);
-      toast.error('Failed to create request');
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  // Handle cancel request
-  const handleCancelRequest = async () => {
     if (!selectedRequest) return;
     
     setProcessingAction(true);
     
     try {
-      const response = await fetch('/api/user/requests', {
+      const response = await fetch('/api/manager/requests', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           id: selectedRequest.id,
-          notes: cancelNotes
+          status: newStatus,
+          notes: statusNotes
         }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to cancel request');
+        throw new Error('Failed to update request status');
+      }
+      
+      // Refresh requests
+      await fetchRequests();
+      
+      // Close modal and reset form
+      setShowModal(false);
+      setSelectedRequest(null);
+      setNewStatus(RequestStatus.PENDING);
+      setStatusNotes('');
+      
+      toast.success('Request status updated successfully');
+    } catch (error) {
+      console.error('Error updating request status:', error);
+      toast.error('Failed to update request status');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Handle delete request
+  const handleDeleteRequest = async () => {
+    if (!selectedRequest) return;
+    
+    setProcessingAction(true);
+    
+    try {
+      const response = await fetch(`/api/manager/requests/${selectedRequest.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete request');
       }
       
       // Refresh requests
       await fetchRequests();
       
       // Close modal
-      setShowCancelModal(false);
+      setShowDeleteModal(false);
       setSelectedRequest(null);
-      setCancelNotes('');
       
-      toast.success('Request cancelled successfully');
+      toast.success('Request deleted successfully');
     } catch (error) {
-      console.error('Error cancelling request:', error);
-      toast.error('Failed to cancel request');
+      console.error('Error deleting request:', error);
+      toast.error('Failed to delete request');
     } finally {
       setProcessingAction(false);
     }
   };
 
-  // Open cancel modal
-  const openCancelModal = (request: Request) => {
+  // Open status modal
+  const openStatusModal = (request: Request) => {
     setSelectedRequest(request);
-    setShowCancelModal(true);
+    setNewStatus(request.status);
+    setShowModal(true);
+  };
+
+  // Open delete modal
+  const openDeleteModal = (request: Request) => {
+    setSelectedRequest(request);
+    setShowDeleteModal(true);
   };
 
   // Handle page change
@@ -222,6 +209,12 @@ export default function UserRequestsPage() {
     }
     
     // Reset to first page when changing filters
+    setCurrentPage(1);
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
 
@@ -253,29 +246,15 @@ export default function UserRequestsPage() {
     return type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  // Check if request can be cancelled (only PENDING requests)
-  const canCancelRequest = (request: Request) => {
-    return request.status === RequestStatus.PENDING;
-  };
-
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold text-gray-900">My Requests</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Requests Management</h1>
             <p className="mt-2 text-sm text-gray-700">
-              View and manage your requests.
+              View and manage all user requests across the system.
             </p>
-          </div>
-          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto"
-            >
-              Create New Request
-            </button>
           </div>
         </div>
 
@@ -315,6 +294,19 @@ export default function UserRequestsPage() {
                 </option>
               ))}
             </select>
+          </div>
+          
+          <div className="flex-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search</label>
+            <input
+              type="text"
+              id="search"
+              name="search"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              placeholder="Search by title or description"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+            />
           </div>
         </div>
 
@@ -356,9 +348,9 @@ export default function UserRequestsPage() {
                           <tr>
                             <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Title</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Requested By</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Last Updated</th>
                             <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                               <span className="sr-only">Actions</span>
                             </th>
@@ -374,6 +366,9 @@ export default function UserRequestsPage() {
                                 {getRequestTypeDisplay(request.type)}
                               </td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {request.user.name}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(request.status)}`}>
                                   {request.status}
                                 </span>
@@ -381,18 +376,19 @@ export default function UserRequestsPage() {
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                 {formatDate(request.createdAt)}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                {formatDate(request.updatedAt)}
-                              </td>
                               <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                {canCancelRequest(request) && (
-                                  <button
-                                    onClick={() => openCancelModal(request)}
-                                    className="text-red-600 hover:text-red-900"
-                                  >
-                                    Cancel Request
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => openStatusModal(request)}
+                                  className="text-green-600 hover:text-green-900 mr-4"
+                                >
+                                  Update Status
+                                </button>
+                                <button
+                                  onClick={() => openDeleteModal(request)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -455,56 +451,41 @@ export default function UserRequestsPage() {
         )}
       </div>
 
-      {/* Create Request Modal */}
-      {showCreateModal && (
+      {/* Status Update Modal */}
+      {showModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg overflow-hidden shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Request</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Update Request Status</h3>
             
-            <form onSubmit={handleCreateRequest}>
+            <form onSubmit={handleStatusUpdate}>
               <div className="mb-4">
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={requestForm.title}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Enter request title"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={3}
-                  value={requestForm.description}
-                  onChange={handleInputChange}
-                  placeholder="Enter request details"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="type" className="block text-sm font-medium text-gray-700">Request Type <span className="text-red-500">*</span></label>
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
                 <select
-                  id="type"
-                  name="type"
-                  value={requestForm.type}
-                  onChange={handleInputChange}
-                  required
+                  id="status"
+                  name="status"
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as RequestStatus)}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
                 >
-                  {Object.values(RequestType).map((type) => (
-                    <option key={type} value={type}>
-                      {getRequestTypeDisplay(type)}
+                  {Object.values(RequestStatus).map((status) => (
+                    <option key={status} value={status}>
+                      {status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                     </option>
                   ))}
                 </select>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  rows={3}
+                  value={statusNotes}
+                  onChange={(e) => setStatusNotes(e.target.value)}
+                  placeholder="Add notes about this status change"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                />
               </div>
               
               <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
@@ -513,11 +494,11 @@ export default function UserRequestsPage() {
                   disabled={processingAction}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {processingAction ? 'Processing...' : 'Submit Request'}
+                  {processingAction ? 'Processing...' : 'Update Status'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => setShowModal(false)}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                 >
                   Cancel
@@ -528,43 +509,30 @@ export default function UserRequestsPage() {
         </div>
       )}
 
-      {/* Cancel Request Modal */}
-      {showCancelModal && selectedRequest && (
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg overflow-hidden shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Cancel Request</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Delete</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to cancel this request?
+              Are you sure you want to delete this request? This action cannot be undone.
             </p>
-            
-            <div className="mb-4">
-              <label htmlFor="cancelNotes" className="block text-sm font-medium text-gray-700">Reason for cancellation (optional)</label>
-              <textarea
-                id="cancelNotes"
-                name="cancelNotes"
-                rows={3}
-                value={cancelNotes}
-                onChange={(e) => setCancelNotes(e.target.value)}
-                placeholder="Enter reason for cancellation"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-              />
-            </div>
             
             <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
               <button
                 type="button"
-                onClick={handleCancelRequest}
+                onClick={handleDeleteRequest}
                 disabled={processingAction}
                 className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {processingAction ? 'Processing...' : 'Cancel Request'}
+                {processingAction ? 'Processing...' : 'Delete'}
               </button>
               <button
                 type="button"
-                onClick={() => setShowCancelModal(false)}
+                onClick={() => setShowDeleteModal(false)}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:col-start-1 sm:text-sm"
               >
-                Go Back
+                Cancel
               </button>
             </div>
           </div>

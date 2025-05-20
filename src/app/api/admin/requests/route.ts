@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { RequestStatus, RequestType, ActivityType } from '@prisma/client';
-import { getUserFromRequest } from '@/lib/auth';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
-// GET user's requests
+// GET all requests
 export async function GET(request: NextRequest) {
   try {
-    // Verify user is authenticated
+    // Verify admin
     const user = await getUserFromRequest(request);
-    if (!user) {
+    if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,11 +19,10 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     const status = searchParams.get('status') as RequestStatus | null;
     const type = searchParams.get('type') as RequestType | null;
+    const search = searchParams.get('search');
 
-    // Build where clause - only show user's own requests
-    let whereClause: any = {
-      userId: user.id // Filter to user's own requests
-    };
+    // Build where clause
+    let whereClause: any = {};
 
     if (status) {
       whereClause.status = status;
@@ -31,6 +30,14 @@ export async function GET(request: NextRequest) {
 
     if (type) {
       whereClause.type = type;
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } }
+      ];
     }
 
     // Get total count for pagination
@@ -42,6 +49,13 @@ export async function GET(request: NextRequest) {
     const requests = await prisma.request.findMany({
       where: whereClause,
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         statusLogs: {
           orderBy: {
             createdAt: 'desc'
@@ -88,6 +102,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Only admin can create requests for others
+    const isAdminUser = isAdmin(user);
+    
     const data = await request.json();
 
     // Validate required fields
@@ -98,14 +115,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the request - user can only create requests for themselves
+    // If userId is provided and not the current user, verify admin rights
+    if (data.userId && data.userId !== user.id && !isAdminUser) {
+      return NextResponse.json(
+        { error: 'Not authorized to create requests for other users' },
+        { status: 403 }
+      );
+    }
+
+    // Create the request
     const newRequest = await prisma.request.create({
       data: {
         title: data.title,
         description: data.description || null,
         type: data.type,
         status: RequestStatus.PENDING,
-        userId: user.id,
+        userId: data.userId || user.id,
         // Create initial status log
         statusLogs: {
           create: {
@@ -116,6 +141,13 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         statusLogs: {
           orderBy: {
             createdAt: 'desc'
@@ -138,7 +170,8 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         type: ActivityType.REQUEST_CREATED,
         action: 'CREATE_REQUEST',
-        details: `Created request: ${data.title}`
+        details: `Created request: ${data.title}`,
+        requestId: newRequest.id
       }
     });
 
@@ -152,63 +185,59 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH cancel a request
+// PATCH update request status
 export async function PATCH(request: NextRequest) {
   try {
-    // Verify user is authenticated
+    // Verify admin
     const user = await getUserFromRequest(request);
-    if (!user) {
+    if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const data = await request.json();
 
     // Validate required fields
-    if (!data.id) {
+    if (!data.id || !data.status) {
       return NextResponse.json(
-        { error: 'Request ID is required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Verify request exists and belongs to the user
-    const existingRequest = await prisma.request.findFirst({
-      where: { 
-        id: data.id,
-        userId: user.id
-      }
+    // Verify request exists
+    const existingRequest = await prisma.request.findUnique({
+      where: { id: data.id }
     });
 
     if (!existingRequest) {
       return NextResponse.json(
-        { error: 'Request not found or you do not have permission to modify it' },
+        { error: 'Request not found' },
         { status: 404 }
       );
     }
 
-    // Only pending requests can be cancelled by the user
-    if (existingRequest.status !== RequestStatus.PENDING) {
-      return NextResponse.json(
-        { error: 'Only pending requests can be cancelled' },
-        { status: 400 }
-      );
-    }
-
-    // Update request status to cancelled
+    // Update request status
     const updatedRequest = await prisma.request.update({
       where: { id: data.id },
       data: {
-        status: RequestStatus.CANCELLED,
+        status: data.status,
         // Add status log
         statusLogs: {
           create: {
-            status: RequestStatus.CANCELLED,
-            notes: data.notes || 'Request cancelled by user',
+            status: data.status,
+            notes: data.notes || null,
             changedById: user.id
           }
         }
       },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         statusLogs: {
           orderBy: {
             createdAt: 'desc'
@@ -230,17 +259,18 @@ export async function PATCH(request: NextRequest) {
       data: {
         userId: user.id,
         type: ActivityType.REQUEST_UPDATED,
-        action: 'CANCEL_REQUEST',
-        details: `Cancelled request: ${existingRequest.title}`
+        action: 'UPDATE_REQUEST_STATUS',
+        details: `Updated request ${data.id} status to ${data.status}`,
+        requestId: data.id
       }
     });
 
     return NextResponse.json(updatedRequest);
   } catch (error) {
-    console.error('Error cancelling request:', error);
+    console.error('Error updating request status:', error);
     return NextResponse.json(
-      { error: 'Failed to cancel request' },
+      { error: 'Failed to update request status' },
       { status: 500 }
     );
   }
-}
+} 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ActivityType } from '@prisma/client';
-import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { getUserFromRequest, isManager } from '@/lib/auth';
 
 // GET a specific request by ID
 export async function GET(
@@ -9,9 +9,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verify admin
+    // Verify manager
     const user = await getUserFromRequest(request);
-    if (!isAdmin(user)) {
+    if (!isManager(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -67,9 +67,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verify admin
+    // Verify manager
     const user = await getUserFromRequest(request);
-    if (!isAdmin(user)) {
+    if (!isManager(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -171,9 +171,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verify admin
+    // Verify manager
     const user = await getUserFromRequest(request);
-    if (!isAdmin(user)) {
+    if (!isManager(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
