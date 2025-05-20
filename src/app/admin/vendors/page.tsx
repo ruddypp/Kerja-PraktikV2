@@ -70,23 +70,6 @@ export default function VendorsPage() {
 
   // Using direct setTimeout for search debouncing in handleSearchInputChange
   
-  useEffect(() => {
-    fetchVendors(searchQuery, pagination.page, pagination.limit);
-  }, [fetchVendors, searchQuery, pagination.page, pagination.limit]);
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchInput(query);
-    
-    // Debounce the search to prevent too many requests
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      setSearchQuery(query);
-      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search
-      fetchVendors(query, 1, pagination.limit);
-    }, 500);
-  };
-  
   const fetchVendors = useCallback(async (search: string = searchQuery, page: number = pagination.page, limit: number = pagination.limit) => {
     try {
       setLoading(true);
@@ -152,6 +135,23 @@ export default function VendorsPage() {
       setLoading(false);
     }
   }, [searchQuery, pagination.page, pagination.limit, getCacheKey]);
+  
+  useEffect(() => {
+    fetchVendors(searchQuery, pagination.page, pagination.limit);
+  }, [fetchVendors, searchQuery, pagination.page, pagination.limit]);
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchInput(query);
+    
+    // Debounce the search to prevent too many requests
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setSearchQuery(query);
+      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search
+      fetchVendors(query, 1, pagination.limit);
+    }, 500);
+  };
   
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
