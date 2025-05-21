@@ -54,31 +54,13 @@ export default function AdminNewMaintenancePage() {
     totalPages: 0
   });
 
-  useEffect(() => {
-    // Handler untuk menutup suggestion ketika klik di luar
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Load items on initial render
-  useEffect(() => {
-    fetchItems(pagination.page, pagination.limit);
-  }, [fetchItems, pagination.page, pagination.limit]);
-
   // Fungsi untuk mendapatkan cache key berdasarkan parameter
   const getCacheKey = useCallback((page: number, limit: number, query: string = '') => {
     return `${CACHE_KEY_PREFIX}${query ? 'search_' + query + '_' : ''}page_${page}_limit_${limit}`;
-  }, [CACHE_KEY_PREFIX]);
+  }, []);
 
-  const fetchItems = useCallback(async (page: number, limit: number, searchQuery: string = '') => {
+  // Declare the fetchItems function type first
+  const fetchItems: (page: number, limit: number, searchQuery?: string) => Promise<void> = useCallback(async (page, limit, searchQuery = '') => {
     try {
       setLoading(true);
       
@@ -142,7 +124,35 @@ export default function AdminNewMaintenancePage() {
     } finally {
       setLoading(false);
     }
-  }, [getCacheKey, CACHE_DURATION]);
+  }, [getCacheKey]);
+  
+  // Store the latest fetchItems in a ref to avoid dependency issues
+  const fetchItemsRef = useRef(fetchItems);
+  
+  // Update ref when fetchItems changes
+  useEffect(() => {
+    fetchItemsRef.current = fetchItems;
+  }, [fetchItems]);
+
+  // Handler for clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Load items on initial render - using ref to avoid dependency cycles
+  useEffect(() => {
+    // Use the ref to get the latest fetchItems function
+    fetchItemsRef.current(pagination.page, pagination.limit);
+  }, [pagination.page, pagination.limit]); // Remove fetchItems from dependencies
 
   // Fungsi untuk mencari item dengan caching
   const searchItems = useCallback(async (term: string) => {
@@ -195,27 +205,28 @@ export default function AdminNewMaintenancePage() {
     }
   }, []);
   
+  // Store the latest searchItems in a ref to avoid dependency issues
+  const searchItemsRef = useRef(searchItems);
+  
+  // Update ref when searchItems changes
+  useEffect(() => {
+    searchItemsRef.current = searchItems;
+  }, [searchItems]);
+  
   // Improved debounce search with useEffect and cleanup
   useEffect(() => {
-    // Clear any existing timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-    
     // Set new timeout for debouncing
     const timeout = setTimeout(() => {
-      searchItems(searchTerm);
+      searchItemsRef.current(searchTerm);
     }, 300);
     
     setSearchTimeout(timeout);
     
     // Cleanup on unmount or searchTerm change
     return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
+      clearTimeout(timeout);
     };
-  }, [searchTerm, searchItems, searchTimeout]);
+  }, [searchTerm]);
 
   // Handle item selection
   const handleItemSelect = (item: Item) => {

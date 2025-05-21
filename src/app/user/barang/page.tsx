@@ -221,35 +221,38 @@ export default function UserItemsPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Product Catalog</h1>
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Product Catalog</h1>
+        </div>
         
- {/* Search Bar */}
-<div className="bg-white p-6 rounded-2xl shadow-md mb-6">
-  <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-4">
-    <div className="relative w-full md:w-2/3">
+        {/* Search Bar */}
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Search Products</h2>
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-4">
+            <div className="relative w-full md:w-2/3">
               <input
                 type="text"
-        value={searchQuery}
-        onChange={handleSearchChange}
-        placeholder="Search products by name, serial number, or part number..."
-        className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
-      />
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <FiSearch className="text-gray-400 text-lg" />
-      </div>
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search products by name, serial number, or part number..."
+                className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400 text-lg" />
+              </div>
             </div>
-    <button 
-      type="submit"
-      className={`w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition ${
-        isSearching ? 'opacity-70 cursor-not-allowed' : ''
-      }`}
-      disabled={isSearching}
-    >
-      {isSearching ? 'Searching...' : 'Search'}
-    </button>
-  </form>
-</div>
+            <button 
+              type="submit"
+              className={`w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition ${
+                isSearching ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
+              disabled={isSearching}
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </form>
+        </div>
 
         {/* Error Message */}        
         {error && (
@@ -269,46 +272,54 @@ export default function UserItemsPage() {
         )}
         
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-8">
+          <div className="flex flex-col items-center justify-center p-8 bg-white rounded-lg shadow-md">
             <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
             <p className="text-gray-900">Loading items...</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
             <p className="text-yellow-700">No products found. Please try a different search term.</p>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-md overflow-hidden">
-            <div className="overflow-x-auto w-full" style={{ overflowX: 'auto', maxWidth: '100%' }}>
-              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-base md:text-lg font-medium text-gray-800">Product List</h2>
+              <p className="text-xs md:text-sm text-gray-600 mt-1">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} products
+              </p>
+            </div>
+            
+            {/* Table view for desktop - hidden on mobile */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '150px' }}>
-                      Nama Produk
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Product Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '130px' }}>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Serial Number
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '130px' }}>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Part Number
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '120px' }}>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Sensor
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '130px' }}>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Customer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '120px' }}>
-                      History
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '120px' }}>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {items.map((item) => (
-                    <tr key={item.serialNumber} className="hover:bg-green-50 transition-colors">
+                    <tr key={item.serialNumber} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{item.name}</div>
                       </td>
@@ -325,17 +336,19 @@ export default function UserItemsPage() {
                         <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Link 
-                          href={`/user/barang/history/${item.serialNumber}`}
-                          className="text-sm text-blue-600 hover:text-blue-900"
-                        >
-                          View History
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-2">
+                          <Link 
+                            href={`/user/barang/history/${item.serialNumber}`}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            View History
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -343,7 +356,51 @@ export default function UserItemsPage() {
               </table>
             </div>
             
-            {/* Pagination Controls */}
+            {/* Card view for mobile */}
+            <div className="md:hidden p-4 space-y-4">
+              {items.map((item) => (
+                <div key={item.serialNumber} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+                        <p className="text-xs text-gray-500">SN: {item.serialNumber}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>
+                        {getStatusDisplayName(item.status)}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                      <div>
+                        <p className="text-gray-500 font-medium">Part Number</p>
+                        <p>{item.partNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium">Sensor</p>
+                        <p>{item.sensor || '-'}</p>
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <p className="text-gray-500 font-medium">Customer</p>
+                        <p>{item.customer?.name || '-'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-3 border-t border-gray-100">
+                      <Link 
+                        href={`/user/barang/history/${item.serialNumber}`}
+                        className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+                      >
+                        View History
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Pagination controls - similar for both layouts */}
             <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <button

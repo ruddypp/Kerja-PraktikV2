@@ -109,7 +109,7 @@ export default function MaintenancePage() {
       if (oldCache) {
         try {
           setMaintenances(JSON.parse(oldCache));
-          toast.info("Menampilkan data terakhir dari cache");
+          toast.success("Menampilkan data terakhir dari cache");
         } catch (e) {
           console.error("Error parsing old cache:", e);
         }
@@ -167,30 +167,32 @@ export default function MaintenancePage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        {/* Responsive header */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <h1 className="text-2xl font-bold">Maintenance Barang</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={refreshData}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md flex items-center text-sm"
               disabled={loading}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
               </svg>
               {loading ? "Memuat..." : "Refresh"}
             </button>
             <Link
               href="/user/maintenance/new"
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center text-sm"
             >
-              <PlusIcon className="mr-2 h-5 w-5" />
-              Mulai Maintenance Baru
+              <PlusIcon className="mr-1 h-4 w-4" />
+              Maintenance Baru
             </Link>
           </div>
         </div>
 
-        <div className="bg-green-50 border-l-4 border-green-500 p-4">
+        {/* Workflow info box - made more responsive */}
+        <div className="bg-green-50 border-l-4 border-green-500 p-3 md:p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -198,7 +200,7 @@ export default function MaintenancePage() {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-green-700">
+              <p className="text-xs md:text-sm text-green-700">
                 <strong>Alur Maintenance:</strong> Pilih barang yang tersedia untuk maintenance → Lakukan maintenance fisik → Isi formulir detail maintenance → Kirim laporan untuk menyelesaikan proses.
               </p>
             </div>
@@ -218,136 +220,218 @@ export default function MaintenancePage() {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Barang
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Serial Number
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Tanggal Mulai
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Tanggal Selesai
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Laporan
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {maintenances.map((maintenance) => (
-                    <tr key={maintenance.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {maintenance.item.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {maintenance.item.partNumber}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {maintenance.itemSerial}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(maintenance.startDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {maintenance.endDate ? formatDate(maintenance.endDate) : "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(maintenance.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {maintenance.status === "COMPLETED" && (
-                          <div className="space-y-1">
-                            {maintenance.serviceReport && (
-                            <a
-                              href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                                className="text-green-600 hover:text-green-800 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                CSR Report
-                            </a>
-                            )}
-                            {maintenance.technicalReport && (
-                            <a
-                              href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                                className="text-green-600 hover:text-green-800 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                              Technical Report
-                            </a>
-                            )}
-                            {!maintenance.serviceReport && !maintenance.technicalReport && (
-                              <span className="text-gray-500">No reports</span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {maintenance.status === "PENDING" ? (
-                          <Link
-                            href={`/user/maintenance/${maintenance.id}`}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            Lapor Hasil
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/user/maintenance/${maintenance.id}`}
-                            className="text-gray-600 hover:text-gray-900"
-                          >
-                            Lihat Detail
-                          </Link>
-                        )}
-                      </td>
+          <>
+            {/* Table view for medium and larger screens */}
+            <div className="hidden md:block bg-white rounded-lg border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Barang
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Serial Number
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Tanggal Mulai
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Tanggal Selesai
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Status
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Laporan
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Aksi
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {maintenances.map((maintenance) => (
+                      <tr key={maintenance.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {maintenance.item.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {maintenance.item.partNumber}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {maintenance.itemSerial}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(maintenance.startDate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {maintenance.endDate ? formatDate(maintenance.endDate) : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(maintenance.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {maintenance.status === "COMPLETED" && (
+                            <div className="space-y-1">
+                              {maintenance.serviceReport && (
+                              <a
+                                href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                  className="text-green-600 hover:text-green-800 flex items-center"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  CSR Report
+                              </a>
+                              )}
+                              {maintenance.technicalReport && (
+                              <a
+                                href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                  className="text-green-600 hover:text-green-800 flex items-center"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                Technical Report
+                              </a>
+                              )}
+                              {!maintenance.serviceReport && !maintenance.technicalReport && (
+                                <span className="text-gray-500">No reports</span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {maintenance.status === "PENDING" ? (
+                            <Link
+                              href={`/user/maintenance/${maintenance.id}`}
+                              className="text-green-600 hover:text-green-800"
+                            >
+                              Lapor Hasil
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/user/maintenance/${maintenance.id}`}
+                              className="text-gray-600 hover:text-gray-900"
+                            >
+                              Lihat Detail
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+
+            {/* Card view for small screens */}
+            <div className="md:hidden space-y-4">
+              {maintenances.map((maintenance) => (
+                <div key={maintenance.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-base font-medium text-gray-900">{maintenance.item.name}</h3>
+                      <p className="text-xs text-gray-500">{maintenance.item.partNumber}</p>
+                    </div>
+                    <div>{getStatusBadge(maintenance.status)}</div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <p className="text-gray-500">Serial Number:</p>
+                      <p className="font-medium">{maintenance.itemSerial}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Tanggal Mulai:</p>
+                      <p className="font-medium">{formatDate(maintenance.startDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Tanggal Selesai:</p>
+                      <p className="font-medium">{maintenance.endDate ? formatDate(maintenance.endDate) : "-"}</p>
+                    </div>
+                  </div>
+                  
+                  {maintenance.status === "COMPLETED" && (
+                    <div className="my-3 flex flex-wrap gap-2">
+                      {maintenance.serviceReport && (
+                        <a
+                          href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          CSR Report
+                        </a>
+                      )}
+                      {maintenance.technicalReport && (
+                        <a
+                          href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Technical Report
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                    {maintenance.status === "PENDING" ? (
+                      <Link
+                        href={`/user/maintenance/${maintenance.id}`}
+                        className="text-sm font-medium text-green-600 hover:text-green-800"
+                      >
+                        Lapor Hasil
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/user/maintenance/${maintenance.id}`}
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                      >
+                        Lihat Detail
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </DashboardLayout>

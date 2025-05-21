@@ -256,7 +256,7 @@ export default function VendorsPage() {
     
     try {
       const res = await fetch(`/api/manager/vendors/${selectedVendor.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },

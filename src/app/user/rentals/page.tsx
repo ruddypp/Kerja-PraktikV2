@@ -281,24 +281,24 @@ export default function UserRentalPage() {
 
   return (
     <DashboardLayout>
-      <div className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Rental Barang</h1>
-          <div className="flex space-x-2">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Rental Barang</h1>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="-ml-1 mr-2 h-4 w-4 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh
             </button>
             <Link
               href="/user/rentals/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Ajukan Rental Baru
@@ -307,34 +307,34 @@ export default function UserRentalPage() {
         </div>
 
         {showSuccessMessage && (
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-green-700 mb-6 flex items-center">
+          <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200 text-green-700 mb-6 flex items-center">
             <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
-            <p>Permintaan berhasil diproses!</p>
+            <p className="text-sm">Permintaan berhasil diproses!</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700 mb-6 flex items-center">
+          <div className="bg-red-50 p-3 md:p-4 rounded-lg border border-red-200 text-red-700 mb-6 flex items-center">
             <svg className="h-5 w-5 text-red-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
-            <p>{error}</p>
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
         {/* Filter */}
-        <div className="bg-white p-5 rounded-lg shadow-md mb-6 border border-gray-200 bg-gradient-to-r from-white to-green-50">
-          <h2 className="text-lg font-medium text-gray-800 mb-3">Filter Data</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center">
-            <div className="w-full sm:w-64">
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Filter Data</h2>
+          <div className="flex flex-col">
+            <div className="w-full">
               <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 id="status-filter"
                 value={statusFilter}
                 onChange={handleStatusChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200 text-sm"
               >
                 <option value="ALL">Semua Status</option>
                 <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
@@ -348,16 +348,16 @@ export default function UserRentalPage() {
         </div>
         
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-md border border-gray-200">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600"></div>
-            <span className="ml-3 text-lg text-gray-700">Memuat data rental...</span>
+          <div className="flex items-center justify-center h-40 bg-white rounded-lg shadow-md border border-gray-200">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
+            <span className="ml-3 text-sm text-gray-700">Memuat data rental...</span>
           </div>
         ) : (
           <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
-              <h2 className="text-lg font-medium text-gray-800">Daftar Rental</h2>
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-base md:text-lg font-medium text-gray-800">Daftar Rental</h2>
               {data?.pagination && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-xs md:text-sm text-gray-600 mt-1">
                   Menampilkan {rentals.length} dari {data.pagination.totalCount} data
                 </p>
               )}
@@ -365,21 +365,21 @@ export default function UserRentalPage() {
           
             {rentals.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data rental</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-xs md:text-sm text-gray-500">
                   {statusFilter === 'ALL' 
                     ? 'Anda belum pernah melakukan rental barang.' 
                     : `Tidak ada rental dengan status "${getStatusText(statusFilter)}".`}
                 </p>
-                <div className="mt-6">
+                <div className="mt-4">
                   <Link
                     href="/user/rentals/new"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
-                    <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Ajukan Rental Baru
@@ -387,49 +387,53 @@ export default function UserRentalPage() {
                 </div>
               </div>
             ) : (
-              <div className="p-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rentals.map((rental) => (
-                    <div key={rental.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-200">
-                      <div className="p-4">
-                        <div className="flex items-start">
-                          <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full overflow-hidden flex items-center justify-center shadow-inner">
-                            <svg className="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                          </div>
-                          <div className="ml-3 flex-1">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-medium text-gray-900 truncate">{rental.item.name}</h3>
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(rental.status)}`}>
-                                {getStatusText(rental.status)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">SN: {rental.item.serialNumber}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-4">
-                          <div className="grid grid-cols-2 gap-4">
+              <>
+                {/* Table view for desktop - hidden on mobile */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Barang
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Periode
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Aksi
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {rentals.map((rental) => (
+                        <tr key={rental.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <div>
-                              <p className="text-xs font-medium text-gray-500">Tanggal Mulai</p>
-                              <p className="text-sm text-gray-900">{formatDate(rental.startDate)}</p>
+                              <div className="text-sm font-medium text-gray-900">{rental.item.name}</div>
+                              <div className="text-xs text-gray-500">SN: {rental.item.serialNumber}</div>
                             </div>
-                            <div>
-                              <p className="text-xs font-medium text-gray-500">Tanggal Selesai</p>
-                              <p className="text-sm text-gray-900">{formatDate(rental.endDate)}</p>
-                            </div>
-                          </div>
-                          
-                          {rental.status === RequestStatus.APPROVED && (
-                            <div className="mt-2">
-                              <p className="text-xs font-medium text-gray-500">Sisa Waktu</p>
-                              <div className={`text-sm ${isOverdue(rental) ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(rental.status)}`}>
+                              {getStatusText(rental.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">Mulai: {formatDate(rental.startDate)}</div>
+                            <div className="text-sm text-gray-500">Selesai: {formatDate(rental.endDate)}</div>
+                            {rental.returnDate && (
+                              <div className="text-sm text-gray-500">
+                                Dikembalikan: {formatDate(rental.returnDate)}
+                              </div>
+                            )}
+                            {rental.status === RequestStatus.APPROVED && (
+                              <div className={`text-xs mt-1 ${isOverdue(rental) ? 'text-red-600 font-medium' : 'text-green-600'}`}>
                                 {rental.endDate ? (
                                   isOverdue(rental) ? (
-                                    <>
-                                      <span>Terlambat {Math.abs(Number(getDaysLeft(rental)))} hari</span>
-                                    </>
+                                    <>Terlambat {Math.abs(Number(getDaysLeft(rental)))} hari</>
                                   ) : (
                                     <>{getDaysLeft(rental)} hari lagi</>
                                   )
@@ -437,24 +441,105 @@ export default function UserRentalPage() {
                                   <>Tidak ada batas waktu</>
                                 )}
                               </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
+                              <button
+                                onClick={() => handleReturnRequest(rental.id)}
+                                className="inline-flex items-center px-3 py-1 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none"
+                              >
+                                Kembalikan Barang
+                              </button>
+                            )}
+                            
+                            {rental.status === RequestStatus.APPROVED && rental.returnDate && (
+                              <div className="text-xs text-green-600">
+                                Menunggu verifikasi pengembalian
+                              </div>
+                            )}
+                            
+                            {rental.status === RequestStatus.PENDING && (
+                              <div className="text-xs text-yellow-600">
+                                Menunggu persetujuan admin
+                              </div>
+                            )}
+                            
+                            {rental.status === RequestStatus.REJECTED && (
+                              <div className="text-xs text-red-600">
+                                Permintaan ditolak
+                              </div>
+                            )}
+                            
+                            {rental.status === RequestStatus.COMPLETED && (
+                              <div className="text-xs text-green-600">
+                                Rental selesai
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Card view for mobile */}
+                <div className="md:hidden p-4 space-y-4">
+                  {rentals.map((rental) => (
+                    <div key={rental.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{rental.item.name}</h3>
+                            <p className="text-xs text-gray-500">SN: {rental.item.serialNumber}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(rental.status)}`}>
+                            {getStatusText(rental.status)}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                            <div>
+                            <p className="text-gray-500 font-medium">Tanggal Mulai</p>
+                            <p>{formatDate(rental.startDate)}</p>
+                            </div>
+                            <div>
+                            <p className="text-gray-500 font-medium">Tanggal Selesai</p>
+                            <p>{formatDate(rental.endDate)}</p>
+                          </div>
+                          
+                          {rental.returnDate && (
+                            <div className="col-span-2">
+                              <p className="text-gray-500 font-medium">Tanggal Pengembalian</p>
+                              <p>{formatDate(rental.returnDate)}</p>
                             </div>
                           )}
                           
-                          {rental.returnDate && (
-                            <div className="mt-2">
-                              <p className="text-xs font-medium text-gray-500">Tanggal Pengembalian</p>
-                              <p className="text-sm text-gray-900">{formatDate(rental.returnDate)}</p>
+                          {rental.status === RequestStatus.APPROVED && (
+                            <div className="col-span-2">
+                              <p className="text-gray-500 font-medium">Sisa Waktu</p>
+                              <p className={isOverdue(rental) ? 'text-red-600 font-medium' : 'text-green-600'}>
+                                {rental.endDate ? (
+                                  isOverdue(rental) ? (
+                                    <>Terlambat {Math.abs(Number(getDaysLeft(rental)))} hari</>
+                                  ) : (
+                                    <>{getDaysLeft(rental)} hari lagi</>
+                                  )
+                                ) : (
+                                  <>Tidak ada batas waktu</>
+                                )}
+                              </p>
                             </div>
                           )}
                         </div>
                         
-                        <div className="mt-4 pt-3 border-t border-gray-200">
+                        <div className="pt-3 border-t border-gray-100">
                           {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
                                                           <button
                               onClick={() => handleReturnRequest(rental.id)}
-                              className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+                              className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none"
                             >
-                              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                               </svg>
                               Kembalikan Barang
@@ -462,7 +547,7 @@ export default function UserRentalPage() {
                           )}
                           
                           {rental.status === RequestStatus.APPROVED && rental.returnDate && (
-                            <div className="flex items-center justify-center text-sm text-green-600">
+                            <div className="flex items-center justify-center text-xs text-green-600">
                               <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
@@ -471,7 +556,7 @@ export default function UserRentalPage() {
                           )}
                           
                           {rental.status === RequestStatus.PENDING && (
-                            <div className="flex items-center justify-center text-sm text-yellow-600">
+                            <div className="flex items-center justify-center text-xs text-yellow-600">
                               <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
@@ -480,7 +565,7 @@ export default function UserRentalPage() {
                           )}
                           
                           {rental.status === RequestStatus.REJECTED && (
-                            <div className="flex items-center justify-center text-sm text-red-600">
+                            <div className="flex items-center justify-center text-xs text-red-600">
                               <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
@@ -489,7 +574,7 @@ export default function UserRentalPage() {
                           )}
                           
                           {rental.status === RequestStatus.COMPLETED && (
-                            <div className="flex items-center justify-center text-sm text-green-600">
+                            <div className="flex items-center justify-center text-xs text-green-600">
                               <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                               </svg>
@@ -501,9 +586,12 @@ export default function UserRentalPage() {
                     </div>
                   ))}
                 </div>
-                {/* Pagination controls */}
+                
+                {/* Pagination controls - same for both layouts */}
+                <div className="px-4 py-4">
                 {renderPagination()}
               </div>
+              </>
             )}
           </div>
         )}

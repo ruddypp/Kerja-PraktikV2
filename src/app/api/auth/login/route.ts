@@ -68,8 +68,8 @@ export async function POST(request: Request) {
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      secure: false, // Disable secure for IP access
     });
 
     console.log('Login successful, token generated and cookie set');

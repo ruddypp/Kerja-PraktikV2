@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isManager } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
+import { RequestStatus, ActivityType } from '@prisma/client';
 
 // GET single vendor by ID
 export async function GET(
@@ -98,7 +98,8 @@ export async function PATCH(
         data: {
           userId: user.id,
           action: 'UPDATE_VENDOR',
-          details: `Updated vendor: ${name}`
+          details: `Updated vendor: ${name}`,
+          type: ActivityType.VENDOR_UPDATED
         }
       });
     } catch (logError) {
@@ -173,7 +174,8 @@ export async function DELETE(
         data: {
           userId: user.id,
           action: 'DELETE_VENDOR',
-          details: `Deleted vendor: ${existingVendor.name}`
+          details: `Deleted vendor: ${existingVendor.name}`,
+          type: ActivityType.VENDOR_DELETED
         }
       });
     } catch (logError) {

@@ -270,7 +270,7 @@ export default function ManagerCalibrationsPage() {
   };
   
   // Mengganti useEffect dengan SWR untuk data vendors dan statuses
-  useSWR('/api/manager/vendors', fetcher, {
+  useSWR('/api/manager/vendors?limit=10000', fetcher, {
     onSuccess: (data) => {
       // Extract vendors array from the response object
       // The API returns {items: Vendor[], total: number, ...} 
@@ -965,7 +965,7 @@ export default function ManagerCalibrationsPage() {
       };
       
       const response = await fetch(`/api/manager/calibrations/${selectedCalibration.id}/certificate`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -973,8 +973,18 @@ export default function ManagerCalibrationsPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal mengupdate sertifikat');
+        let errorMessage = 'Gagal mengupdate sertifikat';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (jsonError) {
+          console.error('Error parsing error response:', jsonError);
+          const errorText = await response.text();
+          errorMessage = `Gagal mengupdate sertifikat: ${errorText || response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       
       // Success
@@ -1017,8 +1027,8 @@ export default function ManagerCalibrationsPage() {
   // Function to fetch available items
   const fetchAvailableItems = async () => {
     try {
-      // Add a timestamp parameter to prevent caching
-      const res = await fetch(`/api/manager/items?status=AVAILABLE&timestamp=${new Date().getTime()}`, {
+      // Add a timestamp parameter to prevent caching and set a high limit to get all items
+      const res = await fetch(`/api/manager/items?status=AVAILABLE&limit=20000&timestamp=${new Date().getTime()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1216,10 +1226,14 @@ export default function ManagerCalibrationsPage() {
       return;
     }
     
-    const filtered = items.filter(item => 
-      item.name.toLowerCase().includes(itemSearch.toLowerCase()) || 
-      item.serialNumber.toLowerCase().includes(itemSearch.toLowerCase())
-    );
+    const searchLower = itemSearch.toLowerCase();
+    // Optimize filtering by limiting to first 50 matches
+    const filtered = items
+      .filter(item => 
+        item.name.toLowerCase().includes(searchLower) || 
+        item.serialNumber.toLowerCase().includes(searchLower)
+      )
+      .slice(0, 50); // Only show first 50 matches to avoid overwhelming the UI
     
     setFilteredItems(filtered);
     setShowItemSuggestions(true);
@@ -1233,10 +1247,14 @@ export default function ManagerCalibrationsPage() {
       return;
     }
     
-    const filtered = vendors.filter(vendor => 
-      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
-      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
-    );
+    const searchLower = vendorSearch.toLowerCase();
+    // Optimize filtering by limiting to first 50 matches
+    const filtered = vendors
+      .filter(vendor => 
+        vendor.name.toLowerCase().includes(searchLower) ||
+        (vendor.contactName && vendor.contactName.toLowerCase().includes(searchLower))
+      )
+      .slice(0, 50); // Only show first 50 matches to avoid overwhelming the UI
     
     setFilteredVendors(filtered);
     setShowVendorSuggestions(true);
@@ -1245,17 +1263,17 @@ export default function ManagerCalibrationsPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Calibration Management</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Calibration Management</h1>
+          <div className="flex flex-wrap gap-2">
             <button 
               onClick={openCalibrationModal}
-              className="btn btn-primary flex items-center"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center justify-center text-sm"
               aria-label="Create new calibration"
             >
-              <FiPlus className="mr-2" /> New Calibration
+              <FiPlus className="mr-1 h-4 w-4" /> New Calibration
             </button>
-          <Link href="/manager/vendors" className="btn btn-secondary">
+            <Link href="/manager/vendors" className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md flex items-center justify-center text-sm">
             Manage Vendors
           </Link>
           </div>
@@ -1263,11 +1281,11 @@ export default function ManagerCalibrationsPage() {
         
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded shadow-sm" role="alert">
-            <p className="font-medium">{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 md:p-4 mb-4 rounded shadow-sm" role="alert">
+            <p className="font-medium text-sm md:text-base">{error}</p>
             <button 
               onClick={() => fetchCalibrations()}
-              className="mt-2 text-sm text-red-700 hover:text-red-600 underline"
+              className="mt-2 text-xs md:text-sm text-red-700 hover:text-red-600 underline"
             >
               Retry
             </button>
@@ -1276,23 +1294,23 @@ export default function ManagerCalibrationsPage() {
         
         {/* Success message */}
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded shadow-sm" role="alert">
-            <p className="font-medium">{success}</p>
+          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-3 md:p-4 mb-4 rounded shadow-sm" role="alert">
+            <p className="font-medium text-sm md:text-base">{success}</p>
           </div>
         )}
         
         {/* Filters Section */}
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow p-3 md:p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             {/* Status */}
               <div>
-              <label htmlFor="statusId" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label htmlFor="statusId" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   id="statusId"
                   name="statusId"
                   value={filter.statusId}
                   onChange={handleFilterChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
                 >
                   <option value="">All Statuses</option>
                   {statuses.map(status => (
@@ -1305,13 +1323,13 @@ export default function ManagerCalibrationsPage() {
 
             {/* Vendor */}
               <div>
-              <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+              <label htmlFor="vendorId" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Vendor</label>
                 <select
                   id="vendorId"
                   name="vendorId"
                   value={filter.vendorId}
                   onChange={handleFilterChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
                 >
                   <option value="">All Vendors</option>
                   {vendors.map(vendor => (
@@ -1325,7 +1343,7 @@ export default function ManagerCalibrationsPage() {
                 <button
                 type="button"
                   onClick={resetFilters}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 text-sm rounded-lg transition duration-150 ease-in-out"
                 >
                   Reset Filters
                 </button>
@@ -1335,15 +1353,17 @@ export default function ManagerCalibrationsPage() {
           
         {/* Loading state */}
           {loading ? (
-          <div className="bg-white p-8 rounded-lg shadow flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="bg-white p-6 rounded-lg shadow flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
             </div>
           ) : calibrations.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg shadow text-center">
-            <p className="text-gray-500">No calibrations found.</p>
+          <div className="bg-white p-6 rounded-lg shadow text-center">
+            <p className="text-gray-500 text-sm">No calibrations found.</p>
             </div>
           ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <>
+            {/* Table view for medium and larger screens */}
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -1472,19 +1492,122 @@ export default function ManagerCalibrationsPage() {
                   </tbody>
                 </table>
             </div>
+
+            {/* Card view for small screens */}
+            <div className="md:hidden space-y-4">
+              {calibrations.map((calibration) => (
+                <div key={calibration.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-base font-medium text-gray-900">
+                        {calibration.item ? calibration.item.name : 'Item tidak tersedia'}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {calibration.item && calibration.item.serialNumber ? 
+                          calibration.item.serialNumber : 'No S/N'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(typeof calibration.status === 'object' ? calibration.status.name : calibration.status)}`}>
+                        {getDisplayStatus(typeof calibration.status === 'object' ? calibration.status.name : calibration.status)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <p className="text-gray-500">User:</p>
+                      <p className="font-medium">{calibration.user ? calibration.user.name : 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Vendor:</p>
+                      <p className="font-medium">{calibration.vendor?.name || 'Not assigned'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Date:</p>
+                      <p className="font-medium">{formatDate(calibration.calibrationDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Valid Until:</p>
+                      <p className="font-medium">{calibration.validUntil ? formatDate(calibration.validUntil) : 'N/A'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap justify-around gap-2">
+                    {(typeof calibration.status === 'object' && calibration.status.name === 'COMPLETED') || 
+                     calibration.status === 'COMPLETED' ? (
+                      <>
+                        {/* Download certificate */}
+                        <a 
+                          href={`/api/manager/calibrations/${calibration.id}/certificate`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center"
+                        >
+                          <FiDownload className="mr-1" /> Certificate
+                        </a>
+                          
+                        {/* Edit certificate */}
+                        <button
+                          onClick={() => openEditCertificateModal(calibration)}
+                          className="text-sm font-medium text-green-600 hover:text-green-900 inline-flex items-center"
+                        >
+                          <FiEdit2 className="mr-1" /> Edit
+                        </button>
+                        
+                        {/* Delete button */}
+                        <button
+                          onClick={() => openDeleteModal(calibration)}
+                          className="text-sm font-medium text-red-600 hover:text-red-900 inline-flex items-center"
+                        >
+                          <FiX className="mr-1" /> Delete
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Mark as completed */}
+                        <button
+                          onClick={() => openCompleteModal(calibration)}
+                          className="text-sm font-medium text-green-600 hover:text-green-900 inline-flex items-center"
+                        >
+                          <FiCheckCircle className="mr-1" /> Complete
+                        </button>
+                          
+                        {/* Edit calibration */}
+                        <button
+                          onClick={() => openEditModal(calibration)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center"
+                        >
+                          <FiEdit2 className="mr-1" /> Edit
+                        </button>
+                        
+                        {/* Delete button */}
+                        <button
+                          onClick={() => openDeleteModal(calibration)}
+                          className="text-sm font-medium text-red-600 hover:text-red-900 inline-flex items-center"
+                        >
+                          <FiX className="mr-1" /> Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
           )}
         
         {/* Pagination Controls */}
         {!loading && calibrations.length > 0 && (
-          <div className="flex justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-4">
-            <div className="text-sm text-gray-700">
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-3 md:px-4 text-xs md:text-sm">
+            <div className="text-gray-700 mb-2 md:mb-0">
               Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} results
             </div>
-            <div className="flex space-x-1">
+            <div className="flex flex-wrap justify-center space-x-1">
               <button
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                className={`px-2 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
                 Previous
               </button>
@@ -1495,7 +1618,7 @@ export default function ManagerCalibrationsPage() {
                   <button
                     key={page}
                     onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    className={`px-2 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                   >
                     {page}
                   </button>
@@ -1504,7 +1627,7 @@ export default function ManagerCalibrationsPage() {
               <button
                 onClick={() => handlePageChange(Math.min(Math.ceil(totalItems / PAGE_SIZE), currentPage + 1))}
                 disabled={currentPage === Math.ceil(totalItems / PAGE_SIZE)}
-                className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                className={`px-2 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
                 Next
               </button>

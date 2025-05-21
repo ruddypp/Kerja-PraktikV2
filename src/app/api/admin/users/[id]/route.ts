@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { Role } from '@prisma/client';
@@ -169,10 +169,136 @@ export async function DELETE(
       }
     }
     
-    // Delete the user
-    await prisma.user.delete({
-      where: { id: userId }
-    });
+    // Step 1: Handle notifications - delete them
+    try {
+      await prisma.notification.deleteMany({
+        where: { userId: userId }
+      });
+      console.log('Notifications deleted successfully');
+    } catch (err) {
+      console.error('Error deleting notifications:', err);
+      // Continue with other operations even if this fails
+    }
+    
+    // Step 2: Handle activity logs - update affectedUserId to null
+    try {
+      await prisma.activityLog.updateMany({
+        where: { affectedUserId: userId },
+        data: { affectedUserId: null }
+      });
+      console.log('Activity logs (affected user) updated successfully');
+    } catch (err) {
+      console.error('Error updating activity logs (affected user):', err);
+    }
+    
+    // Step 3: Handle activity logs created by user - delete them
+    try {
+      await prisma.activityLog.deleteMany({
+        where: { userId: userId }
+      });
+      console.log('Activity logs deleted successfully');
+    } catch (err) {
+      console.error('Error deleting activity logs:', err);
+    }
+    
+    // Step 4: Handle status logs - delete them
+    try {
+      await prisma.rentalStatusLog.deleteMany({
+        where: { userId: userId }
+      });
+      console.log('Rental status logs deleted successfully');
+    } catch (err) {
+      console.error('Error deleting rental status logs:', err);
+    }
+    
+    try {
+      await prisma.maintenanceStatusLog.deleteMany({
+        where: { userId: userId }
+      });
+      console.log('Maintenance status logs deleted successfully');
+    } catch (err) {
+      console.error('Error deleting maintenance status logs:', err);
+    }
+    
+    try {
+      await prisma.calibrationStatusLog.deleteMany({
+        where: { userId: userId }
+      });
+      console.log('Calibration status logs deleted successfully');
+    } catch (err) {
+      console.error('Error deleting calibration status logs:', err);
+    }
+    
+    // Step 5: Handle inventory checks
+    try {
+      const inventoryChecks = await prisma.inventoryCheck.findMany({
+        where: { userId: userId },
+        select: { id: true }
+      });
+      
+      const inventoryCheckIds = inventoryChecks.map(check => check.id);
+      
+      if (inventoryCheckIds.length > 0) {
+        // Delete inventory check items
+        await prisma.inventoryCheckItem.deleteMany({
+          where: { checkId: { in: inventoryCheckIds } }
+        });
+        console.log('Inventory check items deleted successfully');
+        
+        // Transfer ownership of inventory checks to admin
+        await prisma.inventoryCheck.updateMany({
+          where: { userId: userId },
+          data: { userId: currentUser.id }
+        });
+        console.log('Inventory checks transferred successfully');
+      }
+    } catch (err) {
+      console.error('Error handling inventory checks:', err);
+    }
+    
+    // Step 6: Transfer rentals
+    try {
+      await prisma.rental.updateMany({
+        where: { userId: userId },
+        data: { userId: currentUser.id }
+      });
+      console.log('Rentals transferred successfully');
+    } catch (err) {
+      console.error('Error transferring rentals:', err);
+    }
+    
+    // Step 7: Transfer calibrations
+    try {
+      await prisma.calibration.updateMany({
+        where: { userId: userId },
+        data: { userId: currentUser.id }
+      });
+      console.log('Calibrations transferred successfully');
+    } catch (err) {
+      console.error('Error transferring calibrations:', err);
+    }
+    
+    // Step 8: Transfer maintenances
+    try {
+      await prisma.maintenance.updateMany({
+        where: { userId: userId },
+        data: { userId: currentUser.id }
+      });
+      console.log('Maintenances transferred successfully');
+    } catch (err) {
+      console.error('Error transferring maintenances:', err);
+    }
+    
+    // Step 9: Delete the user
+    try {
+      await prisma.user.delete({
+        where: { id: userId }
+      });
+      console.log('User deleted successfully');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      throw err; // Re-throw this error as it's critical
+    }
     
     return NextResponse.json({ 
       success: true,
@@ -180,8 +306,35 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Error deleting user:', error);
+    
+    // Provide more specific error messages based on the error type
+    if (error instanceof Error) {
+      console.error('Detailed error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Check for foreign key constraint errors
+      if (error.message.includes('foreign key constraint')) {
+        return NextResponse.json(
+          { error: `Gagal menghapus pengguna karena constraint database: ${error.message}` },
+          { status: 400 }
+        );
+      }
+      
+      // Check for transaction errors
+      if (error.message.includes('transaction')) {
+        return NextResponse.json(
+          { error: `Gagal dalam transaksi database: ${error.message}` },
+          { status: 500 }
+        );
+      }
+    }
+    
+    // Return a generic error with more details in development
     return NextResponse.json(
-      { error: 'Gagal menghapus pengguna. Silakan coba lagi.' },
+      { 
+        error: 'Gagal menghapus pengguna. Silakan coba lagi.',
+        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined
+      },
       { status: 500 }
     );
   }

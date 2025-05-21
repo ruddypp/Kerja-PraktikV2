@@ -112,7 +112,7 @@ export default function AdminMaintenancePage() {
       if (oldCache) {
         try {
           setMaintenances(JSON.parse(oldCache));
-          toast.info("Menampilkan data terakhir dari cache");
+          toast.success("Menampilkan data terakhir dari cache");
         } catch (e) {
           console.error("Error parsing old cache:", e);
         }
@@ -245,41 +245,41 @@ export default function AdminMaintenancePage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Manajemen Maintenance</h1>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <h1 className="text-2xl font-bold">Maintenance Barang</h1>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 text-sm"
               disabled={loading}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={14} />
               {loading ? "Memuat..." : "Refresh Data"}
             </button>
             <Link
               href="/admin/maintenance/new"
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+              className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
             >
-              <PlusIcon size={16} />
-              Mulai Maintenance Baru
+              <PlusIcon size={14} />
+              Maintenance Baru
             </Link>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-100 p-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-lg border border-gray-100 p-3 md:p-4">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Cari
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
+                  <Search className="h-4 w-4 text-gray-400" />
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  placeholder="Cari berdasarkan nama barang, serial number, atau nama user"
+                  className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                  placeholder="Cari barang, SN, atau user"
                   defaultValue={searchTerm}
                   onChange={handleSearchChange}
                 />
@@ -291,10 +291,10 @@ export default function AdminMaintenancePage() {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-5 w-5 text-gray-400" />
+                  <Filter className="h-4 w-4 text-gray-400" />
                 </div>
                 <select
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   aria-label="Filter status maintenance"
@@ -324,104 +324,157 @@ export default function AdminMaintenancePage() {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Barang
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Serial Number
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      User
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Tanggal Mulai
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Tanggal Selesai
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredMaintenances.map((maintenance) => (
-                    <tr key={maintenance.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {maintenance.item.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {maintenance.item.partNumber}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {maintenance.itemSerial}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {maintenance.user.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(maintenance.startDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {maintenance.endDate ? formatDate(maintenance.endDate) : "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(maintenance.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center space-x-4">
-                          <Link 
-                            href={`/admin/maintenance/${maintenance.id}`}
-                            className={maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}
-                          >
-                            {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
-                          </Link>
-                          <button
-                            onClick={() => openDeleteModal(maintenance)}
-                            className="text-red-600 hover:text-red-900 flex items-center"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
+          <>
+            {/* Table view for medium and larger screens */}
+            <div className="hidden md:block bg-white rounded-lg border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Barang
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Serial Number
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        User
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Tanggal Mulai
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Tanggal Selesai
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Status
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Aksi
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredMaintenances.map((maintenance) => (
+                      <tr key={maintenance.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {maintenance.item.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {maintenance.item.partNumber}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {maintenance.itemSerial}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {maintenance.user.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(maintenance.startDate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {maintenance.endDate ? formatDate(maintenance.endDate) : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(maintenance.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center space-x-4">
+                            <Link 
+                              href={`/admin/maintenance/${maintenance.id}`}
+                              className={maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}
+                            >
+                              {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
+                            </Link>
+                            <button
+                              onClick={() => openDeleteModal(maintenance)}
+                              className="text-red-600 hover:text-red-900 flex items-center"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+
+            {/* Card view for small screens */}
+            <div className="md:hidden space-y-4">
+              {filteredMaintenances.map((maintenance) => (
+                <div key={maintenance.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-base font-medium text-gray-900">{maintenance.item.name}</h3>
+                      <p className="text-xs text-gray-500">{maintenance.item.partNumber}</p>
+                    </div>
+                    <div>{getStatusBadge(maintenance.status)}</div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <p className="text-gray-500">Serial Number:</p>
+                      <p className="font-medium">{maintenance.itemSerial}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">User:</p>
+                      <p className="font-medium">{maintenance.user.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Tanggal Mulai:</p>
+                      <p className="font-medium">{formatDate(maintenance.startDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Tanggal Selesai:</p>
+                      <p className="font-medium">{maintenance.endDate ? formatDate(maintenance.endDate) : "-"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between">
+                    <Link 
+                      href={`/admin/maintenance/${maintenance.id}`}
+                      className={`text-sm font-medium ${maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}`}
+                    >
+                      {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
+                    </Link>
+                    <button
+                      onClick={() => openDeleteModal(maintenance)}
+                      className="text-sm font-medium text-red-600 hover:text-red-900 flex items-center"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

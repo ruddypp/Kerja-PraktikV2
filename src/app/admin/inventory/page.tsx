@@ -691,77 +691,78 @@ export default function AdminInventoryPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 bg-white rounded shadow">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-            <button
+      <div className="p-4 md:p-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Inventory Management</h1>
+          <button
             onClick={openCreateModal}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow transition duration-300"
+            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow transition duration-300 flex items-center justify-center"
           >
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add Item
-            </span>
-            </button>
-      </div>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Add Item
+          </button>
+        </div>
 
         {/* Filter Section */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-900 mb-1">Search</label>
-            <input
-              type="text"
-              id="search"
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              placeholder="Search by name or serial number"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-900 mb-1">Status</label>
-            <select
-              id="status"
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="AVAILABLE">Available</option>
-              <option value="IN_CALIBRATION">In Calibration</option>
-              <option value="RENTED">Rented</option>
-              <option value="IN_MAINTENANCE">In Maintenance</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters(defaultFilters)}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              Reset Filters
-            </button>
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Filter Inventory</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+              <input
+                type="text"
+                id="search"
+                name="search"
+                value={filters.search}
+                onChange={handleFilterChange}
+                placeholder="Search by name or serial number"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                id="status"
+                name="status"
+                value={filters.status}
+                onChange={handleFilterChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm"
+              >
+                <option value="">All Statuses</option>
+                <option value="AVAILABLE">Available</option>
+                <option value="IN_CALIBRATION">In Calibration</option>
+                <option value="RENTED">Rented</option>
+                <option value="IN_MAINTENANCE">In Maintenance</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters(defaultFilters)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Status information */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {Object.entries(itemStatusCount).map(([status, count]) => (
             <div
               key={status}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex justify-between items-center"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex justify-between items-center"
             >
               <div className="flex items-center">
                 <div className={`w-3 h-3 rounded-full mr-2 ${getStatusBadgeClass(status as ItemStatus)}`}></div>
-                <span className="text-gray-900 font-medium">{getStatusDisplayName(status as ItemStatus)}</span>
+                <span className="text-gray-900 font-medium text-sm">{getStatusDisplayName(status as ItemStatus)}</span>
               </div>
               <span className="text-gray-900 font-bold">{count as number}</span>
-      </div>
+            </div>
           ))}
-      </div>
+        </div>
 
         {error && (
           <div className="bg-red-50 p-4 rounded-md mb-4">
@@ -779,203 +780,278 @@ export default function AdminInventoryPage() {
           </div>
         )}
 
-      {loading ? (
-          <div className="flex flex-col items-center justify-center p-8">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-8 bg-white rounded-lg shadow-md">
             <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
             <p className="text-gray-900">Loading inventory...</p>
-        </div>
-      ) : (
-          <div className="overflow-x-auto pb-4">
-            <table className="min-w-full bg-white border-collapse">
-            <thead className="bg-gray-50">
-              <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Product Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Serial Number</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Part Number</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Sensor</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Customer</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">History</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-              <tbody className="divide-y divide-gray-200">
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-900">
-                      No items found
-                  </td>
-                  </tr>
-                ) : (
-                  items.map((item) => (
-                    <tr key={item.serialNumber} className="hover:bg-green-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.serialNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.partNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.sensor || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.customer?.name || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
-                          {getStatusDisplayName(item.status)}
-                        </span>
-                  </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link 
-                          href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
-                          className="text-green-600 hover:text-green-800"
-                        >
-                          View History
-                        </Link>
-                  </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                          onClick={() => openEditModal(item)}
-                          className="text-green-600 hover:text-green-800 mr-4"
-                      >
-                          Edit
-                      </button>
-                      <button
-                          onClick={() => openDeleteConfirm(item)}
-                          className="text-red-600 hover:text-red-800"
-                      >
-                          Delete
-                      </button>
-                  </td>
-                </tr>
-                  ))
-                )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-        {/* Pagination Controls */}
-        {items.length > 0 && (
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-gray-200 pt-4">
-            <div className="flex-1 text-sm text-gray-500">
-              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> results
+          </div>
+        ) : (
+          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-base md:text-lg font-medium text-gray-800">Inventory Items</h2>
+              {items.length > 0 && (
+                <p className="text-xs md:text-sm text-gray-600 mt-1">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
+                </p>
+              )}
             </div>
             
-            <div className="mt-4 sm:mt-0">
-              <nav className="flex justify-center items-center space-x-1" aria-label="Pagination">
-                {/* Previous button */}
-                <button
-                  onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-md text-sm font-medium ${
-                    currentPage === 1
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-gray-700 hover:bg-green-50'
-                  }`}
-                >
-                  <span className="sr-only">Previous</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
+            {items.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Try changing your search criteria or add a new item.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Table view for desktop - hidden on mobile */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part Number</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sensor</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">History</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {items.map((item) => (
+                        <tr key={item.serialNumber} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.serialNumber}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.partNumber}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.sensor || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.customer?.name || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
+                              {getStatusDisplayName(item.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <Link 
+                              href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
+                              className="text-green-600 hover:text-green-800"
+                            >
+                              View History
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="text-green-600 hover:text-green-800 mr-4"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => openDeleteConfirm(item)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 
-                {/* Page numbers */}
-                {(() => {
-                  const pages = [];
-                  const maxVisiblePages = 5; // Jumlah maksimal halaman yang ditampilkan
-                  
-                  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                  const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
-                  
-                  // Adjust startPage if we're at the end of the range
-                  if (endPage - startPage + 1 < maxVisiblePages) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                  }
-                  
-                  // Add first page
-                  if (startPage > 1) {
-                    pages.push(
-                      <button
-                        key={1}
-                        onClick={() => handlePageChange(1)}
-                        className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-green-50 rounded-md"
-                      >
-                        1
-                      </button>
-                    );
-                    
-                    // Add ellipsis if needed
-                    if (startPage > 2) {
-                      pages.push(
-                        <span key="start-ellipsis" className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700">
-                          ...
-                        </span>
-                      );
-                    }
-                  }
-                  
-                  // Add visible page numbers
-                  for (let i = startPage; i <= endPage; i++) {
-                    pages.push(
-                      <button
-                        key={i}
-                        onClick={() => handlePageChange(i)}
-                        className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-                          i === currentPage
-                            ? 'z-10 bg-green-600 text-white'
-                            : 'text-gray-700 hover:bg-green-50'
-                        }`}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-                  
-                  // Add last page
-                  if (endPage < totalPages) {
-                    // Add ellipsis if needed
-                    if (endPage < totalPages - 1) {
-                      pages.push(
-                        <span key="end-ellipsis" className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700">
-                          ...
-                        </span>
-                      );
-                    }
-                    
-                    pages.push(
-                      <button
-                        key={totalPages}
-                        onClick={() => handlePageChange(totalPages)}
-                        className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-green-50 rounded-md"
-                      >
-                        {totalPages}
-                      </button>
-                    );
-                  }
-                  
-                  return pages;
-                })()}
+                {/* Card view for mobile */}
+                <div className="md:hidden p-4 space-y-4">
+                  {items.map((item) => (
+                    <div key={item.serialNumber} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+                            <p className="text-xs text-gray-500">SN: {item.serialNumber}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>
+                            {getStatusDisplayName(item.status)}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                          <div>
+                            <p className="text-gray-500 font-medium">Part Number</p>
+                            <p>{item.partNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 font-medium">Sensor</p>
+                            <p>{item.sensor || '-'}</p>
+                          </div>
+                          
+                          <div className="col-span-2">
+                            <p className="text-gray-500 font-medium">Customer</p>
+                            <p>{item.customer?.name || '-'}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
+                          <Link 
+                            href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
+                            className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            View History
+                          </Link>
+                          <button
+                            onClick={() => openEditModal(item)}
+                            className="inline-flex justify-center items-center px-3 py-2 border border-green-600 rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(item)}
+                            className="col-span-2 inline-flex justify-center items-center px-3 py-2 border border-red-600 rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 
-                {/* Next button */}
-                <button
-                  onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-md text-sm font-medium ${
-                    currentPage === totalPages
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-gray-700 hover:bg-green-50'
-                  }`}
-                >
-                  <span className="sr-only">Next</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
+                {/* Pagination controls - same for both layouts */}
+                <div className="px-4 py-4 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 text-sm text-gray-500 mb-4 sm:mb-0">
+                      Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                      <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
+                      <span className="font-medium">{totalItems}</span> results
+                    </div>
+                    
+                    <div>
+                      <nav className="flex justify-center items-center space-x-1" aria-label="Pagination">
+                        {/* Previous button */}
+                        <button
+                          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-md text-sm font-medium ${
+                            currentPage === 1
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-gray-700 hover:bg-green-50'
+                          }`}
+                        >
+                          <span className="sr-only">Previous</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        
+                        {/* Page numbers - keep the original page number display logic */}
+                        {/* Page numbers */}
+                        {(() => {
+                          const pages = [];
+                          const maxVisiblePages = 5; // Jumlah maksimal halaman yang ditampilkan
+                          
+                          let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                          const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
+                          
+                          // Adjust startPage if we're at the end of the range
+                          if (endPage - startPage + 1 < maxVisiblePages) {
+                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                          }
+                          
+                          // Add first page
+                          if (startPage > 1) {
+                            pages.push(
+                              <button
+                                key={1}
+                                onClick={() => handlePageChange(1)}
+                                className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-green-50 rounded-md"
+                              >
+                                1
+                              </button>
+                            );
+                            
+                            // Add ellipsis if there's a gap
+                            if (startPage > 2) {
+                              pages.push(
+                                <span key="ellipsis-1" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700">
+                                  ...
+                                </span>
+                              );
+                            }
+                          }
+                          
+                          // Add visible page numbers
+                          for (let i = startPage; i <= endPage; i++) {
+                            pages.push(
+                              <button
+                                key={i}
+                                onClick={() => handlePageChange(i)}
+                                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+                                  i === currentPage
+                                    ? 'bg-green-600 text-white'
+                                    : 'text-gray-700 hover:bg-green-50'
+                                }`}
+                              >
+                                {i}
+                              </button>
+                            );
+                          }
+                          
+                          // Add last page
+                          if (endPage < totalPages) {
+                            // Add ellipsis if there's a gap
+                            if (endPage < totalPages - 1) {
+                              pages.push(
+                                <span key="ellipsis-2" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700">
+                                  ...
+                                </span>
+                              );
+                            }
+                            
+                            pages.push(
+                              <button
+                                key={totalPages}
+                                onClick={() => handlePageChange(totalPages)}
+                                className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-green-50 rounded-md"
+                              >
+                                {totalPages}
+                              </button>
+                            );
+                          }
+                          
+                          return pages;
+                        })()}
+                        
+                        {/* Next button */}
+                        <button
+                          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-md text-sm font-medium ${
+                            currentPage === totalPages
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-gray-700 hover:bg-green-50'
+                          }`}
+                        >
+                          <span className="sr-only">Next</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
 
-{/* Modal for creating/editing items */}
-{modalOpen && (
+      {/* Item Form Modal */}
+      {modalOpen && (
         <div className="fixed inset-0 overflow-y-auto z-50">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
@@ -1017,7 +1093,7 @@ export default function AdminInventoryPage() {
 
                       {/* Name */}
                       <div className="relative">
-                <input 
+                        <input 
                           type="text"
                           name="name"
                           id="name"
@@ -1033,12 +1109,12 @@ export default function AdminInventoryPage() {
                           className="absolute left-2 -top-2 bg-white px-1 text-xs font-medium text-green-600 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-2 peer-focus:-top-2 peer-focus:text-green-600 peer-focus:text-xs"
                         >
                           Product Name
-              </label>
+                        </label>
                         {formErrors.name && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                         )}
-            </div>
-            
+                      </div>
+                      
                       {/* Part Number */}
                       <div className="relative">
                         <input
@@ -1232,7 +1308,7 @@ export default function AdminInventoryPage() {
                       </div>
 
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-              <button 
+                        <button 
                           type="submit"
                           disabled={formSubmitting}
                           className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
@@ -1255,9 +1331,9 @@ export default function AdminInventoryPage() {
                           type="button"
                           onClick={() => setModalOpen(false)}
                           className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:w-auto sm:text-sm"
-              >
-                Cancel
-              </button>
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </form>
                   </div>
@@ -1265,59 +1341,59 @@ export default function AdminInventoryPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Delete Confirmation Modal */}
-      {confirmDeleteOpen && (
-        <div className="fixed inset-0 overflow-y-auto z-50">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
-            </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Delete Item</h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-900">
-                        Are you sure you want to delete item <span className="font-semibold">{currentItem?.serialNumber}</span>?
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        This action cannot be undone. This will permanently delete the item and all associated records.
-                      </p>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {confirmDeleteOpen && (
+          <div className="fixed inset-0 overflow-y-auto z-50">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
+              </div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">Delete Item</h3>
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-900">
+                          Are you sure you want to delete item <span className="font-semibold">{currentItem?.serialNumber}</span>?
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          This action cannot be undone. This will permanently delete the item and all associated records.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button 
-                  type="button"
-                  disabled={formSubmitting}
-                onClick={handleDelete}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  {formSubmitting ? 'Deleting...' : 'Delete'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteOpen(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-              </button>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button 
+                    type="button"
+                    disabled={formSubmitting}
+                    onClick={handleDelete}
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    {formSubmitting ? 'Deleting...' : 'Delete'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteOpen(false)}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </DashboardLayout>
   );
 } 

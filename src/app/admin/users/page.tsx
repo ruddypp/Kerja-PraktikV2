@@ -39,6 +39,7 @@ export default function AdminUsersPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   
   // Form state
@@ -101,12 +102,19 @@ export default function AdminUsersPage() {
   
   // Open delete confirmation
   const openDeleteConfirm = useCallback((user: User) => {
+    // Check if user still exists in the users list
+    const userExists = users.some(u => u.id === user.id);
+    if (!userExists) {
+      toast.error('Pengguna tidak ditemukan atau sudah dihapus');
+      return;
+    }
+    
     setCurrentUser(user);
     setConfirmDeleteOpen(true);
-  }, []);
+  }, [users]);
 
   // Fetch data
-  const fetchData = useCallback(async (searchTerm = search) => {
+  const fetchData = useCallback(async (searchTerm = search, role = roleFilter) => {
     try {
       setLoading(true);
       setError('');
@@ -114,8 +122,9 @@ export default function AdminUsersPage() {
       // Build query parameters
       const queryParams = new URLSearchParams();
       if (searchTerm) queryParams.append('search', searchTerm);
+      if (role) queryParams.append('role', role);
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-      const cacheKey = `${CACHE_KEY}${searchTerm ? '_' + searchTerm : ''}`;
+      const cacheKey = `${CACHE_KEY}${searchTerm ? '_' + searchTerm : ''}${role ? '_role_' + role : ''}`;
       
       // Check if we have cached data
       const cachedData = sessionStorage.getItem(cacheKey);
@@ -152,13 +161,13 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, roleFilter]);
 
   // Debounced search handler
   const debouncedSearch = useCallback((term: string) => {
     setSearch(term);
-    fetchData(term);
-  }, [fetchData]);
+    fetchData(term, roleFilter);
+  }, [fetchData, roleFilter]);
 
   // Handle search input change with debounce
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,6 +181,13 @@ export default function AdminUsersPage() {
     }, 500);
   };
   
+  // Handle role filter change
+  const handleRoleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setRoleFilter(value);
+    fetchData(search, value);
+  };
+  
   // Initial data fetch
   useEffect(() => {
     fetchData();
@@ -180,7 +196,10 @@ export default function AdminUsersPage() {
   // Refresh data - force fetch fresh data
   const refreshData = () => {
     invalidateCache();
-    fetchData();
+    setSearchInput('');
+    setSearch('');
+    setRoleFilter('');
+    fetchData('', '');
   };
   
   // Handle form change
@@ -296,35 +315,56 @@ export default function AdminUsersPage() {
   const handleDelete = async () => {
     if (!currentUser) return;
     
+    // Double check if user still exists in the users list
+    const userExists = users.some(u => u.id === currentUser.id);
+    if (!userExists) {
+      setError('Pengguna tidak ditemukan atau sudah dihapus');
+      toast.error('Pengguna tidak ditemukan atau sudah dihapus');
+      setConfirmDeleteOpen(false);
+      return;
+    }
+    
     try {
       setFormSubmitting(true);
+      setError('');
       
       const response = await fetch(`/api/admin/users/${currentUser.id}`, {
         method: 'DELETE',
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete user');
+        let errorMessage = data.error || 'Failed to delete user';
+        // If there are additional details in development mode, show them
+        if (data.details) {
+          console.error('Detailed error:', data.details);
+          errorMessage += ' (Check console for details)';
+        }
+        throw new Error(errorMessage);
       }
       
       // Clear cache
       invalidateCache();
       
-      // Refresh the user list
+      // Update users state directly to remove the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== currentUser.id));
+      
+      // Refresh the user list in background
       fetchData();
       
       // Show success message
-      setSuccess('User deleted successfully');
-      toast.success('User deleted successfully');
+      setSuccess(data.message || 'User deleted successfully');
+      toast.success(data.message || 'User deleted successfully');
       
       // Close the confirmation
       setConfirmDeleteOpen(false);
       
     } catch (error: unknown) {
       console.error('Error deleting user:', error);
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
-      toast.error(error instanceof Error ? error.message : 'Failed to delete user');
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setFormSubmitting(false);
     }
@@ -346,9 +386,9 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">User Management</h1>
+      <div className="space-y-6 p-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">User Management</h1>
           <div className="flex items-center gap-2">
             <button 
               onClick={refreshData}
@@ -380,8 +420,8 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg border border-gray-100 p-6">
-          <div className="flex items-center space-x-4 mb-4">
+        <div className="bg-white rounded-lg border border-gray-100 p-4 md:p-6">
+          <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-4 mb-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiSearch className="h-5 w-5 text-gray-400" />
@@ -399,7 +439,8 @@ export default function AdminUsersPage() {
                   onClick={() => {
                     setSearchInput('');
                     setSearch('');
-                    fetchData('');
+                    setRoleFilter('');
+                    fetchData('', '');
                   }}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                   title="Clear search"
@@ -408,114 +449,168 @@ export default function AdminUsersPage() {
                 </button>
               )}
             </div>
+            
+            <div className="w-full md:w-48">
+              <select
+                value={roleFilter}
+                onChange={handleRoleFilterChange}
+                className="block w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                aria-label="Filter by role"
+              >
+                <option value="">All Roles</option>
+                <option value="ADMIN">Admin</option>
+                <option value="MANAGER">Manager</option>
+                <option value="USER">User</option>
+              </select>
+            </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center items-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : users.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 whitespace-nowrap text-center text-gray-500">
-                      <div className="text-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {search ? `No results for "${search}"` : "Get started by creating a new user."}
-                        </p>
-                        {search && (
-                          <button
-                            onClick={() => {
-                              setSearchInput('');
-                              setSearch('');
-                              fetchData('');
-                            }}
-                            className="mt-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            Clear search
-                          </button>
-                        )}
-                        {!search && (
-                          <button
-                            onClick={openCreateModal}
-                            className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <FiPlus className="-ml-1 mr-2 h-5 w-5" />
-                            New User
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  users.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeClass(user.role)}`}>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center p-8 bg-white rounded-lg">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mb-3"></div>
+              <p className="text-gray-900">Loading users...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {search ? `No results for "${search}"` : "Get started by creating a new user."}
+              </p>
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                    setRoleFilter('');
+                    fetchData('', '');
+                  }}
+                  className="mt-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Clear search
+                </button>
+              )}
+              {!search && (
+                <button
+                  onClick={openCreateModal}
+                  className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  New User
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Table view for desktop - hidden on mobile */}
+              <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {users.map(user => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{user.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeClass(user.role)}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => openEditModal(user)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Edit user"
+                            >
+                              <FiEdit2 className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => openDeleteConfirm(user)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete user"
+                            >
+                              <FiTrash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Card view for mobile */}
+              <div className="md:hidden space-y-4">
+                {users.map(user => (
+                  <div key={user.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">{user.name}</h3>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
                           {user.role}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => openEditModal(user)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Edit user"
-                          >
-                            <FiEdit2 className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(user)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete user"
-                          >
-                            <FiTrash2 className="h-5 w-5" />
-                          </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-2 mb-3 text-xs">
+                        <div>
+                          <p className="text-gray-500 font-medium">Created On</p>
+                          <p>{new Date(user.createdAt).toLocaleDateString()}</p>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      
+                      <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          <FiEdit2 className="h-4 w-4 mr-1" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => openDeleteConfirm(user)}
+                          className="inline-flex justify-center items-center px-3 py-2 border border-red-600 rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
+                        >
+                          <FiTrash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

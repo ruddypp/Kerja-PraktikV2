@@ -295,40 +295,43 @@ export default function RentalsPage() {
 
   return (
     <DashboardLayout>
-      <div className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Manajemen Rental</h1>
-          <div className="flex">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Daftar Rental Barang</h1>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mr-2 transition-colors duration-200"
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Refresh Data
+              Refresh
             </button>
             <Link
               href="/admin/rentals/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Ajukan Rental Baru
+              Tambah Rental
             </Link>
           </div>
         </div>
         
         {error && (
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700 mb-6">
-            <p>{error}</p>
+          <div className="bg-red-50 p-3 md:p-4 rounded-lg border border-red-200 text-red-700 mb-6 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white p-5 rounded-lg shadow-md mb-6 border border-gray-200 bg-gradient-to-r from-white to-green-50">
-          <h2 className="text-lg font-medium text-gray-800 mb-3">Filter Data</h2>
+        {/* Filter Section */}
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Filter Rental</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -336,7 +339,7 @@ export default function RentalsPage() {
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "ALL")}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
               >
                 <option value="ALL">Semua Status</option>
                 <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
@@ -346,43 +349,41 @@ export default function RentalsPage() {
                 <option value={RequestStatus.CANCELLED}>Dibatalkan</option>
               </select>
             </div>
-            
             <div>
               <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
               <input
                 type="date"
                 id="start-date"
                 value={dateFilter.startDate}
-                onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
               />
             </div>
-            
             <div>
               <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
               <input
                 type="date"
                 id="end-date"
                 value={dateFilter.endDate}
-                onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
               />
             </div>
           </div>
         </div>
 
-        {/* Rentals Table */}
+        {/* Loading State */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-md border border-gray-200">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600"></div>
-            <span className="ml-3 text-lg text-gray-700">Memuat data rental...</span>
+          <div className="flex items-center justify-center h-40 bg-white rounded-lg shadow-md border border-gray-200">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
+            <span className="ml-3 text-sm text-gray-700">Memuat data rental...</span>
           </div>
         ) : (
           <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
-              <h2 className="text-lg font-medium text-gray-800">Daftar Rental</h2>
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-base md:text-lg font-medium text-gray-800">Daftar Rental</h2>
               {data?.pagination && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-xs md:text-sm text-gray-600 mt-1">
                   Menampilkan {rentals.length} dari {data.pagination.totalCount} data
                 </p>
               )}
@@ -390,17 +391,18 @@ export default function RentalsPage() {
             
             {rentals.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data rental</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-xs md:text-sm text-gray-500">
                   Tidak ada data rental yang sesuai dengan filter yang dipilih.
                 </p>
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* Table view for desktop - hidden on mobile */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -509,8 +511,125 @@ export default function RentalsPage() {
                     </tbody>
                   </table>
                 </div>
-                {/* Pagination */}
+
+                {/* Card view for mobile */}
+                <div className="md:hidden p-4 space-y-4">
+                  {rentals.map((rental) => (
+                    <div key={rental.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{rental.item.name}</h3>
+                            <p className="text-xs text-gray-500">SN: {rental.item.serialNumber}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(rental.status)}`}>
+                            {getStatusText(rental.status)}
+                          </span>
+                        </div>
+                        
+                        <div className="border-t border-gray-100 -mx-4 px-4 py-2 mb-2 bg-gray-50">
+                          <p className="text-xs text-gray-700">
+                            <span className="font-medium">Peminjam:</span> {rental.user.name}
+                          </p>
+                          <p className="text-xs text-gray-500">{rental.user.email}</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                          <div>
+                            <p className="text-gray-500 font-medium">Tanggal Mulai</p>
+                            <p>{formatDate(rental.startDate)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 font-medium">Tanggal Selesai</p>
+                            <p>{formatDate(rental.endDate)}</p>
+                          </div>
+                          
+                          {rental.returnDate && (
+                            <div className="col-span-2">
+                              <p className="text-gray-500 font-medium">Tanggal Pengembalian</p>
+                              <p>{formatDate(rental.returnDate)}</p>
+                            </div>
+                          )}
+                          
+                          {(rental.poNumber || rental.doNumber) && (
+                            <div className="col-span-2">
+                              <p className="text-gray-500 font-medium">Dokumen</p>
+                              <div>
+                                {rental.poNumber && <span className="mr-3">PO: {rental.poNumber}</span>}
+                                {rental.doNumber && <span>DO: {rental.doNumber}</span>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="pt-3 border-t border-gray-100">
+                          {rental.status === RequestStatus.PENDING && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApprove(rental)}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Setujui
+                              </button>
+                              <button
+                                onClick={() => handleReject(rental)}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Tolak
+                              </button>
+                            </div>
+                          )}
+                          
+                          {rental.status === RequestStatus.APPROVED && rental.returnDate && (
+                            <button
+                              onClick={() => handleComplete(rental)}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Verifikasi Pengembalian
+                            </button>
+                          )}
+                          
+                          {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
+                            <div className="flex items-center justify-center text-xs text-green-600">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Sedang Dipinjam
+                            </div>
+                          )}
+                          
+                          {(rental.status === RequestStatus.COMPLETED || 
+                            rental.status === RequestStatus.REJECTED ||
+                            rental.status === RequestStatus.CANCELLED) && (
+                            <button
+                              onClick={() => openStatusModal(rental)}
+                              className="w-full text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-3 py-2 text-xs flex items-center justify-center"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Ubah Status
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Pagination controls - same for both layouts */}
+                <div className="px-4 py-4">
                 {renderPagination()}
+                </div>
               </>
             )}
           </div>
@@ -519,8 +638,8 @@ export default function RentalsPage() {
 
       {/* Status Change Modal */}
       {showStatusModal && selectedRental && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-5 w-full max-w-md shadow-xl">
             <h3 className="text-lg font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">Ubah Status Rental</h3>
             
             <div className="mb-4">
@@ -537,7 +656,7 @@ export default function RentalsPage() {
                 id="new-status"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as RequestStatus)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
               >
                 <option value="">Pilih Status</option>
                 <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
@@ -548,13 +667,13 @@ export default function RentalsPage() {
               </select>
             </div>
             
-            <div className="mb-6">
+            <div className="mb-5">
               <label htmlFor="status-notes" className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
               <textarea
                 id="status-notes"
                 value={statusNotes}
                 onChange={(e) => setStatusNotes(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
                 rows={3}
                 placeholder="Tambahkan catatan (opsional)"
               ></textarea>

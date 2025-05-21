@@ -814,23 +814,23 @@ export default function UserCalibrationPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-title text-xl md:text-2xl">Calibration Management</h1>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Calibration Management</h1>
           <button 
             onClick={openCalibrationModal}
-            className="btn btn-primary flex items-center"
+            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center justify-center text-sm"
             aria-label="Create new calibration"
           >
-            <FiPlus className="mr-2" /> New Calibration
+            <FiPlus className="mr-1 h-4 w-4" /> New Calibration
           </button>
         </div>
         
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 md:p-4 mb-6 rounded shadow-sm" role="alert">
+            <p className="font-medium text-sm md:text-base">{error}</p>
             <button 
               onClick={() => fetchCalibrations()}
-              className="mt-2 text-sm text-red-700 hover:text-red-600 underline"
+              className="mt-2 text-xs md:text-sm text-red-700 hover:text-red-600 underline"
             >
               Retry
             </button>
@@ -838,153 +838,155 @@ export default function UserCalibrationPage() {
         )}
         
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium">{success}</p>
+          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-3 md:p-4 mb-6 rounded shadow-sm" role="alert">
+            <p className="font-medium text-sm md:text-base">{success}</p>
           </div>
         )}
         
         {/* Filters */}
-<div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-    {/* Status */}
-    <div>
-      <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-      <select
-        id="status"
-        name="status"
-        value={filters.status}
-        onChange={handleFilterChange}
-        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
-      >
-        <option value="">All Statuses</option>
-        {Object.values(RequestStatus).map(status => (
-          <option key={status} value={status}>{status}</option>
-        ))}
-      </select>
-    </div>
-
-    {/* Item */}
-    <div>
-      <label htmlFor="item" className="block text-sm font-medium text-gray-700 mb-1">Item</label>
-      <input
-        type="text"
-        id="item"
-        name="item"
-        placeholder="Search by name or serial"
-        value={filters.item}
-        onChange={handleFilterChange}
-        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
-      />
+        <div className="bg-white rounded-lg shadow p-3 md:p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-4">
+            {/* Status */}
+            <div>
+              <label htmlFor="status" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                id="status"
+                name="status"
+                value={filters.status}
+                onChange={handleFilterChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+              >
+                <option value="">All Statuses</option>
+                {Object.values(RequestStatus).map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
             </div>
 
-    {/* From Date */}
-    <div>
-      <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-      <input
-        type="date"
-        id="dateFrom"
-        name="dateFrom"
-        value={filters.dateFrom}
-        onChange={handleFilterChange}
-        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
-      />
+            {/* Item */}
+            <div>
+              <label htmlFor="item" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Item</label>
+              <input
+                type="text"
+                id="item"
+                name="item"
+                placeholder="Search by name or serial"
+                value={filters.item}
+                onChange={handleFilterChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+              />
             </div>
 
-    {/* To Date */}
-    <div>
-      <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-      <input
-        type="date"
-        id="dateTo"
-        name="dateTo"
-        value={filters.dateTo}
-        onChange={handleFilterChange}
-        className="w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
-      />
-              </div>
-
-    {/* Reset Button */}
-    <div className="flex items-end">
-      <button
-        type="button"
-        onClick={resetFilters}
-        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out"
-      >
-        Reset Filters
-      </button>
+            {/* From Date */}
+            <div>
+              <label htmlFor="dateFrom" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">From Date</label>
+              <input
+                type="date"
+                id="dateFrom"
+                name="dateFrom"
+                value={filters.dateFrom}
+                onChange={handleFilterChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+              />
             </div>
-  </div>
+
+            {/* To Date */}
+            <div>
+              <label htmlFor="dateTo" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">To Date</label>
+              <input
+                type="date"
+                id="dateTo"
+                name="dateTo"
+                value={filters.dateTo}
+                onChange={handleFilterChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
+              />
+            </div>
+
+            {/* Reset Button */}
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 text-sm rounded-lg transition duration-150 ease-in-out"
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
         </div>
         
         
         {/* All Calibrations Section */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">My Calibrations</h2>
+          <h2 className="text-lg md:text-xl font-semibold mb-4">My Calibrations</h2>
           
           {loading ? (
-            <div className="bg-white p-8 rounded-lg shadow flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="bg-white p-6 rounded-lg shadow flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
             </div>
           ) : filteredCalibrations.length === 0 ? (
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">No calibrations found.</p>
+            <div className="bg-white p-6 rounded-lg shadow text-center">
+              <p className="text-gray-500 text-sm">No calibrations found.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
+            <>
+              {/* Table view for medium and larger screens */}
+              <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Item
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Vendor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Valid Until
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Certificate
-                    </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Item
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Vendor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Valid Until
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Certificate
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                  {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
+                    {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
                       <tr key={calibration.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {calibration.item.name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {calibration.item.serialNumber}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {calibration.item.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {calibration.item.serialNumber}
+                              </div>
                             </div>
                           </div>
-                        </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{calibration.vendor.name}</div>
+                          <div className="text-sm text-gray-900">{calibration.vendor.name}</div>
                         </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
-                          {getDisplayStatus(calibration.status)}
-                        </span>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
+                            {getDisplayStatus(calibration.status)}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(calibration.calibrationDate)}
                         </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(calibration.validUntil)}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(calibration.validUntil)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
+                          {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
                             <button
                               onClick={() => openCertificateModal(calibration)}
                               className="text-blue-600 hover:text-blue-900 inline-flex items-center"
@@ -1008,20 +1010,77 @@ export default function UserCalibrationPage() {
                     ))}
                   </tbody>
                 </table>
-            </div>
+              </div>
+
+              {/* Card view for small screens */}
+              <div className="md:hidden space-y-4">
+                {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
+                  <div key={calibration.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-base font-medium text-gray-900">{calibration.item.name}</h3>
+                        <p className="text-xs text-gray-500">{calibration.item.serialNumber}</p>
+                      </div>
+                      <div>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
+                          {getDisplayStatus(calibration.status)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div>
+                        <p className="text-gray-500">Vendor:</p>
+                        <p className="font-medium">{calibration.vendor.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Date:</p>
+                        <p className="font-medium">{formatDate(calibration.calibrationDate)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Valid Until:</p>
+                        <p className="font-medium">{formatDate(calibration.validUntil) || "-"}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                      {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
+                        <button
+                          onClick={() => openCertificateModal(calibration)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center justify-center w-full"
+                        >
+                          <FiFileText className="mr-1" />
+                          View Certificate
+                        </button>
+                      ) : isStatusMatching(calibration.status, RequestStatus.PENDING) ? (
+                        <button
+                          onClick={() => openCompleteModal(calibration)}
+                          className="text-sm font-medium text-green-600 hover:text-green-900 inline-flex items-center justify-center w-full"
+                        >
+                          <FiFileText className="mr-1" />
+                          Complete Calibration
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
           
           {/* Pagination Controls */}
           {!loading && filteredCalibrations.length > 0 && (
-            <div className="flex justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-4">
-              <div className="text-sm text-gray-700">
+            <div className="flex flex-col md:flex-row justify-between items-center mt-4 bg-white rounded-lg shadow py-2 px-3 md:px-4 text-xs md:text-sm">
+              <div className="text-gray-700 mb-2 md:mb-0">
                 Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} results
               </div>
-              <div className="flex space-x-1">
+              <div className="flex flex-wrap justify-center space-x-1">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  className={`px-2 py-1 rounded ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
                   Previous
                 </button>
@@ -1032,7 +1091,7 @@ export default function UserCalibrationPage() {
                     <button
                       key={page}
                       onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      className={`px-2 py-1 rounded ${currentPage === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                       {page}
                     </button>
@@ -1041,7 +1100,7 @@ export default function UserCalibrationPage() {
                 <button
                   onClick={() => handlePageChange(Math.min(Math.ceil(totalItems / PAGE_SIZE), currentPage + 1))}
                   disabled={currentPage === Math.ceil(totalItems / PAGE_SIZE)}
-                  className={`px-3 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  className={`px-2 py-1 rounded ${currentPage === Math.ceil(totalItems / PAGE_SIZE) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
                   Next
                 </button>
