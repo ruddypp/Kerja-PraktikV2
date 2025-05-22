@@ -40,7 +40,6 @@ export default function RootLayout({
             (async function setupStatuses() {
               try {
                 await fetch('/api/admin/setup-statuses');
-                console.log('Status setup check completed');
               } catch (e) {
                 console.error('Status setup error:', e);
               }

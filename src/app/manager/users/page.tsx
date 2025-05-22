@@ -494,13 +494,6 @@ export default function ManagerUsersPage() {
                             >
                               <FiEdit2 className="h-5 w-5" />
                             </button>
-                            <button
-                              onClick={() => openDeleteConfirm(user)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete user"
-                            >
-                              <FiTrash2 className="h-5 w-5" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -534,17 +527,10 @@ export default function ManagerUsersPage() {
                       <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
                         <button
                           onClick={() => openEditModal(user)}
-                          className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+                          className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 w-full"
                         >
                           <FiEdit2 className="h-4 w-4 mr-1" />
                           Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(user)}
-                          className="inline-flex justify-center items-center px-3 py-2 border border-red-600 rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
-                        >
-                          <FiTrash2 className="h-4 w-4 mr-1" />
-                          Delete
                         </button>
                       </div>
                     </div>

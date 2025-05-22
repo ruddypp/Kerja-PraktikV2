@@ -409,13 +409,6 @@ export default function ManagerMaintenancePage() {
                             >
                               {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
                             </Link>
-                            <button
-                              onClick={() => openDeleteModal(maintenance)}
-                              className="text-red-600 hover:text-red-900 flex items-center"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Hapus
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -463,13 +456,6 @@ export default function ManagerMaintenancePage() {
                     >
                       {maintenance.status === "PENDING" ? "Lapor Hasil" : "Lihat Detail"}
                     </Link>
-                    <button
-                      onClick={() => openDeleteModal(maintenance)}
-                      className="text-sm font-medium text-red-600 hover:text-red-900 flex items-center"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Hapus
-                    </button>
                   </div>
                 </div>
               ))}

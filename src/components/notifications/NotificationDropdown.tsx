@@ -258,7 +258,8 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
   // Get icon and color based on notification type
   const getNotificationStyle = (type: NotificationType) => {
     switch (type) {
-      case 'REQUEST_UPDATE':
+      case 'RENTAL_REQUEST':
+      case 'RENTAL_STATUS_CHANGE':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -267,8 +268,8 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           ),
           color: 'text-blue-500 bg-blue-100'
         };
-      case 'CALIBRATION_UPDATE':
-      case 'CALIBRATION_EXPIRY':
+      case 'CALIBRATION_REMINDER':
+      case 'CALIBRATION_STATUS_CHANGE':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -277,8 +278,8 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           ),
           color: 'text-purple-500 bg-purple-100'
         };
-      case 'RENTAL_UPDATE':
-      case 'RENTAL_EXPIRY':
+      case 'RENTAL_DUE_REMINDER':
+      case 'MAINTENANCE_REMINDER':
         return { 
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,7 +297,16 @@ export default function NotificationDropdown({ userId }: NotificationDropdownPro
           ),
           color: 'text-green-500 bg-green-100'
         };
-      case 'SYSTEM':
+      case 'VENDOR_INFO':
+        return { 
+          icon: (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          ),
+          color: 'text-indigo-500 bg-indigo-100'
+        };
+      case 'GENERAL_INFO':
       default:
         return { 
           icon: (

@@ -596,13 +596,6 @@ export default function InventorySchedulesPage() {
                             >
                               <FiEdit2 className="w-5 h-5" />
                             </button>
-                            <button
-                              onClick={() => handleDeleteClick(schedule.id)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete Schedule"
-                            >
-                              <FiTrash2 className="w-5 h-5" />
-                            </button>
                           </div>
                         )}
                       </td>
@@ -651,13 +644,6 @@ export default function InventorySchedulesPage() {
                         >
                           <FiEdit2 className="mr-1 h-4 w-4" />
                           Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(schedule.id)}
-                          className="inline-flex justify-center items-center px-3 py-2 border border-red-600 rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
-                        >
-                          <FiTrash2 className="mr-1 h-4 w-4" />
-                          Delete
                         </button>
                       </div>
                     )}

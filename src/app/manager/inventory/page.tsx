@@ -719,12 +719,6 @@ export default function ManagerInventoryPage() {
                       >
                           Edit
                       </button>
-                      <button
-                          onClick={() => openDeleteConfirm(item)}
-                          className="text-red-600 hover:text-red-800"
-                      >
-                          Delete
-                      </button>
                   </td>
                 </tr>
                       ))}
@@ -772,15 +766,9 @@ export default function ManagerInventoryPage() {
                           </Link>
                           <button
                             onClick={() => openEditModal(item)}
-                            className="inline-flex justify-center items-center px-3 py-2 border border-green-600 rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700"
+                            className="inline-flex justify-center items-center px-3 py-2 border border-green-600 rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 col-span-2"
                           >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(item)}
-                            className="col-span-2 inline-flex justify-center items-center px-3 py-2 border border-red-600 rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
-                          >
-                            Delete
                           </button>
                         </div>
                       </div>

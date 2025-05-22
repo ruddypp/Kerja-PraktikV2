@@ -1448,13 +1448,13 @@ export default function ManagerCalibrationsPage() {
                           </button>
                           
                           {/* Add Delete button for completed calibrations */}
-                          <button
+                          {/* <button
                             onClick={() => openDeleteModal(calibration)}
                             className="text-red-600 hover:text-red-900 ml-3 inline-flex items-center"
                             title="Delete Calibration"
                           >
                             <FiX className="mr-1" /> Delete
-                          </button>
+                          </button> */}
                             </>
                           ) : (
                             <>
@@ -1477,13 +1477,13 @@ export default function ManagerCalibrationsPage() {
                           </button>
                           
                           {/* Add Delete button for in-progress calibrations */}
-                            <button
+                            {/* <button
                             onClick={() => openDeleteModal(calibration)}
                             className="text-red-600 hover:text-red-900 ml-3 inline-flex items-center"
                             title="Delete Calibration"
                           >
                             <FiX className="mr-1" /> Delete
-                            </button>
+                            </button> */}
                         </>
                       )}
                         </td>
@@ -1556,12 +1556,12 @@ export default function ManagerCalibrationsPage() {
                         </button>
                         
                         {/* Delete button */}
-                        <button
+                        {/* <button
                           onClick={() => openDeleteModal(calibration)}
                           className="text-sm font-medium text-red-600 hover:text-red-900 inline-flex items-center"
                         >
                           <FiX className="mr-1" /> Delete
-                        </button>
+                        </button> */}
                       </>
                     ) : (
                       <>
@@ -1582,12 +1582,12 @@ export default function ManagerCalibrationsPage() {
                         </button>
                         
                         {/* Delete button */}
-                        <button
+                        {/* <button
                           onClick={() => openDeleteModal(calibration)}
                           className="text-sm font-medium text-red-600 hover:text-red-900 inline-flex items-center"
                         >
                           <FiX className="mr-1" /> Delete
-                        </button>
+                        </button> */}
                       </>
                     )}
                   </div>

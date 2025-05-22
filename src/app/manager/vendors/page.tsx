@@ -538,13 +538,6 @@ export default function VendorsPage() {
                         >
                               <FiEdit className="h-5 w-5" />
                         </button>
-                        <button
-                          onClick={() => openDeleteModal(vendor)}
-                          className="text-red-600 hover:text-red-900"
-                              title="Delete vendor"
-                        >
-                              <FiTrash2 className="h-5 w-5" />
-                        </button>
                           </div>
                       </td>
                     </tr>

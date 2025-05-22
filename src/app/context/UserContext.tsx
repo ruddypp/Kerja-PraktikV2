@@ -32,7 +32,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        console.log('Fetching user data from context');
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
