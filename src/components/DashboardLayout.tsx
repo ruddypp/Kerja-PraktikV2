@@ -3,7 +3,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
-import NotificationDropdown from './notifications/NotificationDropdown';
 import { useUser } from '../app/context/UserContext';
 
 interface DashboardLayoutProps {
@@ -110,7 +109,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       
       {/* Content area with header */}
       <div className={`transition-all duration-300 ${isMobile ? 'ml-0' : 'ml-64'}`}>
-        {/* Header with notifications and user profile */}
+        {/* Header with user profile */}
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 sticky top-0 z-10 border-b border-gray-100">
           <div className="flex items-center space-x-2">
             {!isMobile && (
@@ -122,8 +121,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           
           <div className="flex items-center space-x-4">
-            {user && <NotificationDropdown userId={user.id} />}
-            
             <div className="flex items-center space-x-2">
               <span className="hidden md:inline text-sm font-medium text-gray-900">
                 {user?.name || (

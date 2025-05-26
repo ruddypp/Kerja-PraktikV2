@@ -50,21 +50,6 @@ export default function MaintenanceForm({
     reasonForReturn: "",
     findings: "",
     action: "",
-    sensorCO: false,
-    sensorH2S: false,
-    sensorO2: false,
-    sensorLEL: false,
-    lampClean: false,
-    lampReplace: false,
-    pumpTested: false,
-    pumpRebuilt: false,
-    pumpReplaced: false,
-    pumpClean: false,
-    instrumentCalibrate: false,
-    instrumentUpgrade: false,
-    instrumentCharge: false,
-    instrumentClean: false,
-    instrumentSensorAssembly: false,
   });
   
   // Service Report Parts
@@ -86,9 +71,9 @@ export default function MaintenanceForm({
     estimateWork: "",
     reasonForReturn: "Maintenance & calibration",
     findings: "",
+    action: "",
     beforePhotoUrl: "",
     afterPhotoUrl: "",
-    termsConditions: "",
   });
   
   // Technical Report Parts

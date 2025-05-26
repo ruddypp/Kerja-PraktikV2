@@ -15,6 +15,9 @@ export async function GET(req: NextRequest) {
     // Ambil semua maintenance tanpa filter userId
     // Optimasi dengan select hanya kolom yang diperlukan
     const maintenances = await prisma.maintenance.findMany({
+      where: {
+        userId: user.id, // Filter berdasarkan user yang sedang login
+      },
       select: {
         id: true,
         itemSerial: true,

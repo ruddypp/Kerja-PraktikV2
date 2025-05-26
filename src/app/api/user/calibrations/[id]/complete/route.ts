@@ -121,6 +121,14 @@ export async function PATCH(
     // Allow any authenticated user to complete any calibration
     console.log('Allowing user to complete calibration. User ID:', user.id, 'Calibration owner ID:', calibration.userId);
 
+    // Pastikan user hanya bisa menyelesaikan calibration miliknya sendiri
+    if (calibration.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki akses untuk menyelesaikan kalibrasi ini' },
+        { status: 403 }
+      );
+    }
+
     // Pastikan kalibrasi belum selesai
     if (calibration.status === 'COMPLETED') {
       return NextResponse.json(

@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
-import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2, PlusIcon } from "lucide-react";
+import { Search, Filter, ClipboardCheckIcon, RefreshCw, PlusIcon } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useRouter } from "next/navigation";
 
 interface MaintenanceItem {
   id: string;
@@ -25,18 +26,13 @@ interface MaintenanceItem {
 }
 
 export default function ManagerMaintenancePage() {
+  const router = useRouter();
   const [maintenances, setMaintenances] = useState<MaintenanceItem[]>([]);
   const [filteredMaintenances, setFilteredMaintenances] = useState<MaintenanceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   
-  // State untuk modal konfirmasi hapus
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [maintenanceToDelete, setMaintenanceToDelete] = useState<MaintenanceItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-
   // Konstanta untuk caching
   const CACHE_DURATION = 60000; // 1 menit
   const CACHE_KEY = 'manager_maintenance_data';
@@ -48,20 +44,18 @@ export default function ManagerMaintenancePage() {
     sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
   }, []);
 
-  // We're using searchTimeout.current directly instead of a debounce function
-
   // Declare applyFilters with useCallback before it's used
   const applyFilters = useCallback(() => {
     let result = [...maintenances];
     
     // Apply search filter
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
+    if (searchQuery) {
+      const lowerSearchQuery = searchQuery.toLowerCase();
       result = result.filter(
         (item) =>
-          item.item.name.toLowerCase().includes(lowerSearchTerm) ||
-          item.item.serialNumber.toLowerCase().includes(lowerSearchTerm) ||
-          item.user.name.toLowerCase().includes(lowerSearchTerm)
+          item.item.name.toLowerCase().includes(lowerSearchQuery) ||
+          item.itemSerial.toLowerCase().includes(lowerSearchQuery) ||
+          item.user.name.toLowerCase().includes(lowerSearchQuery)
       );
     }
     
@@ -71,7 +65,7 @@ export default function ManagerMaintenancePage() {
     }
     
     setFilteredMaintenances(result);
-  }, [maintenances, searchTerm, statusFilter]);
+  }, [maintenances, searchQuery, statusFilter]);
 
   const fetchMaintenances = useCallback(async () => {
     try {
@@ -86,6 +80,7 @@ export default function ManagerMaintenancePage() {
         // Gunakan data dari cache jika masih valid
         const data = JSON.parse(cachedData);
         setMaintenances(data);
+        setFilteredMaintenances(data);
         setLoading(false);
         return;
       }
@@ -103,6 +98,7 @@ export default function ManagerMaintenancePage() {
       sessionStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
       
       setMaintenances(data);
+      setFilteredMaintenances(data);
     } catch (error) {
       console.error("Error fetching maintenances:", error);
       toast.error("Gagal mengambil data maintenance");
@@ -112,6 +108,7 @@ export default function ManagerMaintenancePage() {
       if (oldCache) {
         try {
           setMaintenances(JSON.parse(oldCache));
+          setFilteredMaintenances(JSON.parse(oldCache));
           toast.success("Menampilkan data terakhir dari cache");
         } catch (e) {
           console.error("Error parsing old cache:", e);
@@ -126,78 +123,21 @@ export default function ManagerMaintenancePage() {
     fetchMaintenances();
   }, [fetchMaintenances]);
 
-  // Debounced search
-  const debouncedSearch = useCallback((term: string) => {
-    // If we have an existing timeout, clear it
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-    
-    // Set a new timeout
-    searchTimeout.current = setTimeout(() => {
-      setSearchTerm(term);
-      applyFilters();
-    }, 500);
-    
-    // Return a cleanup function
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
-  }, [applyFilters]);
-
   useEffect(() => {
-    applyFilters();
-  }, [maintenances, searchTerm, statusFilter, applyFilters]);
-
-  // Fungsi untuk membuka modal konfirmasi hapus
-  const openDeleteModal = (maintenance: MaintenanceItem) => {
-    setMaintenanceToDelete(maintenance);
-    setShowDeleteModal(true);
-  };
-
-  // Fungsi untuk menghapus maintenance
-  const deleteMaintenance = async () => {
-    if (!maintenanceToDelete) return;
-    
-    try {
-      setIsDeleting(true);
-      
-      const response = await fetch(`/api/manager/maintenance/${maintenanceToDelete.id}`, {
-        method: "DELETE"
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menghapus data maintenance");
-      }
-      
-      toast.success("Data maintenance berhasil dihapus");
-      
-      // Hapus dari state
-      setMaintenances(maintenances.filter(item => item.id !== maintenanceToDelete.id));
-      
-      // Invalidasi cache
-      invalidateCache();
-      
-      // Tutup modal
-      setShowDeleteModal(false);
-      setMaintenanceToDelete(null);
-    } catch (error) {
-      console.error("Error deleting maintenance:", error);
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus data maintenance");
-    } finally {
-      setIsDeleting(false);
+    if (maintenances.length > 0) {
+      const filtered = maintenances.filter((maintenance) =>
+        maintenance.item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        maintenance.itemSerial.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        maintenance.user.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredMaintenances(filtered);
     }
-  };
+  }, [searchQuery, maintenances]);
 
-  // Handle search input change with debounce
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
+    setSearchQuery(e.target.value);
   };
 
-  // Handle refresh button
   const handleRefresh = () => {
     invalidateCache();
     fetchMaintenances();
@@ -280,7 +220,7 @@ export default function ManagerMaintenancePage() {
                   type="text"
                   className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
                   placeholder="Cari barang, SN, atau user"
-                  defaultValue={searchTerm}
+                  defaultValue={searchQuery}
                   onChange={handleSearchChange}
                 />
               </div>
@@ -318,7 +258,7 @@ export default function ManagerMaintenancePage() {
             <ClipboardCheckIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">Tidak ada data maintenance</h3>
             <p className="mt-2 text-gray-500">
-              {searchTerm || statusFilter !== "ALL"
+              {searchQuery || statusFilter !== "ALL"
                 ? "Tidak ada hasil yang cocok dengan filter yang dipilih"
                 : "Belum ada data maintenance yang tersedia"}
             </p>
@@ -402,7 +342,7 @@ export default function ManagerMaintenancePage() {
                           {getStatusBadge(maintenance.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center">
                             <Link 
                               href={`/manager/maintenance/${maintenance.id}`}
                               className={maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}
@@ -449,7 +389,7 @@ export default function ManagerMaintenancePage() {
                     </div>
                   </div>
                   
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between">
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-center">
                     <Link 
                       href={`/manager/maintenance/${maintenance.id}`}
                       className={`text-sm font-medium ${maintenance.status === "PENDING" ? "text-green-600 hover:text-green-800" : "text-blue-600 hover:text-blue-900"}`}
@@ -463,51 +403,6 @@ export default function ManagerMaintenancePage() {
           </>
         )}
       </div>
-
-      {/* Modal Konfirmasi Hapus */}
-      {showDeleteModal && maintenanceToDelete && (
-        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black opacity-50"></div>
-          <div className="relative bg-white rounded-lg max-w-md w-full mx-4 p-6 shadow-xl">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Konfirmasi Hapus</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Anda yakin ingin menghapus data maintenance untuk barang <span className="font-semibold">{maintenanceToDelete.item.name}</span> dengan serial number <span className="font-semibold">{maintenanceToDelete.itemSerial}</span>?
-            </p>
-            <p className="text-sm text-red-500 mb-6">
-              Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait maintenance ini.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={isDeleting}
-              >
-                Batal
-              </button>
-              <button
-                onClick={deleteMaintenance}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Menghapus...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Hapus
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 } 

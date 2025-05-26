@@ -53,6 +53,14 @@ export async function GET(
       );
     }
     
+    // Pastikan user hanya bisa melihat maintenance miliknya sendiri
+    if (maintenance.userId !== user.id) {
+      return NextResponse.json(
+        { error: "Anda tidak memiliki akses ke data maintenance ini" },
+        { status: 403 }
+      );
+    }
+    
     return NextResponse.json(maintenance);
   } catch (error) {
     console.error("Error saat mengambil data maintenance:", error);

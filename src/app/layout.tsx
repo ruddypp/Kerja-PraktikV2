@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "./context/UserContext";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +30,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <UserProvider>
-          {children}
-        </UserProvider>
+        <Providers>
+          <UserProvider>
+            {children}
+          </UserProvider>
+        </Providers>
         
         {/* Script to set up required statuses */}
         <Script id="setup-statuses">
@@ -40,6 +43,7 @@ export default function RootLayout({
             (async function setupStatuses() {
               try {
                 await fetch('/api/admin/setup-statuses');
+                console.log('Status setup check completed');
               } catch (e) {
                 console.error('Status setup error:', e);
               }

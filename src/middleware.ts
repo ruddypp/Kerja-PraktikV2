@@ -6,18 +6,18 @@ import { Role } from '@prisma/client';
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
   const path = request.nextUrl.pathname;
-  // console.log(`Middleware URL: ${request.url}, Path: ${path}`);
+  console.log(`Middleware URL: ${request.url}, Path: ${path}`);
 
   // Login path specific behavior
   if (path === '/login') {
     // Check if user is already logged in
     const authToken = request.cookies.get('auth_token');
-    // console.log(`Login path, auth token exists: ${!!authToken?.value}`);
+    console.log(`Login path, auth token exists: ${!!authToken?.value}`);
     
     if (authToken?.value) {
       try {
         const decoded = decodeToken(authToken.value);
-        // console.log(`Decoded token on login path:`, decoded);
+        console.log(`Decoded token on login path:`, decoded);
         
         // Redirect already logged in users
         if (decoded?.role === Role.ADMIN) {
@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 
   // For all other protected paths, require authentication
   const authToken = request.cookies.get('auth_token');
-  // console.log(`Protected path ${path}, auth token exists: ${!!authToken?.value}`);
+  console.log(`Protected path ${path}, auth token exists: ${!!authToken?.value}`);
   
   if (!authToken?.value) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
   // Verify token for protected routes
   try {
     const decoded = decodeToken(authToken.value);
-    // console.log(`Decoded token:`, decoded);
+    console.log(`Decoded token:`, decoded);
     
     if (!decoded) {
       throw new Error('Invalid token');
@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     
     // Role-based path restrictions
     if ((path === '/admin-dashboard' || path.startsWith('/admin/')) && decoded.role !== Role.ADMIN) {
-      // console.log(`Non-admin accessing admin page, redirecting`);
+      console.log(`Non-admin accessing admin page, redirecting`);
       if (decoded.role === Role.MANAGER) {
         return NextResponse.redirect(new URL('/manager-dashboard', request.url));
       } else {
@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
     }
     
     if ((path === '/manager-dashboard' || path.startsWith('/manager/')) && decoded.role !== Role.MANAGER) {
-      // console.log(`Non-manager accessing manager page, redirecting`);
+      console.log(`Non-manager accessing manager page, redirecting`);
       if (decoded.role === Role.ADMIN) {
         return NextResponse.redirect(new URL('/admin-dashboard', request.url));
       } else {
@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
     }
     
     if (path.startsWith('/user/') && decoded.role !== Role.USER) {
-      // console.log(`Non-user accessing user page, redirecting`);
+      console.log(`Non-user accessing user page, redirecting`);
       if (decoded.role === Role.ADMIN) {
         return NextResponse.redirect(new URL('/admin-dashboard', request.url));
       } else if (decoded.role === Role.MANAGER) {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isManager } from '@/lib/auth';
-import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
+import { format } from 'date-fns';
 
 // GET - Get rental by ID
 export async function GET(
@@ -15,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
 
     // Get rental with related data
     const rental = await prisma.rental.findUnique({
@@ -72,7 +74,8 @@ export async function PATCH(
     }
 
     const managerId = user.id;
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
     const { status, notes, poNumber, doNumber, startDate, endDate } = await req.json();
 
     // Find rental
@@ -86,6 +89,14 @@ export async function PATCH(
 
     if (!currentRental) {
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
+    }
+
+    // Check if manager is trying to approve their own rental
+    if (status === RequestStatus.APPROVED && currentRental.userId === managerId) {
+      return NextResponse.json(
+        { error: 'Managers cannot approve their own rentals' },
+        { status: 403 }
+      );
     }
 
     // Prepare update data
@@ -107,30 +118,47 @@ export async function PATCH(
     const updatedRental = await prisma.$transaction(async (tx) => {
       // Update the rental
       const updated = await tx.rental.update({
-        where: { id: rentalId },
+      where: { id: rentalId },
         data: updateData,
-        include: {
-          item: true,
-          user: true
+      include: {
+        item: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
-      });
-
+      }
+    });
+    
       // Create status log if status changed
       if (status) {
         await tx.rentalStatusLog.create({
-          data: {
-            rentalId,
-            status: status as RequestStatus,
+      data: {
+        rentalId,
+        status,
             userId: managerId,
-            notes: notes || `Status changed to ${status}`
-          }
-        });
-
+        notes: notes || `Status updated to ${status} by manager`
+      }
+    });
+    
         // Update item status based on rental status
         let newItemStatus: ItemStatus | undefined;
         
-        if (status === RequestStatus.APPROVED) {
+    if (status === RequestStatus.APPROVED) {
           newItemStatus = ItemStatus.RENTED;
+      
+      // Create item history record
+          await tx.itemHistory.create({
+        data: {
+              itemSerial: currentRental.itemSerial,
+          action: 'RENTED',
+              details: `Rented to ${currentRental.user.name}`,
+          relatedId: rentalId,
+          startDate: new Date()
+        }
+      });
         } else if (status === RequestStatus.COMPLETED) {
           newItemStatus = ItemStatus.AVAILABLE;
         } else if (status === RequestStatus.REJECTED || status === RequestStatus.CANCELLED) {
@@ -142,29 +170,18 @@ export async function PATCH(
           await tx.item.update({
             where: { serialNumber: currentRental.itemSerial },
             data: { status: newItemStatus }
-          });
-        }
-
-        // Create activity log
+      });
+    }
+    
+    // Create activity log
         await tx.activityLog.create({
-          data: {
-            type: ActivityType.RENTAL_UPDATED,
-            action: `Updated rental status to ${status}`,
+      data: {
+        type: ActivityType.RENTAL_UPDATED,
+        action: `Updated rental status to ${status}`,
             userId: managerId,
             itemSerial: currentRental.itemSerial,
             rentalId,
             affectedUserId: currentRental.userId
-          }
-        });
-
-        // Create notification for the user
-        await tx.notification.create({
-          data: {
-            userId: currentRental.userId,
-            title: 'Rental Status Updated',
-            message: `Your rental for ${currentRental.item.name} has been ${status.toLowerCase()}`,
-            type: NotificationType.RENTAL_STATUS_CHANGE,
-            relatedId: rentalId
           }
         });
       } else {
@@ -183,7 +200,7 @@ export async function PATCH(
 
       return updated;
     });
-
+    
     return NextResponse.json(updatedRental);
   } catch (error) {
     console.error('Error updating rental:', error);
@@ -207,7 +224,8 @@ export async function DELETE(
     }
 
     const managerId = user.id;
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
 
     // Find rental
     const rental = await prisma.rental.findUnique({
@@ -262,17 +280,6 @@ export async function DELETE(
           itemSerial: rental.itemSerial,
           rentalId,
           affectedUserId: rental.userId
-        }
-      });
-
-      // Create notification for the user
-      await tx.notification.create({
-        data: {
-          userId: rental.userId,
-          title: 'Rental Cancelled',
-          message: `Your rental for ${rental.item.name} has been cancelled by manager`,
-          type: NotificationType.RENTAL_STATUS_CHANGE,
-          relatedId: rentalId
         }
       });
 

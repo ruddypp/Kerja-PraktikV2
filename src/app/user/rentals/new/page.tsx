@@ -51,6 +51,10 @@ export default function NewRentalRequestPage() {
   const [endDate, setEndDate] = useState<string>('');
   const [poNumber, setPoNumber] = useState('');
   const [doNumber, setDoNumber] = useState('');
+  const [renterName, setRenterName] = useState('');
+  const [renterPhone, setRenterPhone] = useState('');
+  const [renterAddress, setRenterAddress] = useState('');
+  const [initialCondition, setInitialCondition] = useState('');
 
   // Debounce search term to reduce API calls
   useEffect(() => {
@@ -112,6 +116,26 @@ export default function NewRentalRequestPage() {
       setError('Start date cannot be after end date');
       return;
     }
+
+    if (!renterName) {
+      setError('Please enter the renter name');
+      return;
+    }
+
+    if (!renterPhone) {
+      setError('Please enter the renter phone number');
+      return;
+    }
+
+    if (!renterAddress) {
+      setError('Please enter the renter address');
+      return;
+    }
+
+    if (!initialCondition) {
+      setError('Please describe the initial condition of the item');
+      return;
+    }
     
     setSubmitting(true);
     setError(null);
@@ -127,7 +151,11 @@ export default function NewRentalRequestPage() {
           startDate,
           endDate: endDate || null,
           poNumber: poNumber || null,
-          doNumber: doNumber || null
+          doNumber: doNumber || null,
+          renterName,
+          renterPhone,
+          renterAddress,
+          initialCondition
         }),
       });
       
@@ -404,6 +432,66 @@ export default function NewRentalRequestPage() {
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-5">
+                <h3 className="text-sm font-medium text-gray-800 mb-3">Informasi Peminjam</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label htmlFor="renter-name" className="block text-sm font-medium text-gray-700 mb-1">Nama Peminjam <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      id="renter-name"
+                      value={renterName}
+                      onChange={(e) => setRenterName(e.target.value)}
+                      placeholder="Masukkan nama peminjam"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="renter-phone" className="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      id="renter-phone"
+                      value={renterPhone}
+                      onChange={(e) => setRenterPhone(e.target.value)}
+                      placeholder="Masukkan nomor telepon"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <label htmlFor="renter-address" className="block text-sm font-medium text-gray-700 mb-1">Alamat <span className="text-red-500">*</span></label>
+                  <textarea
+                    id="renter-address"
+                    value={renterAddress}
+                    onChange={(e) => setRenterAddress(e.target.value)}
+                    placeholder="Masukkan alamat peminjam"
+                    rows={3}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="border-t border-gray-200 pt-5">
+                <h3 className="text-sm font-medium text-gray-800 mb-3">Kondisi Barang</h3>
+                <div>
+                  <label htmlFor="initial-condition" className="block text-sm font-medium text-gray-700 mb-1">Kondisi Barang Sebelum Dipinjam <span className="text-red-500">*</span></label>
+                  <textarea
+                    id="initial-condition"
+                    value={initialCondition}
+                    onChange={(e) => setInitialCondition(e.target.value)}
+                    placeholder="Deskripsikan kondisi barang saat ini sebelum dipinjam"
+                    rows={4}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                    required
+                  />
                 </div>
               </div>
             </div>

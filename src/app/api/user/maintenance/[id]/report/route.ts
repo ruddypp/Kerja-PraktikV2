@@ -167,21 +167,6 @@ interface ServiceReportMaintenanceData extends MaintenanceDataBase {
     reasonForReturn?: string | null;
     findings?: string | null;
     action?: string | null;
-    sensorCO?: boolean;
-    sensorH2S?: boolean;
-    sensorO2?: boolean;
-    sensorLEL?: boolean;
-    lampClean?: boolean;
-    lampReplace?: boolean;
-    pumpTested?: boolean;
-    pumpRebuilt?: boolean;
-    pumpReplaced?: boolean;
-    pumpClean?: boolean;
-    instrumentCalibrate?: boolean;
-    instrumentUpgrade?: boolean;
-    instrumentCharge?: boolean;
-    instrumentClean?: boolean;
-    instrumentSensorAssembly?: boolean;
     parts?: Array<{
       id: string;
       itemNumber: number;
@@ -563,91 +548,8 @@ page.drawImage(logoImage, {
     });
   }
   
-  // Service Checklist Section
-  const checklistY = formStartY - 180;
-  
-  // Draw checklist table - match exactly with the image
-  page.drawRectangle({
-    x: contentX,
-    y: checklistY - 70,
-    width: contentWidth,
-    height: 70,
-    borderColor: black,
-    borderWidth: 1
-  });
-  
-  // Calculate column widths for checklist
-  const columnCount = 4;
-  const columnWidth = contentWidth / columnCount;
-  
-  // Draw vertical dividers for checklist
-  for (let i = 1; i < columnCount; i++) {
-    page.drawLine({
-      start: { x: contentX + i * columnWidth, y: checklistY - 70 },
-      end: { x: contentX + i * columnWidth, y: checklistY },
-      thickness: 1,
-      color: black
-    });
-  }
-  
-  // Column Headers
-  page.drawText('Sensor Replacement', {
-    x: contentX + 10,
-    y: checklistY - 15,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  page.drawText('Lamp Service', {
-    x: contentX + columnWidth + 10,
-    y: checklistY - 15,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  page.drawText('Pump Service', {
-    x: contentX + 2 * columnWidth + 10,
-    y: checklistY - 15,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  page.drawText('Instrument Service', {
-    x: contentX + 3 * columnWidth + 10,
-    y: checklistY - 15,
-    size: 10,
-    font: helvetica,
-    color: black
-  });
-  
-  // Sensor Replacement checkboxes
-  renderCheckbox(contentX + 10, checklistY - 30, sr?.sensorCO || false, 'CO', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 10, checklistY - 42, sr?.sensorH2S || false, 'H2S', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 10, checklistY - 54, sr?.sensorO2 || false, 'O2', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 10, checklistY - 66, sr?.sensorLEL || false, 'LEL', page, black, helvetica, helveticaBold);
-  
-  // Lamp Service checkboxes
-  renderCheckbox(contentX + columnWidth + 10, checklistY - 30, sr?.lampClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + columnWidth + 10, checklistY - 42, sr?.lampReplace || false, 'Replace', page, black, helvetica, helveticaBold);
-  
-  // Pump Service checkboxes
-  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 30, sr?.pumpTested || false, 'Tested', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 42, sr?.pumpRebuilt || false, 'Rebuilt', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 54, sr?.pumpReplaced || false, 'Replaced', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 2 * columnWidth + 10, checklistY - 66, sr?.pumpClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  
-  // Instrument Service checkboxes
-  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 30, sr?.instrumentCalibrate || false, 'Calibrate', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 3 * columnWidth + 80, checklistY - 30, sr?.instrumentUpgrade || false, 'Upgrade', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 42, sr?.instrumentCharge || false, 'Charge', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 54, sr?.instrumentClean || false, 'Clean', page, black, helvetica, helveticaBold);
-  renderCheckbox(contentX + 3 * columnWidth + 10, checklistY - 66, sr?.instrumentSensorAssembly || false, 'Sensor Assembly', page, black, helvetica, helveticaBold);
-  
   // Parts List
-  const partsY = checklistY - 70;
+  const partsY = formStartY - 180;
   
   // Parts List header center-aligned
   const partsTextWidth = 70;

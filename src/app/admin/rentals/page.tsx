@@ -18,6 +18,11 @@ type Rental = {
   returnDate: string | null;
   poNumber: string | null;
   doNumber: string | null;
+  renterName: string | null;
+  renterPhone: string | null;
+  renterAddress: string | null;
+  initialCondition: string | null;
+  returnCondition: string | null;
   createdAt: string;
   updatedAt: string;
   item: {
@@ -72,11 +77,12 @@ export default function RentalsPage() {
     endDate: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const [newStatus, setNewStatus] = useState<RequestStatus | "">("");
   const [statusNotes, setStatusNotes] = useState("");
   const [processingAction, setProcessingAction] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [returnCondition, setReturnCondition] = useState('');
 
   // Build the API URL with query parameters
   const buildApiUrl = () => {
@@ -180,6 +186,7 @@ export default function RentalsPage() {
           id: selectedRental.id,
           status: newStatus,
           notes: statusNotes,
+          returnCondition: newStatus === RequestStatus.COMPLETED ? returnCondition : undefined,
         }),
       });
 
@@ -188,10 +195,11 @@ export default function RentalsPage() {
       }
 
       // Close modal and reset form
-      setShowStatusModal(false);
+      setDetailModalOpen(false);
       setSelectedRental(null);
       setNewStatus("");
       setStatusNotes("");
+      setReturnCondition("");
       
       // Refresh rentals list using SWR
       mutate();
@@ -202,23 +210,26 @@ export default function RentalsPage() {
     }
   };
 
-  const openStatusModal = (rental: Rental, defaultStatus?: RequestStatus) => {
+  const viewRentalDetails = (rental: Rental) => {
     setSelectedRental(rental);
-    setNewStatus(defaultStatus || "");
+    setDetailModalOpen(true);
+    setNewStatus("");
     setStatusNotes("");
-    setShowStatusModal(true);
+    setReturnCondition(rental.returnCondition || '');
   };
 
   const handleApprove = (rental: Rental) => {
-    openStatusModal(rental, RequestStatus.APPROVED);
+    viewRentalDetails(rental);
   };
 
   const handleReject = (rental: Rental) => {
-    openStatusModal(rental, RequestStatus.REJECTED);
+    viewRentalDetails(rental);
+    setNewStatus(RequestStatus.REJECTED);
   };
 
   const handleComplete = (rental: Rental) => {
-    openStatusModal(rental, RequestStatus.COMPLETED);
+    viewRentalDetails(rental);
+    setNewStatus(RequestStatus.COMPLETED);
   };
   
   // Pagination controls
@@ -467,42 +478,37 @@ export default function RentalsPage() {
                               {!rental.poNumber && !rental.doNumber && "-"}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => viewRentalDetails(rental)}
+                              className="text-green-600 hover:text-green-900 mr-3"
+                            >
+                              Detail
+                            </button>
+                            
                             {rental.status === RequestStatus.PENDING && (
-                              <div className="flex space-x-2">
+                              <>
                                 <button
                                   onClick={() => handleApprove(rental)}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
+                                  className="text-green-600 hover:text-green-900 mr-3"
                                 >
                                   Setujui
                                 </button>
                                 <button
                                   onClick={() => handleReject(rental)}
-                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
+                                  className="text-red-600 hover:text-red-900"
                                 >
                                   Tolak
                                 </button>
-                              </div>
+                              </>
                             )}
+                            
                             {rental.status === RequestStatus.APPROVED && rental.returnDate && (
                               <button
                                 onClick={() => handleComplete(rental)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors duration-200 shadow-sm"
+                                className="text-yellow-600 hover:text-yellow-900"
                               >
                                 Verifikasi Pengembalian
-                              </button>
-                            )}
-                            {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
-                              <span className="text-green-600">Sedang Dipinjam</span>
-                            )}
-                            {(rental.status === RequestStatus.COMPLETED || 
-                              rental.status === RequestStatus.REJECTED ||
-                              rental.status === RequestStatus.CANCELLED) && (
-                              <button
-                                onClick={() => openStatusModal(rental)}
-                                className="text-gray-600 hover:text-gray-900 underline"
-                              >
-                                Ubah Status
                               </button>
                             )}
                           </td>
@@ -611,7 +617,7 @@ export default function RentalsPage() {
                             rental.status === RequestStatus.REJECTED ||
                             rental.status === RequestStatus.CANCELLED) && (
                             <button
-                              onClick={() => openStatusModal(rental)}
+                              onClick={() => viewRentalDetails(rental)}
                               className="w-full text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-3 py-2 text-xs flex items-center justify-center"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -636,20 +642,140 @@ export default function RentalsPage() {
         )}
       </div>
 
-      {/* Status Change Modal */}
-      {showStatusModal && selectedRental && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-5 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">Ubah Status Rental</h3>
+      {/* Rental Detail Modal */}
+      {detailModalOpen && selectedRental && (
+        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black opacity-50"></div>
+          <div className="relative bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+            <button 
+              onClick={() => setDetailModalOpen(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              aria-label="Close modal"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Barang:</span> {selectedRental.item.name}</p>
-              <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Peminjam:</span> {selectedRental.user.name}</p>
-              <p className="text-sm text-gray-600 mb-3"><span className="font-medium">Status Saat Ini:</span> <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedRental.status)}`}>
-                {getStatusText(selectedRental.status)}
-              </span></p>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Detail Rental</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Barang</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Nama Barang:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.item.name}</div>
+                  </div>
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Serial Number:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.item.serialNumber}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Part Number:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.item.partNumber || '-'}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-md font-medium text-gray-800 mb-2">Periode Rental</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Tanggal Mulai:</span>
+                    <div className="text-sm text-gray-800">{formatDate(selectedRental.startDate)}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Tanggal Selesai:</span>
+                    <div className="text-sm text-gray-800">{formatDate(selectedRental.endDate) || 'Tidak ditentukan'}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Peminjam</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Nama Peminjam:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.renterName || selectedRental.user.name}</div>
+                  </div>
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Telepon:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.renterPhone || '-'}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Alamat:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.renterAddress || '-'}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Dokumen</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Nomor PO:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.poNumber || '-'}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Nomor DO:</span>
+                    <div className="text-sm text-gray-800">{selectedRental.doNumber || '-'}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="md:col-span-2">
+                <h3 className="text-md font-medium text-gray-800 mb-2">Kondisi Barang</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">Kondisi Awal:</span>
+                    <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.initialCondition || '-'}</div>
+                  </div>
+                  
+                  {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
+                    <div className="mt-4">
+                      <span className="text-sm font-medium text-gray-600">Kondisi Saat Pengembalian:</span>
+                      <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.returnCondition || 'Belum ada informasi'}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
+            {/* Action Section */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="text-md font-medium text-gray-800 mb-3">Aksi</h3>
+              
+              {/* Status information */}
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">Status Saat Ini:</span> 
+                  <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedRental.status)}`}>
+                    {getStatusText(selectedRental.status)}
+                  </span>
+                </p>
+              </div>
+              
+              {/* Action form */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {selectedRental.status === RequestStatus.PENDING && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
+                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Verifikasi Pengajuan Rental</h4>
+                    <p className="text-xs text-yellow-700 mb-3">Silakan periksa detail pengajuan rental di atas sebelum menyetujui atau menolak</p>
+                  </div>
+                )}
+                
+                {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
+                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Verifikasi Pengembalian Rental</h4>
+                    <p className="text-xs text-yellow-700 mb-2">Kondisi barang saat dikembalikan oleh pengguna:</p>
+                    <div className="p-2 bg-white rounded border border-yellow-200 text-xs">
+                      {selectedRental.returnCondition || 'Tidak ada informasi kondisi'}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Update Status */}
             <div className="mb-4">
               <label htmlFor="new-status" className="block text-sm font-medium text-gray-700 mb-1">Status Baru</label>
               <select
@@ -667,35 +793,96 @@ export default function RentalsPage() {
               </select>
             </div>
             
-            <div className="mb-5">
-              <label htmlFor="status-notes" className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                {/* Return Condition - Show only when completing a return */}
+                {newStatus === RequestStatus.COMPLETED && selectedRental.returnDate && (
+                  <div className="mb-4">
+                    <label htmlFor="returnCondition" className="block text-sm font-medium text-gray-700 mb-1">Catatan Verifikasi Pengembalian:</label>
+                    <textarea
+                      id="returnCondition"
+                      value={returnCondition}
+                      onChange={(e) => setReturnCondition(e.target.value)}
+                      placeholder="Deskripsikan kondisi barang saat verifikasi pengembalian"
+                      rows={3}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                    />
+                  </div>
+                )}
+                
+                {/* Notes */}
+                <div className="mb-4">
+                  <label htmlFor="statusNotes" className="block text-sm font-medium text-gray-700 mb-1">Catatan (opsional):</label>
               <textarea
-                id="status-notes"
+                    id="statusNotes"
                 value={statusNotes}
                 onChange={(e) => setStatusNotes(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                    placeholder="Tambahkan catatan untuk perubahan status"
                 rows={3}
-                placeholder="Tambahkan catatan (opsional)"
-              ></textarea>
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                  />
             </div>
             
+                {/* Action buttons */}
             <div className="flex justify-end space-x-3">
               <button
-                type="button"
-                onClick={() => setShowStatusModal(false)}
+                    onClick={() => setDetailModalOpen(false)}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 disabled={processingAction}
               >
-                Batal
+                    Tutup
+                  </button>
+                  
+                  {selectedRental.status === RequestStatus.PENDING && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setNewStatus(RequestStatus.REJECTED);
+                          handleStatusChange();
+                        }}
+                        className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        disabled={processingAction}
+                      >
+                        Tolak
               </button>
               <button
-                type="button"
+                        onClick={() => {
+                          setNewStatus(RequestStatus.APPROVED);
+                          handleStatusChange();
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        disabled={processingAction}
+                      >
+                        Setujui
+                      </button>
+                    </>
+                  )}
+                  
+                  {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
+                    <button
+                      onClick={() => {
+                        setNewStatus(RequestStatus.COMPLETED);
+                        handleStatusChange();
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      disabled={processingAction}
+                    >
+                      Verifikasi Pengembalian
+                    </button>
+                  )}
+                  
+                  {newStatus && newStatus !== selectedRental.status && !(
+                    (selectedRental.status === RequestStatus.PENDING && (newStatus === RequestStatus.APPROVED || newStatus === RequestStatus.REJECTED)) ||
+                    (selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && newStatus === RequestStatus.COMPLETED)
+                  ) && (
+                    <button
                 onClick={handleStatusChange}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                disabled={!newStatus || processingAction}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      disabled={processingAction}
               >
-                {processingAction ? 'Memproses...' : 'Simpan'}
+                      {processingAction ? 'Memproses...' : 'Simpan Perubahan'}
               </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

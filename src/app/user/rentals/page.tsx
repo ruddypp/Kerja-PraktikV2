@@ -17,6 +17,11 @@ type Rental = {
   returnDate: string | null;
   poNumber: string | null;
   doNumber: string | null;
+  renterName: string | null;
+  renterPhone: string | null;
+  renterAddress: string | null;
+  initialCondition: string | null;
+  returnCondition: string | null;
   createdAt: string;
   updatedAt: string;
   item: {
@@ -64,6 +69,10 @@ export default function UserRentalPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
+  const [returnCondition, setReturnCondition] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Build the API URL with query parameters
   const apiUrl = `/api/user/rentals?page=${currentPage}&limit=6${statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''}`;
@@ -106,14 +115,24 @@ export default function UserRentalPage() {
     setStatusFilter(e.target.value as RequestStatus | 'ALL');
   };
 
+  const openReturnModal = (rental: Rental) => {
+    setSelectedRental(rental);
+    setReturnCondition('');
+    setShowReturnModal(true);
+  };
+
   const handleReturnRequest = async (rentalId: string) => {
     try {
+      setIsSubmitting(true);
       const response = await fetch(`/api/user/rentals/${rentalId}/return`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ notes: 'User initiated return' }),
+        body: JSON.stringify({ 
+          notes: 'User initiated return',
+          returnCondition: returnCondition
+        }),
       });
 
       if (!response.ok) {
@@ -126,6 +145,9 @@ export default function UserRentalPage() {
         throw new Error(errorData.error || 'Failed to process return request');
       }
 
+      // Close modal
+      setShowReturnModal(false);
+
       // Update the local state via SWR mutation
       mutate();
 
@@ -136,6 +158,8 @@ export default function UserRentalPage() {
       const errorMessage = err instanceof Error ? err.message : 'Error processing return request';
       setError(errorMessage);
       console.error('Return request error:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -446,7 +470,7 @@ export default function UserRentalPage() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
                               <button
-                                onClick={() => handleReturnRequest(rental.id)}
+                                onClick={() => openReturnModal(rental)}
                                 className="inline-flex items-center px-3 py-1 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none"
                               >
                                 Kembalikan Barang
@@ -536,7 +560,7 @@ export default function UserRentalPage() {
                         <div className="pt-3 border-t border-gray-100">
                           {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
                                                           <button
-                              onClick={() => handleReturnRequest(rental.id)}
+                              onClick={() => openReturnModal(rental)}
                               className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none"
                             >
                               <svg className="mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -596,6 +620,101 @@ export default function UserRentalPage() {
           </div>
         )}
       </div>
+      
+      {/* Return Modal */}
+      {showReturnModal && selectedRental && (
+        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black opacity-50"></div>
+          <div className="relative bg-white rounded-lg max-w-xl w-full p-6 shadow-xl">
+            <button 
+              onClick={() => setShowReturnModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Pengembalian Barang</h2>
+            
+            <div className="mb-5">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                <div className="mb-2">
+                  <span className="text-sm font-medium text-gray-600">Nama Barang:</span>
+                  <div className="text-sm text-gray-800">{selectedRental.item.name}</div>
+                </div>
+                <div className="mb-2">
+                  <span className="text-sm font-medium text-gray-600">Serial Number:</span>
+                  <div className="text-sm text-gray-800">{selectedRental.item.serialNumber}</div>
+                </div>
+                <div className="mb-2">
+                  <span className="text-sm font-medium text-gray-600">Tanggal Peminjaman:</span>
+                  <div className="text-sm text-gray-800">{formatDate(selectedRental.startDate)}</div>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Nama Peminjam:</span>
+                  <div className="text-sm text-gray-800">{selectedRental.renterName || selectedRental.user.name}</div>
+                </div>
+              </div>
+              
+              {selectedRental.initialCondition && (
+                <div className="mb-4">
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Kondisi Awal Barang:</h4>
+                    <div className="p-3 bg-white rounded-md border border-yellow-100 text-sm text-gray-800 whitespace-pre-line">
+                      {selectedRental.initialCondition}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <h4 className="text-sm font-medium text-green-800 mb-2">Kondisi Saat Pengembalian <span className="text-red-500">*</span></h4>
+                  <p className="text-xs text-green-700 mb-3">Deskripsikan kondisi barang saat ini dengan detail untuk memudahkan proses verifikasi pengembalian</p>
+                  <textarea
+                    id="return-condition"
+                    value={returnCondition}
+                    onChange={(e) => setReturnCondition(e.target.value)}
+                    placeholder="Contoh: Barang dalam kondisi baik, tidak ada kerusakan, semua fungsi berjalan normal, dll."
+                    rows={4}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowReturnModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                disabled={isSubmitting}
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleReturnRequest(selectedRental.id)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
+                disabled={isSubmitting || !returnCondition}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Memproses...
+                  </>
+                ) : (
+                  'Ajukan Pengembalian'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 } 

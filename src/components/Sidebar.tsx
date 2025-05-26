@@ -312,19 +312,6 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
                   {(isOpen || isMobile) && 'History'}
                 </Link>
               </li>
-              {/* Notifications */}
-              <li>
-                <Link 
-                  href="/admin/notifications" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/notifications') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Notifikasi'}
-                </Link>
-              </li>
             </>
           ) : user?.role === 'MANAGER' ? (
             
@@ -486,19 +473,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
         {(isOpen || isMobile) && 'History'}
       </Link>
     </li>
-    {/* Notifications */}
-    <li>
-      <Link 
-        href="/manager/notifications" 
-        className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/manager/notifications') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
-        onClick={handleNavigation}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/manager/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-        {(isOpen || isMobile) && 'Notifikasi'}
-      </Link>
-    </li>
+    
   </>
           ) : (
 
@@ -559,21 +534,6 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false }: Si
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   {(isOpen || isMobile) && 'Maintenance'}
-                </Link>
-              </li>
-
-
-              {/* Notifications */}
-              <li>
-                <Link 
-                  href="/user/notifications" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/notifications') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
-                  onClick={handleNavigation}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/user/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  {(isOpen || isMobile) && 'Notifikasi'}
                 </Link>
               </li>
             </>

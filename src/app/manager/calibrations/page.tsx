@@ -120,13 +120,10 @@ export default function ManagerCalibrationsPage() {
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
-  const [completeModal, setCompleteModal] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<Calibration | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   
-  // Menambahkan state untuk konfirmasi hapus
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-   
   // Tambahkan state untuk modal edit sertifikat
   const [showEditCertificateModal, setShowEditCertificateModal] = useState(false);
   const [certificateData, setCertificateData] = useState<{
@@ -401,11 +398,11 @@ export default function ManagerCalibrationsPage() {
       notes: ''
     });
     
-    setCompleteModal(true);
+    setShowCompleteModal(true);
   };
   
   const closeCompleteModal = () => {
-    setCompleteModal(false);
+    setShowCompleteModal(false);
     setSelectedCalibration(null);
     resetCompleteForm();
   };
@@ -669,79 +666,12 @@ export default function ManagerCalibrationsPage() {
       }
       
       await fetchCalibrations();
-      setCompleteModal(false);
+      setShowCompleteModal(false);
       resetCompleteForm();
       toast.success('Calibration request marked as completed successfully');
     } catch (error: Error | unknown) {
       console.error('Error completing calibration request:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to complete calibration request');
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-  
-  // Tambahkan fungsi untuk mengelola modal hapus
-  const openDeleteModal = (calibration: Calibration) => {
-    setSelectedCalibration(calibration);
-    setShowDeleteModal(true);
-  };
-  
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setSelectedCalibration(null);
-  };
-  
-  // Fix the handleDeleteCalibration function
-  const handleDeleteCalibration = async () => {
-    if (!selectedCalibration) return;
-    
-    try {
-      setActionInProgress(true);
-      
-      const response = await fetch(`/api/manager/calibrations/${selectedCalibration.id}`, {
-        method: 'DELETE',
-      });
-      
-      // Handle empty response bodies
-      let data: ApiResponse = {};
-      try {
-        const text = await response.text();
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError);
-      }
-      
-      if (!response.ok) {
-        console.error('Delete calibration error response:', data);
-        throw new Error(data.error || `Gagal menghapus kalibrasi (${response.status})`);
-      }
-      
-      // Success - even if we got an error but the status is 2xx, consider it a success
-      // This helps handle the case where the item is deleted but there's a non-critical error
-      toast.success(data.message || 'Kalibrasi berhasil dihapus');
-      closeDeleteModal();
-      
-      // Always refresh the data regardless
-      fetchCalibrations();
-    } catch (error: Error | unknown) {
-      console.error('Error deleting calibration:', error);
-      let errorMessage = 'Gagal menghapus kalibrasi';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        console.error('Error details:', error.stack);
-      }
-      
-      toast.error(errorMessage);
-      setError(errorMessage);
-      
-      // Clear error message after 5 seconds
-      setTimeout(() => {
-        setError('');
-      }, 5000);
-      
-      // Still refresh the data even after error, in case of partial success
-      fetchCalibrations();
     } finally {
       setActionInProgress(false);
     }
@@ -1774,7 +1704,7 @@ export default function ManagerCalibrationsPage() {
         )}
         
         {/* Complete Modal */}
-        {completeModal && selectedCalibration && (
+        {showCompleteModal && selectedCalibration && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
               <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
@@ -2169,63 +2099,6 @@ export default function ManagerCalibrationsPage() {
               </div>
                 </div>
                   </div>
-        )}
-        
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && selectedCalibration && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-hidden">
-              <div className="flex justify-between items-center bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
-                <h3 className="text-lg font-semibold">Delete Calibration</h3>
-                <button onClick={closeDeleteModal} className="text-white hover:text-gray-200" aria-label="Close">
-                  <FiX size={20} />
-                </button>
-                </div>
-                
-              <div className="p-4 overflow-y-auto max-h-[calc(90vh-56px)]">
-                <div className="flex flex-col items-center mb-4">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                  <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mt-4">
-                    Delete Calibration
-                </h3>
-              </div>
-                
-                <div className="text-sm text-gray-500 mb-6">
-                  Are you sure you want to delete the calibration for {selectedCalibration.item?.name || "this item"}? 
-                  This action cannot be undone and will delete all related data including certificates.
-                </div>
-                
-                <div className="flex justify-end gap-2">
-                <button 
-                  type="button" 
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
-                    onClick={closeDeleteModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm"
-                    onClick={handleDeleteCalibration}
-                    disabled={actionInProgress}
-                  >
-                    {actionInProgress ? (
-                      <>
-                        <span className="animate-spin mr-2">⟳</span>
-                        Deleting...
-                      </>
-                    ) : (
-                      'Delete'
-                    )}
-                </button>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
         
         {/* Edit Certificate Modal */}

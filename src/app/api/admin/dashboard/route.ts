@@ -4,19 +4,8 @@ import { ItemStatus, RequestStatus } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { DashboardStats } from '@/lib/utils/dashboard';
 
-// Interface for the notification type
-interface Notification {
-  id: string;
-  message: string;
-  type: string;
-  isRead: boolean;
-  createdAt: Date;
-}
-
 // Interface for the dashboard response
-interface DashboardResponse extends DashboardStats {
-  notifications: Notification[];
-}
+interface DashboardResponse extends DashboardStats {}
 
 // GET dashboard statistics
 export async function GET() {
@@ -118,24 +107,6 @@ export async function GET() {
     const getValue = <T>(result: PromiseSettledResult<T>, defaultValue: T): T => {
       return result.status === 'fulfilled' ? result.value : defaultValue;
     };
-
-    // Create mock notifications since schema has changed
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        message: 'You have pending calibration requests to review',
-        type: 'CALIBRATION_REMINDER',
-        isRead: false,
-        createdAt: new Date()
-      },
-      {
-        id: '2',
-        message: 'Several items need to be returned soon',
-        type: 'RENTAL_DUE_REMINDER',
-        isRead: false,
-        createdAt: new Date()
-      }
-    ];
     
     // Ensure all values are proper numbers
     const ensureNumber = (value: string | number): number => {
@@ -161,8 +132,7 @@ export async function GET() {
       upcomingCalibrations: ensureNumber(getValue(upcomingCalibrationsResult, 0)),
       overdueRentals: ensureNumber(getValue(overdueRentalsResult, 0)),
       totalVendors: ensureNumber(getValue(totalVendorsResult, 0)),
-      totalUsers: ensureNumber(getValue(totalUsersResult, 0)),
-      notifications: mockNotifications
+      totalUsers: ensureNumber(getValue(totalUsersResult, 0))
     };
     
     return NextResponse.json(dashboardStats, { headers });
@@ -184,8 +154,7 @@ export async function GET() {
       upcomingCalibrations: 0,
       overdueRentals: 0,
       totalVendors: 0,
-      totalUsers: 0,
-      notifications: [],
+      totalUsers: 0
     };
     
     return NextResponse.json(emptyStats, { status: 500 });

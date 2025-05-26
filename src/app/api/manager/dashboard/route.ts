@@ -80,17 +80,6 @@ export async function GET(request: NextRequest) {
     // Get total users
     const totalUsers = await prisma.user.count();
 
-    // Get recent notifications
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: user.id
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 5
-    });
-
     // Return all dashboard data
     const dashboardData = {
       totalItems,
@@ -105,8 +94,7 @@ export async function GET(request: NextRequest) {
       upcomingCalibrations,
       overdueRentals,
       totalVendors,
-      totalUsers,
-      notifications
+      totalUsers
     };
 
     // Set cache headers

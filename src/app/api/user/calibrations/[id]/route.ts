@@ -51,6 +51,14 @@ export async function GET(
     // More permissive access control - any authenticated user can access any calibration
     console.log('Allowing access to calibration. User ID:', user.id, 'Calibration user ID:', calibration.userId);
     
+    // Pastikan user hanya bisa melihat calibration miliknya sendiri
+    if (calibration.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki akses ke data kalibrasi ini' },
+        { status: 403 }
+      );
+    }
+    
     return NextResponse.json(calibration);
   } catch (error) {
     console.error('Error fetching calibration:', error);
@@ -100,6 +108,14 @@ export async function PATCH(
     
     // More permissive access control - any authenticated user can update notes
     console.log('Allowing update to calibration. User ID:', user.id, 'Calibration user ID:', existingCalibration.userId);
+    
+    // Pastikan user hanya bisa mengupdate calibration miliknya sendiri
+    if (existingCalibration.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki akses untuk mengubah data kalibrasi ini' },
+        { status: 403 }
+      );
+    }
     
     // Parse request body
     const body = await request.json();

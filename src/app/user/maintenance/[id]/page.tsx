@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon } from "lucide-react";
 import Link from "next/link";
 import MaintenanceForm from "@/components/maintenance/MaintenanceForm";
 import DashboardLayout from "@/components/DashboardLayout";
+import { RequestStatus } from "@prisma/client";
 
 interface ServiceReportPart {
   id: string;
@@ -66,16 +67,17 @@ interface TechnicalReport {
   estimateWork: string;
   reasonForReturn: string;
   findings: string;
+  action: string;
   beforePhotoUrl: string | null;
   afterPhotoUrl: string | null;
-  termsConditions: string;
+  termsConditions?: string;
   partsList: TechnicalReportPart[];
 }
 
 interface MaintenanceData {
   id: string;
   itemSerial: string;
-  status: string;
+  status: RequestStatus;
   startDate: string;
   endDate: string | null;
   item: {
@@ -97,28 +99,24 @@ interface MaintenanceData {
   }>;
 }
 
-export default function MaintenanceDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function MaintenanceDetailPage() {
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const params = useParams();
   
-  // Use React.use to unwrap the params Promise
-  const id = React.use(params).id;
+  const maintenanceId = params.id;
 
   useEffect(() => {
-    if (id) {
+    if (maintenanceId) {
       fetchMaintenanceDetails();
     }
-  }, [id]);
+  }, [maintenanceId]);
 
   const fetchMaintenanceDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/user/maintenance/${id}`);
+      const response = await fetch(`/api/user/maintenance/${maintenanceId}`);
       const data = await response.json();
 
       if (!response.ok) {

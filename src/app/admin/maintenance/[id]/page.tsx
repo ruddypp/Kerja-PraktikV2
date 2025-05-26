@@ -6,11 +6,13 @@ import { ArrowLeftIcon, FileTextIcon, ClipboardListIcon } from "lucide-react";
 import Link from "next/link";
 import MaintenanceForm from "@/components/maintenance/MaintenanceForm";
 import DashboardLayout from "@/components/DashboardLayout";
+import { RequestStatus } from "@prisma/client";
+import { useParams } from "next/navigation";
 
 interface MaintenanceData {
   id: string;
   itemSerial: string;
-  status: string;
+  status: RequestStatus;
   startDate: string;
   endDate: string | null;
   item: {
@@ -24,8 +26,8 @@ interface MaintenanceData {
     name: string;
     email: string;
   };
-  serviceReport: Record<string, unknown>;
-  technicalReport: Record<string, unknown>;
+  serviceReport: Record<string, any>;
+  technicalReport: Record<string, any>;
   statusLogs: Array<{
     id: string;
     status: string;
@@ -37,18 +39,17 @@ interface MaintenanceData {
   }>;
 }
 
-export default function AdminMaintenanceDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function AdminMaintenanceDetailPage() {
+  const params = useParams();
+  const maintenanceId = params.id as string;
+  
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMaintenanceDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/maintenance/${params.id}`);
+      const response = await fetch(`/api/admin/maintenance/${maintenanceId}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -62,13 +63,13 @@ export default function AdminMaintenanceDetailPage({
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [maintenanceId]);
 
   useEffect(() => {
-    if (params.id) {
+    if (maintenanceId) {
       fetchMaintenanceDetails();
     }
-  }, [params.id, fetchMaintenanceDetails]);
+  }, [maintenanceId, fetchMaintenanceDetails]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -264,7 +265,7 @@ export default function AdminMaintenanceDetailPage({
               id: maintenance.id,
               itemSerial: maintenance.itemSerial,
               userId: maintenance.user.id,
-              status: maintenance.status as string,
+              status: maintenance.status,
               startDate: maintenance.startDate,
               endDate: maintenance.endDate,
               item: {

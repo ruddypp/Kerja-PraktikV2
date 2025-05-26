@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
 import { logMaintenanceActivity } from "@/lib/activity-logger";
 
@@ -22,21 +22,21 @@ interface TechnicalReportPartData {
 
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
+    // Get the authenticated user
     const user = await getUserFromRequest(req);
-    
-    if (!user) {
-      return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Extract maintenanceId from URL path as a fallback
-    let maintenanceId: string;
+    // Get form data and validate
+    let maintenanceId;
     try {
-      // In Next.js 15, params is a Promise and needs to be awaited
-      const params = await context.params;
-      maintenanceId = params.id;
+      // Properly await params in Next.js 15
+      const { id } = await params;
+      maintenanceId = id;
     } catch (err) {
       // Fallback method if context.params fails
       // Extract from URL path

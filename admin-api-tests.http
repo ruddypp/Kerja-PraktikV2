@@ -116,11 +116,11 @@ GET {{baseUrl}}/admin/dashboard
 Authorization: Bearer {{adminToken}}
 
 ### 17. Get Activity Logs
-GET {{baseUrl}}/admin/activity-logs
+GET {{baseUrl}}/admin/history
 Authorization: Bearer {{adminToken}}
 
 ### 18. Get Activity Logs with Filtering
-GET {{baseUrl}}/admin/activity-logs?type=USER_CREATED&page=1&limit=10
+GET {{baseUrl}}/admin/history?type=USER_CREATED&page=1&limit=10
 Authorization: Bearer {{adminToken}}
 
 ### 19. Get Notifications

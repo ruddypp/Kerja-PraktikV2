@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiSearch, FiRefreshCw, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
 import { XIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import {useRef} from 'react';
 
@@ -33,7 +33,6 @@ export default function VendorsPage() {
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   
   // Form state
@@ -188,18 +187,8 @@ export default function VendorsPage() {
   };
   
   const closeEditModal = () => {
+    setSelectedVendor(null);
     setShowEditModal(false);
-    setSelectedVendor(null);
-  };
-  
-  const openDeleteModal = (vendor: Vendor) => {
-    setSelectedVendor(vendor);
-    setShowDeleteModal(true);
-  };
-  
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setSelectedVendor(null);
   };
   
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -290,45 +279,6 @@ export default function VendorsPage() {
       }, 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update vendor');
-      
-      // Clear error message after 3 seconds
-      setTimeout(() => {
-        setError('');
-      }, 3000);
-    }
-  };
-  
-  const handleDeleteSubmit = async () => {
-    if (!selectedVendor) return;
-    
-    try {
-      const res = await fetch(`/api/manager/vendors/${selectedVendor.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include', // Include cookies for authentication
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to delete vendor');
-      }
-      
-      // Success
-      setSuccess('Vendor deleted successfully!');
-      closeDeleteModal();
-      
-      // Invalidate cache before fetching fresh data
-      invalidateCache();
-      fetchVendors();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete vendor');
       
       // Clear error message after 3 seconds
       setTimeout(() => {
@@ -877,43 +827,6 @@ export default function VendorsPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-        
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && selectedVendor && (
-          <div className="fixed inset-0 overflow-y-auto bg-gray-500/75 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto p-4">
-              <h3 className="text-base font-medium text-gray-900 mb-3">Confirm Deletion</h3>
-              <div className="mb-4">
-                <div className="mx-auto flex items-center justify-center h-10 w-10 rounded-full bg-red-100 mb-3">
-                  <FiTrash2 className="h-5 w-5 text-red-600" />
-              </div>
-                <p className="text-xs text-gray-500">
-                  Are you sure you want to delete vendor <span className="font-semibold">{selectedVendor.name}</span>? This action cannot be undone.
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  <span className="font-medium">Note:</span> Vendors with active calibrations cannot be deleted.
-                </p>
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <button 
-                  type="button" 
-                  onClick={closeDeleteModal}
-                  className="px-3 py-1.5 text-xs border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleDeleteSubmit}
-                  className="px-3 py-1.5 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                    Delete
-                </button>
-              </div>
             </div>
           </div>
         )}

@@ -123,7 +123,7 @@ export default function ManagerHistoryPage() {
       params.append('limit', pagination.limit.toString());
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
-      const cacheKey = `manager_activity_logs_${queryString}`;
+      const cacheKey = `manager_history_${queryString}`;
       
       // Check if we have cached data first
       const cachedData = sessionStorage.getItem(cacheKey);
@@ -144,10 +144,10 @@ export default function ManagerHistoryPage() {
         return;
       }
       
-      const res = await fetch(`/api/manager/activity-logs${queryString}`);
+      const res = await fetch(`/api/manager/history${queryString}`);
       
       if (!res.ok) {
-        throw new Error(`Failed to fetch activity logs: ${res.statusText}`);
+        throw new Error(`Failed to fetch history: ${res.statusText}`);
       }
       
       const data = await res.json() as PaginatedResponse;
@@ -163,8 +163,8 @@ export default function ManagerHistoryPage() {
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
       sessionStorage.setItem(`${cacheKey}_timestamp`, now.toString());
     } catch (err) {
-      console.error('Error fetching activity logs:', err);
-      setError('Failed to load activity history. Please try again.');
+      console.error('Error fetching history:', err);
+      setError('Failed to load history. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -510,7 +510,7 @@ export default function ManagerHistoryPage() {
         <div className="bg-white rounded-lg border border-gray-100 p-6">
           {loading ? (
             <div className="flex justify-center items-center py-12">
-  `          `<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
             </div>
           ) : activityLogs.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-md">

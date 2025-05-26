@@ -66,9 +66,8 @@ export default function ManagerInventoryPage() {
   const [vendorSearch, setVendorSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
@@ -172,12 +171,6 @@ export default function ManagerInventoryPage() {
     });
   }, []);
   
-  // Open delete confirmation
-  const openDeleteConfirm = useCallback((item: Item) => {
-    setCurrentItem(item);
-    setConfirmDeleteOpen(true);
-  }, []);
-
   // Membuat cacheKey berdasarkan parameter
   const getCacheKey = useCallback((page: number, filters: {search: string, status: string, category: string}) => {
     return `${CACHE_KEY_PREFIX}_${page}_${filters.search}_${filters.status}_${filters.category}`;
@@ -459,46 +452,6 @@ export default function ManagerInventoryPage() {
     }
   };
   
-  // Handle delete
-  const handleDelete = async () => {
-    if (!currentItem) return;
-    
-    try {
-      setFormSubmitting(true);
-      
-      // Delete item - Use manager endpoint
-      const res = await fetch(`/api/manager/items?serialNumber=${encodeURIComponent(currentItem.serialNumber)}`, {
-        method: 'DELETE',
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to delete item');
-      }
-      
-      // Update local state
-      setItems(items.filter(item => item.serialNumber !== currentItem.serialNumber));
-      setTotalItems(totalItems - 1);
-      
-      // Invalidate cache on successful deletion
-      invalidateCache();
-      
-      toast.success('Item deleted successfully');
-      
-      // Close confirmation modal
-      setConfirmDeleteOpen(false);
-      setCurrentItem(null);
-      
-      // Refresh data to ensure it's up to date
-      fetchData();
-    } catch (error: any) {
-      console.error('Error deleting item:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-  
   // Get status badge color
   const getStatusBadgeClass = (status: ItemStatus): string => {
     switch (status) {
@@ -766,7 +719,7 @@ export default function ManagerInventoryPage() {
                           </Link>
                           <button
                             onClick={() => openEditModal(item)}
-                            className="inline-flex justify-center items-center px-3 py-2 border border-green-600 rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 col-span-2"
+                            className="inline-flex justify-center items-center px-3 py-2 border border-green-600 rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700"
                           >
                             Edit
                           </button>
@@ -909,13 +862,6 @@ export default function ManagerInventoryPage() {
             {/* Rest of modal stays the same */}
                             </div>
                           )}
-
-        {/* Delete Confirmation Modal - No changes needed here */}
-      {confirmDeleteOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            {/* Rest of delete modal stays the same */}
-        </div>
-      )}
       </div>
     </DashboardLayout>
   );

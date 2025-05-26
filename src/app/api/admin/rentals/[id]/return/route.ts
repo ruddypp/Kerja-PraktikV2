@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
-import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 
 // POST - Process a rental return request
 export async function POST(
@@ -16,8 +16,9 @@ export async function POST(
     }
 
     const adminId = user.id;
-    const rentalId = params.id;
-    const { approved, notes } = await req.json();
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
+    const { notes } = await req.json();
 
     // Find the rental
     const rental = await prisma.rental.findUnique({
@@ -32,93 +33,65 @@ export async function POST(
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
 
-    // Check if the rental has a return date (return request initiated by user)
-    if (!rental.returnDate) {
-      return NextResponse.json(
-        { error: 'No return request found for this rental' },
-        { status: 400 }
-      );
-    }
-
-    // Check if the rental is in APPROVED status
+    // Verify rental status
     if (rental.status !== RequestStatus.APPROVED) {
       return NextResponse.json(
-        { error: 'Only approved rentals can be processed for return' },
+        { error: `Cannot return rental with status ${rental.status}` },
         { status: 400 }
       );
     }
 
-    // Process the return request in a transaction
-    const updatedRental = await prisma.$transaction(async (tx) => {
-      // If return is approved, complete the rental
-      const newStatus = approved ? RequestStatus.COMPLETED : RequestStatus.APPROVED;
-      
-      // Update the rental
-      const updated = await tx.rental.update({
-        where: { id: rentalId },
-        data: {
-          status: newStatus,
-          // If return is rejected, clear the return date
-          returnDate: approved ? rental.returnDate : null
-        },
-        include: {
-          item: true,
-          user: true
-        }
-      });
-
-      // Create rental status log
-      await tx.rentalStatusLog.create({
-        data: {
-          rentalId,
-          status: newStatus,
-          userId: adminId,
-          notes: notes || (approved 
-            ? 'Return request approved and completed' 
-            : 'Return request rejected')
-        }
-      });
-
-      // If approved, update item status to AVAILABLE
-      if (approved) {
-        await tx.item.update({
-          where: { serialNumber: rental.itemSerial },
-          data: { status: ItemStatus.AVAILABLE }
-        });
+    // Update rental status
+    const updatedRental = await prisma.rental.update({
+      where: { id: rentalId },
+      data: {
+        status: RequestStatus.COMPLETED,
+        returnDate: new Date()
+      },
+      include: {
+        item: true,
+        user: true
       }
+    });
 
-      // Create activity log
-      const action = approved 
-        ? `Approved return request and completed rental for ${rental.item.name}` 
-        : `Rejected return request for ${rental.item.name}`;
-      
-      await tx.activityLog.create({
-        data: {
-          type: ActivityType.RENTAL_UPDATED,
-          action,
-          userId: adminId,
-          itemSerial: rental.itemSerial,
-          rentalId,
-          affectedUserId: rental.userId
-        }
-      });
+    // Update item status
+    await prisma.item.update({
+      where: { serialNumber: rental.itemSerial },
+      data: { status: ItemStatus.AVAILABLE }
+    });
 
-      // Create notification for the user
-      const message = approved 
-        ? `Your return request for ${rental.item.name} has been approved` 
-        : `Your return request for ${rental.item.name} has been rejected`;
-      
-      await tx.notification.create({
-        data: {
-          userId: rental.userId,
-          title: 'Return Request Processed',
-          message,
-          type: NotificationType.RENTAL_STATUS_CHANGE,
-          relatedId: rentalId
-        }
-      });
+    // Create rental status log
+    await prisma.rentalStatusLog.create({
+      data: {
+        rentalId,
+        status: RequestStatus.COMPLETED,
+        userId: adminId,
+        notes: notes || 'Item returned'
+      }
+    });
 
-      return updated;
+    // Update item history
+    await prisma.itemHistory.updateMany({
+      where: {
+        itemSerial: rental.itemSerial,
+        action: 'RENTED',
+        relatedId: rentalId,
+        endDate: null
+      },
+      data: {
+        endDate: new Date()
+      }
+    });
+
+    // Create activity log
+    await prisma.activityLog.create({
+      data: {
+        type: ActivityType.RENTAL_UPDATED,
+        action: 'Item returned',
+        userId: adminId,
+        itemSerial: rental.itemSerial,
+        rentalId
+      }
     });
 
     return NextResponse.json(updatedRental);

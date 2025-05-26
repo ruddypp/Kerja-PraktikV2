@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
-import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 
 // GET - Get all rentals with optional filters
 export async function GET(req: NextRequest) {
@@ -126,26 +126,23 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Get the current rental state
+    // Check if rental exists
     const currentRental = await prisma.rental.findUnique({
       where: { id },
-      include: {
-        item: true,
-        user: true
-      }
+      include: { item: true }
     });
 
     if (!currentRental) {
-      return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Rental not found' },
+        { status: 404 }
+      );
     }
 
-    // Perform different actions based on the requested status change
-    let updatedRental;
-    
     // Start a transaction to ensure all updates are atomic
-    await prisma.$transaction(async (tx) => {
-      // Update the rental status
-      updatedRental = await tx.rental.update({
+    const updatedRental = await prisma.$transaction(async (tx) => {
+      // Update rental status
+      const updated = await tx.rental.update({
         where: { id },
         data: {
           status: status as RequestStatus,
@@ -202,16 +199,7 @@ export async function PATCH(req: NextRequest) {
         }
       });
 
-      // Create notification for the user
-      await tx.notification.create({
-        data: {
-          userId: currentRental.userId,
-          title: 'Rental Status Updated',
-          message: `Your rental for ${currentRental.item.name} has been ${status.toLowerCase()}`,
-          type: NotificationType.RENTAL_STATUS_CHANGE,
-          relatedId: id
-        }
-      });
+      return updated;
     });
 
     return NextResponse.json(updatedRental);
@@ -323,19 +311,6 @@ export async function POST(req: NextRequest) {
           affectedUserId: userId
         }
       });
-
-      // Create notification for the user if it's not the admin
-      if (targetUserId && targetUserId !== user.id) {
-        await tx.notification.create({
-          data: {
-            userId: targetUserId,
-            title: 'New Rental Created',
-            message: `Admin has created a rental for ${item.name} on your behalf`,
-            type: NotificationType.RENTAL_STATUS_CHANGE,
-            relatedId: newRental.id
-          }
-        });
-      }
 
       return newRental;
     });

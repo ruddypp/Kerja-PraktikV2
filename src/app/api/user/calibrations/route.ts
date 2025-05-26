@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { RequestStatus, ItemStatus, NotificationType, ActivityType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { z } from 'zod';
 import { logCalibrationActivity } from '@/lib/activity-logger';
+import { format } from 'date-fns';
+import crypto from 'crypto';
 
 // Status yang digunakan dalam kalibrasi - mapping ke enum Prisma
 const REQUEST_STATUS_COMPLETED = RequestStatus.COMPLETED; // Status setelah selesai
@@ -90,6 +92,9 @@ export async function GET(request: Request) {
     
     // Build where conditions
     const where: Record<string, string | undefined> = {};
+    
+    // Filter by user ID - only show calibrations created by this user
+    where.userId = user.id;
     
     // Filter by status if provided
     if (status) {
@@ -201,69 +206,16 @@ export async function POST(request: Request) {
       );
     }
     
-    // Create calibration record - hanya gunakan field yang ada dalam database
+    // Create calibration
     const calibration = await prisma.calibration.create({
       data: {
-        userId: user.id,
-        itemSerial: itemSerial,
-        status: RequestStatus.PENDING,
-        calibrationDate: new Date(calibrationDate),
-        vendorId
-      }
-    });
-    
-    // Update item status to IN_CALIBRATION - ini yang dipakai untuk display status
-    await prisma.item.update({
-      where: { serialNumber: itemSerial },
-      data: { status: ItemStatus.IN_CALIBRATION }
-    });
-    
-    // Create status log - gunakan status yang ada di database
-    await prisma.calibrationStatusLog.create({
-      data: {
-        calibrationId: calibration.id,
-        status: RequestStatus.PENDING, // Tetap pakai PENDING di database
-        notes: "Kalibrasi dimulai",
-        userId: user.id
-      }
-    });
-    
-    // Create activity log entry
-    await logCalibrationActivity(
-      user.id,
-      ActivityType.CALIBRATION_CREATED,
-      calibration.id,
-      itemSerial,
-      `Kalibrasi baru dimulai untuk item ${item.name}`
-    );
-    
-    // Create item history record
-    await prisma.itemHistory.create({
-      data: {
         itemSerial,
-        action: 'CALIBRATED',
-        details: `Dikirim untuk kalibrasi`,
-        relatedId: calibration.id,
+        userId: user.id,
+        vendorId,
+        status: RequestStatus.PENDING,
         startDate: new Date()
       }
     });
-    
-    // Notify admin
-    const admin = await prisma.user.findFirst({
-      where: { role: 'ADMIN' }
-    });
-    
-    if (admin) {
-      await prisma.notification.create({
-        data: {
-          userId: admin.id,
-          type: 'CALIBRATION_STATUS_CHANGE' as NotificationType,
-          title: 'Kalibrasi Baru Dimulai',
-          message: `Kalibrasi baru dimulai oleh ${user.name} untuk item ${item.name}`,
-          isRead: false
-        }
-      });
-    }
     
     // Return full calibration data
     const fullCalibration = await prisma.calibration.findUnique({
@@ -668,55 +620,6 @@ export async function PATCH(request: Request) {
         endDate: new Date()
       }
     });
-
-    // Notifikasi untuk admin tentang kalibrasi selesai
-    const admin = await prisma.user.findFirst({
-      where: { role: 'ADMIN' }
-    });
-
-    // Siapkan tanggal pengingat untuk notifikasi H-30
-    const validUntilDate = new Date(validUntil);
-    const reminderDate = new Date(validUntilDate);
-    reminderDate.setDate(reminderDate.getDate() - 30);
-
-    if (admin) {
-    await prisma.notification.create({
-      data: {
-          userId: admin.id,
-          type: 'CALIBRATION_STATUS_CHANGE',
-          title: 'Kalibrasi Selesai',
-          message: `Kalibrasi untuk item ${calibration.item.name} telah selesai oleh ${user.name}`,
-        isRead: false
-      }
-    });
-    
-      // Notifikasi H-30 untuk admin
-      // Hanya buat notifikasi jika tanggal reminder masih di masa depan
-      if (reminderDate > new Date()) {
-        await prisma.notification.create({
-          data: {
-            userId: admin.id,
-            type: 'CALIBRATION_REMINDER',
-            title: 'Pengingat Kalibrasi H-30',
-            message: `Kalibrasi untuk item ${calibration.item.name} akan berakhir dalam 30 hari pada ${new Date(validUntil).toLocaleDateString('id-ID')}`,
-            isRead: false
-          }
-        });
-      }
-    }
-
-    // Notifikasi H-30 untuk user
-    if (reminderDate > new Date()) {
-      await prisma.notification.create({
-        data: {
-          userId: calibration.userId,
-          type: 'CALIBRATION_REMINDER',
-          title: 'Pengingat Kalibrasi H-30',
-          message: `Kalibrasi untuk item ${calibration.item.name} akan berakhir dalam 30 hari pada ${new Date(validUntil).toLocaleDateString('id-ID')}`,
-          isRead: false
-        }
-      });
-    }
 
     // Format and return response
     return NextResponse.json({

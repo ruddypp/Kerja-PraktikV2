@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiArrowLeft, FiFileText, FiActivity, FiTool, FiCalendar, FiChevronLeft, FiChevronRight, FiInfo, FiClock, FiUser, FiHash, FiTag, FiBox } from 'react-icons/fi';
+import { FiArrowLeft, FiFileText, FiActivity, FiTool, FiCalendar, FiChevronLeft, FiChevronRight, FiInfo, FiClock, FiUser, FiHash, FiTag, FiBox, FiShoppingBag } from 'react-icons/fi';
 
 // Types
 interface Item {
@@ -78,6 +78,21 @@ interface Maintenance {
   createdAt: string;
 }
 
+interface Rental {
+  id: string;
+  itemSerial: string;
+  status: string;
+  startDate: string;
+  endDate: string | null;
+  returnDate: string | null;
+  createdAt: string;
+  renterName: string | null;
+  user: {
+    id: string;
+    name: string;
+  };
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -92,6 +107,7 @@ interface HistoryData {
   activityLogs: ActivityLog[];
   calibrations: Calibration[];
   maintenances: Maintenance[];
+  rentals: Rental[];
   pagination: Pagination;
 }
 
@@ -102,7 +118,7 @@ export default function UserItemHistoryPage() {
   const [historyData, setHistoryData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('history');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Changed from useState to constant since we don't change it
   const [isTabLoading, setIsTabLoading] = useState(false);
@@ -137,6 +153,7 @@ export default function UserItemHistoryPage() {
         activityLogs: [],
         calibrations: [],
         maintenances: [],
+        rentals: [],
         pagination: {
           page: 1,
           limit: itemsPerPage,
@@ -169,16 +186,16 @@ export default function UserItemHistoryPage() {
         setIsTabLoading(true);
         // Fix type comparison by using explicit string type
         let type: string;
-        if (activeTab === 'all') {
+        if (activeTab === 'history') {
           type = 'all';
-        } else if (activeTab === 'history') {
-          type = 'history';
         } else if (activeTab === 'calibrations') {
           type = 'calibration';
         } else if (activeTab === 'maintenances') {
           type = 'maintenance';
+        } else if (activeTab === 'rentals') {
+          type = 'rental';
         } else {
-          type = 'activity';
+          type = 'all';
         }
         
         // Use a timestamp to prevent browser caching
@@ -395,25 +412,13 @@ export default function UserItemHistoryPage() {
               <div className="border-b border-gray-200">
                 <nav className="flex -mb-px">
                   <button
-                    onClick={() => handleTabChange('all')}
-                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                      activeTab === 'all'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                    aria-label="All Activity"
-                  >
-                    <FiActivity className="inline-block mr-2" />
-                    All Activity
-                  </button>
-                  <button
                     onClick={() => handleTabChange('history')}
-                    className={`px-6 py-3 border-b-2 text-sm font-medium ${
+                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
                       activeTab === 'history'
                         ? 'border-indigo-500 text-indigo-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
-                    aria-label="Product History"
+                    aria-label="View product history"
                   >
                     <FiFileText className="inline-block mr-2" />
                     Product History
@@ -432,15 +437,27 @@ export default function UserItemHistoryPage() {
                   </button>
                   <button
                     onClick={() => handleTabChange('maintenances')}
-                    className={`px-6 py-3 border-b-2 text-sm font-medium ${
+                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
                       activeTab === 'maintenances'
                         ? 'border-indigo-500 text-indigo-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
-                    aria-label="Maintenances"
+                    aria-label="View maintenances"
                   >
                     <FiTool className="inline-block mr-2" />
                     Maintenances
+                  </button>
+                  <button
+                    onClick={() => handleTabChange('rentals')}
+                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                      activeTab === 'rentals'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                    aria-label="View rentals"
+                  >
+                    <FiShoppingBag className="inline-block mr-2" />
+                    Rentals
                   </button>
                 </nav>
               </div>
@@ -461,15 +478,16 @@ export default function UserItemHistoryPage() {
                   
                   {!loading && (
                     <>
-                      {/* All Activities */}
-                      {activeTab === 'all' && (
+                      {/* Product History - Now shows all activities */}
+                      {activeTab === 'history' && (
                         <div>
-                          <h3 className="text-lg font-medium mb-4">All Activities</h3>
+                          <h3 className="text-lg font-medium mb-4">Product History</h3>
                           {historyData.activityLogs.length === 0 && 
                            historyData.itemHistory.length === 0 && 
                            historyData.calibrations.length === 0 && 
-                           historyData.maintenances.length === 0 ? (
-                            <p className="text-gray-500">No activity records found for this product.</p>
+                           historyData.maintenances.length === 0 &&
+                           historyData.rentals.length === 0 ? (
+                            <p className="text-gray-500">No history records found for this product.</p>
                           ) : (
                             <div className="overflow-x-auto">
                               <table className="min-w-full divide-y divide-gray-200">
@@ -483,6 +501,9 @@ export default function UserItemHistoryPage() {
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       Details
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       User
@@ -503,6 +524,11 @@ export default function UserItemHistoryPage() {
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
                                         {log.details || 'N/A'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                          COMPLETED
+                                        </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {log.user.name}
@@ -530,6 +556,15 @@ export default function UserItemHistoryPage() {
                                         )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          history.endDate 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : 'bg-blue-100 text-blue-800'
+                                        }`}>
+                                          {history.endDate ? 'COMPLETED' : 'ACTIVE'}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         System
                                       </td>
                                     </tr>
@@ -543,11 +578,24 @@ export default function UserItemHistoryPage() {
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                          CALIBRATION ({cal.status})
+                                          CALIBRATION
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
                                         Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          cal.status === 'COMPLETED' 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : cal.status === 'CANCELLED'
+                                            ? 'bg-red-100 text-red-800'
+                                            : cal.status === 'IN_PROGRESS'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-purple-100 text-purple-800'
+                                        }`}>
+                                          {cal.status}
+                                        </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {cal.user.name}
@@ -563,7 +611,7 @@ export default function UserItemHistoryPage() {
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                          MAINTENANCE ({maintenance.status})
+                                          MAINTENANCE
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
@@ -574,66 +622,55 @@ export default function UserItemHistoryPage() {
                                           </span>
                                         )}
                                       </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          maintenance.status === 'COMPLETED' 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : maintenance.status === 'CANCELLED'
+                                            ? 'bg-red-100 text-red-800'
+                                            : maintenance.status === 'IN_PROGRESS'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-red-100 text-red-800'
+                                        }`}>
+                                          {maintenance.status}
+                                        </span>
+                                      </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         System
                                       </td>
                                     </tr>
                                   ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Item History */}
-                      {activeTab === 'history' && (
-                        <div>
-                          <h3 className="text-lg font-medium mb-4">Product History</h3>
-                          {historyData.itemHistory.length === 0 ? (
-                            <p className="text-gray-500">No history records found for this product.</p>
-                          ) : (
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Date
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Action
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Details
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Status
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {historyData.itemHistory.map(history => (
-                                    <tr key={history.id} className="hover:bg-gray-50">
+                                  
+                                  {/* Rentals */}
+                                  {historyData.rentals.map(rental => (
+                                    <tr key={`rental-${rental.id}`} className="hover:bg-gray-50">
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {formatDate(history.startDate)}
+                                        {formatDate(rental.startDate)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                          {history.action}
+                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                          RENTAL
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
-                                        {history.details || 'N/A'}
+                                        {rental.renterName ? `Renter: ${rental.renterName}` : ''}
+                                        {rental.endDate && <span className="ml-2">End: {formatDate(rental.endDate)}</span>}
+                                        {rental.returnDate && <span className="ml-2">Returned: {formatDate(rental.returnDate)}</span>}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          rental.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-800' :
+                                          rental.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
+                                          rental.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                          rental.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                          rental.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}>
+                                          {rental.status}
+                                        </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                          history.endDate 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-blue-100 text-blue-800'
-                                        }`}>
-                                          {history.endDate ? 'Completed' : 'Active'}
-                                        </span>
-                                        {history.endDate && <span className="ml-2">({formatDate(history.endDate)})</span>}
+                                        {rental.user.name}
                                       </td>
                                     </tr>
                                   ))}
@@ -758,6 +795,64 @@ export default function UserItemHistoryPage() {
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
                                         {maintenance.issue}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Rentals */}
+                      {activeTab === 'rentals' && (
+                        <div>
+                          <h3 className="text-lg font-medium mb-4">Rentals</h3>
+                          {historyData.rentals.length === 0 ? (
+                            <p className="text-gray-500">No rental records found for this item.</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Start Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      End Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Return Date
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Status
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {historyData.rentals.map(rental => (
+                                    <tr key={rental.id} className="hover:bg-gray-50">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {formatDate(rental.startDate)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {rental.endDate ? formatDate(rental.endDate) : '-'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {rental.returnDate ? formatDate(rental.returnDate) : '-'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          rental.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-800' :
+                                          rental.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
+                                          rental.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                          rental.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                          rental.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}>
+                                          {rental.status}
+                                        </span>
                                       </td>
                                     </tr>
                                   ))}

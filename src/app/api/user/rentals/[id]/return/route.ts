@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { RequestStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ActivityType } from '@prisma/client';
+import { logRentalActivity } from '@/lib/activity-logger';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
     const user = await getUserFromRequest(req);
-    
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get parameters
     const userId = user.id;
-    const rentalId = params.id;
-    const { notes } = await req.json();
+    // Properly await params before accessing its properties
+    const { id: rentalId } = await params;
+    const { notes, returnCondition } = await req.json();
 
     // Find the rental
     const rental = await prisma.rental.findUnique({
@@ -27,6 +30,7 @@ export async function POST(
       }
     });
 
+    // Validate rental exists
     if (!rental) {
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
@@ -44,66 +48,70 @@ export async function POST(
       );
     }
 
-    // Update the rental status to indicate return request
-    // We'll create a temporary status to indicate that the return is pending admin verification
+    // Update the rental status - use COMPLETED instead of RETURNED
     const updatedRental = await prisma.rental.update({
       where: { id: rentalId },
       data: {
-        returnDate: new Date(), // Record when the user initiated the return
+        status: RequestStatus.COMPLETED, 
+        returnDate: new Date(),
+        returnCondition: returnCondition || null
       },
       include: {
-        item: true
+        item: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     });
-
+    
+    // Update the item status
+    await prisma.item.update({
+      where: { serialNumber: updatedRental.itemSerial },
+      data: { status: 'AVAILABLE' }
+    });
+    
     // Create rental status log
     await prisma.rentalStatusLog.create({
       data: {
-        rentalId,
-        status: RequestStatus.APPROVED, // Status remains APPROVED until admin verifies
-        userId,
-        notes: `User initiated return: ${notes || 'No notes provided'}`
+        rentalId: rentalId,
+        status: RequestStatus.COMPLETED,
+        notes: notes || 'Item returned by user',
+        userId: user.id
       }
     });
-
-    // Create activity log
-    await prisma.activityLog.create({
-      data: {
-        type: ActivityType.RENTAL_UPDATED,
-        action: `Initiated return of ${rental.item.name}`,
-        userId,
-        itemSerial: rental.itemSerial,
-        rentalId
-      }
-    });
-
-    // Create notification for admins
-    const admins = await prisma.user.findMany({
+    
+    // Update item history
+    await prisma.itemHistory.updateMany({
       where: {
-        role: 'ADMIN'
+        itemSerial: updatedRental.itemSerial,
+        action: 'RENTED',
+        relatedId: rentalId,
+        endDate: null
+      },
+      data: {
+        endDate: new Date()
       }
     });
-
-    // Create notifications for all admins
-    await Promise.all(
-      admins.map(admin =>
-        prisma.notification.create({
-          data: {
-            userId: admin.id,
-            title: 'Rental Return Request',
-            message: `${user.name} has initiated a return for ${rental.item.name}`,
-            type: NotificationType.RENTAL_STATUS_CHANGE,
-            relatedId: rentalId
-          }
-        })
-      )
+    
+    // Log activity
+    await logRentalActivity(
+      user.id,
+      ActivityType.RENTAL_UPDATED,
+      rentalId,
+      updatedRental.itemSerial,
+      `User ${user.name} returned item ${updatedRental.item.name}`
     );
-
+    
+    // Return the updated rental
     return NextResponse.json(updatedRental);
   } catch (error) {
-    console.error('Error processing rental return:', error);
+    console.error('Error returning rental:', error);
     return NextResponse.json(
-      { error: 'Failed to process rental return' },
+      { error: 'Failed to return rental' },
       { status: 500 }
     );
   }

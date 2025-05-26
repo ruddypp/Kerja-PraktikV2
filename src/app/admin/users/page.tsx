@@ -102,16 +102,9 @@ export default function AdminUsersPage() {
   
   // Open delete confirmation
   const openDeleteConfirm = useCallback((user: User) => {
-    // Check if user still exists in the users list
-    const userExists = users.some(u => u.id === user.id);
-    if (!userExists) {
-      toast.error('Pengguna tidak ditemukan atau sudah dihapus');
-      return;
-    }
-    
     setCurrentUser(user);
     setConfirmDeleteOpen(true);
-  }, [users]);
+  }, []);
 
   // Fetch data
   const fetchData = useCallback(async (searchTerm = search, role = roleFilter) => {
@@ -315,15 +308,6 @@ export default function AdminUsersPage() {
   const handleDelete = async () => {
     if (!currentUser) return;
     
-    // Double check if user still exists in the users list
-    const userExists = users.some(u => u.id === currentUser.id);
-    if (!userExists) {
-      setError('Pengguna tidak ditemukan atau sudah dihapus');
-      toast.error('Pengguna tidak ditemukan atau sudah dihapus');
-      setConfirmDeleteOpen(false);
-      return;
-    }
-    
     try {
       setFormSubmitting(true);
       setError('');
@@ -349,9 +333,6 @@ export default function AdminUsersPage() {
       
       // Update users state directly to remove the deleted user
       setUsers(prevUsers => prevUsers.filter(user => user.id !== currentUser.id));
-      
-      // Refresh the user list in background
-      fetchData();
       
       // Show success message
       setSuccess(data.message || 'User deleted successfully');

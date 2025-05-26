@@ -21,12 +21,28 @@ type CalibrationWithRelations = Calibration & {
   };
 };
 
+interface Rental {
+  id: string;
+  itemSerial: string;
+  status: string;
+  startDate: Date;
+  endDate: Date | null;
+  returnDate: Date | null;
+  createdAt: Date;
+  renterName: string | null;
+  user: {
+    id: string;
+    name: string;
+  };
+}
+
 interface PaginatedResponse {
   item: Item;
   itemHistory: ItemHistory[];
   activityLogs: ActivityLogWithUser[];
   calibrations: CalibrationWithRelations[];
   maintenances: Maintenance[];
+  rentals: Rental[];
   pagination: {
     page: number;
     limit: number;
@@ -52,7 +68,7 @@ export async function GET(request: Request) {
     // New pagination and filtering parameters
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const type = searchParams.get('type') || 'all'; // all, history, activity, calibration, maintenance
+    const type = searchParams.get('type') || 'all'; // all, history, activity, calibration, maintenance, rental
     
     if (!serialNumber) {
       return NextResponse.json(
@@ -95,6 +111,7 @@ export async function GET(request: Request) {
       activityLogs: [],
       calibrations: [],
       maintenances: [],
+      rentals: [],
       pagination: {
         page,
         limit,
@@ -246,6 +263,47 @@ export async function GET(request: Request) {
       } catch (error) {
         console.error('Error fetching maintenance data:', error);
         // Continue with other data even if maintenance data fails
+      }
+    }
+    
+    if (type === 'all' || type === 'rental') {
+      try {
+        const rentals = await prisma.rental.findMany({
+          where: { itemSerial: serialNumber },
+          select: {
+            id: true,
+            itemSerial: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            returnDate: true,
+            createdAt: true,
+            renterName: true,
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: type === 'rental' ? limit : 5, // Limit results if showing all types
+          skip: type === 'rental' ? skip : 0
+        });
+        
+        if (type === 'rental') {
+          const count = await prisma.rental.count({
+            where: { itemSerial: serialNumber }
+          });
+          
+          response.pagination.totalItems = count;
+          response.pagination.totalPages = Math.ceil(count / limit);
+        }
+        
+        response.rentals = rentals as Rental[];
+      } catch (error) {
+        console.error('Error fetching rental data:', error);
+        // Continue with other data even if rental data fails
       }
     }
     

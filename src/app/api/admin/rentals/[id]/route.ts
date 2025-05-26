@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
-import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
+import { format } from 'date-fns';
 
 // GET - Get rental by ID
 export async function GET(
@@ -15,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
 
     // Get rental with related data
     const rental = await prisma.rental.findUnique({
@@ -72,7 +74,8 @@ export async function PATCH(
     }
 
     const adminId = user.id;
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
     const { status, notes, poNumber, doNumber, startDate, endDate } = await req.json();
 
     // Find rental
@@ -87,6 +90,9 @@ export async function PATCH(
     if (!currentRental) {
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
+
+    // Note: Admins can approve any rental, including their own
+    console.log(`Admin ${adminId} updating rental ${rentalId} status to ${status}`);
 
     // Prepare update data
     const updateData: any = {};
@@ -122,7 +128,7 @@ export async function PATCH(
             rentalId,
             status: status as RequestStatus,
             userId: adminId,
-            notes: notes || `Status changed to ${status}`
+            notes: notes || `Status updated to ${status} by admin`
           }
         });
 
@@ -154,17 +160,6 @@ export async function PATCH(
             itemSerial: currentRental.itemSerial,
             rentalId,
             affectedUserId: currentRental.userId
-          }
-        });
-
-        // Create notification for the user
-        await tx.notification.create({
-          data: {
-            userId: currentRental.userId,
-            title: 'Rental Status Updated',
-            message: `Your rental for ${currentRental.item.name} has been ${status.toLowerCase()}`,
-            type: NotificationType.RENTAL_STATUS_CHANGE,
-            relatedId: rentalId
           }
         });
       } else {
@@ -207,7 +202,8 @@ export async function DELETE(
     }
 
     const adminId = user.id;
-    const rentalId = params.id;
+    // Properly await params in Next.js 15
+    const { id: rentalId } = await params;
 
     // Find rental
     const rental = await prisma.rental.findUnique({
@@ -262,17 +258,6 @@ export async function DELETE(
           itemSerial: rental.itemSerial,
           rentalId,
           affectedUserId: rental.userId
-        }
-      });
-
-      // Create notification for the user
-      await tx.notification.create({
-        data: {
-          userId: rental.userId,
-          title: 'Rental Cancelled',
-          message: `Your rental for ${rental.item.name} has been cancelled by admin`,
-          type: NotificationType.RENTAL_STATUS_CHANGE,
-          relatedId: rentalId
         }
       });
 

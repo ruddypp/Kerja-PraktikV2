@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import { XIcon } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
 
@@ -33,7 +33,6 @@ export default function ManagerUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -86,25 +85,17 @@ export default function ManagerUsersPage() {
   
   // Open modal in edit mode
   const openEditModal = useCallback((user: User) => {
+    setCurrentUser(user);
     setFormData({
-      id: user.id,
       name: user.name,
       email: user.email,
-      password: '', // Don't populate password in edit mode
+      password: '',
       role: user.role
     });
-    
-    setCurrentUser(user);
     setIsEditMode(true);
     setModalOpen(true);
   }, []);
   
-  // Open delete confirmation
-  const openDeleteConfirm = useCallback((user: User) => {
-    setCurrentUser(user);
-    setConfirmDeleteOpen(true);
-  }, []);
-
   // Fetch data
   const fetchData = useCallback(async (searchTerm = search) => {
     try {
@@ -287,44 +278,6 @@ export default function ManagerUsersPage() {
       console.error('Error submitting form:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
       toast.error(error instanceof Error ? error.message : 'Failed to save user');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-  
-  // Handle user deletion
-  const handleDelete = async () => {
-    if (!currentUser) return;
-    
-    try {
-      setFormSubmitting(true);
-      
-      const response = await fetch(`/api/manager/users/${currentUser.id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete user');
-      }
-      
-      // Clear cache
-      invalidateCache();
-      
-      // Refresh the user list
-      fetchData();
-      
-      // Show success message
-      setSuccess('User deleted successfully');
-      toast.success('User deleted successfully');
-      
-      // Close the confirmation
-      setConfirmDeleteOpen(false);
-      
-    } catch (error: unknown) {
-      console.error('Error deleting user:', error);
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
-      toast.error(error instanceof Error ? error.message : 'Failed to delete user');
     } finally {
       setFormSubmitting(false);
     }
@@ -524,10 +477,10 @@ export default function ManagerUsersPage() {
                         </div>
                       </div>
                       
-                      <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
+                      <div className="pt-3 border-t border-gray-100 grid grid-cols-1 gap-2">
                         <button
                           onClick={() => openEditModal(user)}
-                          className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 w-full"
+                          className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
                         >
                           <FiEdit2 className="h-4 w-4 mr-1" />
                           Edit
@@ -646,44 +599,6 @@ export default function ManagerUsersPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {confirmDeleteOpen && currentUser && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-25 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Confirm Deletion</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to delete user <span className="font-semibold">{currentUser.name}</span>? This action cannot be undone.
-            </p>
-            
-            <div className="mt-5 sm:mt-4 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={formSubmitting}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center"
-              >
-                {formSubmitting && (
-                  <span className="mr-2">
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </span>
-                )}
-                Delete
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -86,11 +86,7 @@ Authorization: Bearer {{userToken}}
 ### 16. Access User Route Without Authentication (Should Return 401)
 GET {{baseUrl}}/user/items
 
-### 17. Get User Activity Logs
-GET {{baseUrl}}/user/activity-logs
-Authorization: Bearer {{userToken}}
-
-### 18. Get User Notifications
+### 17. Get User Notifications
 GET {{baseUrl}}/user/requests
 Authorization: Bearer {{userToken}}
 

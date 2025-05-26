@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { RequestStatus, ItemStatus, ActivityType, NotificationType } from '@prisma/client';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 
 // GET - Get user's rentals
 export async function GET(req: NextRequest) {
@@ -78,10 +78,20 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = user.id;
-    const { itemSerial, startDate, endDate, poNumber, doNumber } = await req.json();
+    const { 
+      itemSerial, 
+      startDate, 
+      endDate, 
+      poNumber, 
+      doNumber, 
+      renterName, 
+      renterPhone, 
+      renterAddress, 
+      initialCondition 
+    } = await req.json();
 
     // Validate required fields
-    if (!itemSerial || !startDate) {
+    if (!itemSerial || !startDate || !renterName || !renterPhone || !renterAddress || !initialCondition) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -116,6 +126,10 @@ export async function POST(req: NextRequest) {
         endDate: endDate ? new Date(endDate) : null,
         poNumber,
         doNumber,
+        renterName,
+        renterPhone,
+        renterAddress,
+        initialCondition,
         status: RequestStatus.PENDING
       },
       include: {
@@ -149,28 +163,6 @@ export async function POST(req: NextRequest) {
         rentalId: rental.id
       }
     });
-
-    // Create notification for admins
-    const admins = await prisma.user.findMany({
-      where: {
-        role: 'ADMIN'
-      }
-    });
-
-    // Create notifications for all admins
-    await Promise.all(
-      admins.map(admin =>
-        prisma.notification.create({
-          data: {
-            userId: admin.id,
-            title: 'New Rental Request',
-            message: `${user.name} has requested to rent ${item.name}`,
-            type: NotificationType.RENTAL_REQUEST,
-            relatedId: rental.id
-          }
-        })
-      )
-    );
 
     return NextResponse.json(rental, { status: 201 });
   } catch (error) {

@@ -5,10 +5,11 @@ import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
-// Nilai-nilai status sebagai string
-const IN_PROGRESS = 'IN_PROGRESS';
-const COMPLETED = 'COMPLETED';
-const CANCELLED = 'CANCELLED';
+// Constants for calibration status
+const PENDING = RequestStatus.PENDING;
+const IN_PROGRESS = RequestStatus.IN_PROGRESS;
+const COMPLETED = RequestStatus.COMPLETED;
+const CANCELLED = RequestStatus.CANCELLED;
 
 // Schema for validating calibration approval
 const approveCalibrationSchema = z.object({
@@ -31,24 +32,10 @@ const updateCalibrationSchema = z.object({
 
 // Helper function to extract status value from ID
 function extractStatusFromId(statusId: string | RequestStatus): string {
-  if (typeof statusId !== 'string') return statusId as unknown as string;
-  
-  // If in format like "calibration_IN_PROGRESS", extract the part after underscore
-  const parts = statusId.split('_');
-  if (parts.length > 1) {
-    const statusValue = parts[parts.length - 1];
-    if (statusValue === 'IN_PROGRESS') return IN_PROGRESS;
-    if (statusValue === 'COMPLETED') return COMPLETED;
-    if (statusValue === 'CANCELLED') return CANCELLED;
+  if (typeof statusId === 'string' && statusId.includes('_')) {
+    return statusId.split('_')[1];
   }
-  
-  // For backward compatibility
-  if (statusId === 'IN_PROGRESS') return IN_PROGRESS;
-  if (statusId === 'COMPLETED') return COMPLETED;
-  if (statusId === 'CANCELLED') return CANCELLED;
-  
-  // Default to IN_PROGRESS if not recognized
-  return IN_PROGRESS;
+  return statusId as string;
 }
 
 // GET all calibrations for admin
@@ -208,29 +195,14 @@ export async function POST(request: Request) {
       }
     });
     
-    // Create status log
-    await prisma.calibrationStatusLog.create({
-        data: {
-        calibrationId: id,
-        status: COMPLETED as RequestStatus,
-        notes: notes || 'Calibration approved by admin',
-        userId: user.id
-      }
+    // Update the item status to IN_CALIBRATION
+    await prisma.item.update({
+      where: { serialNumber: calibration.itemSerial },
+      data: { status: ItemStatus.IN_CALIBRATION }
     });
     
     // Create certificate URL (if needed)
     // This would typically generate a PDF and store the URL
-    
-    // Create notification for the user
-    await prisma.notification.create({
-      data: {
-        userId: calibration.userId,
-        type: 'CALIBRATION_STATUS_CHANGE',
-        title: 'Calibration Approved',
-        message: `Your calibration for ${calibration.item.name} has been approved`,
-        isRead: false
-      }
-    });
     
     // Create activity log
     await prisma.activityLog.create({
@@ -238,7 +210,8 @@ export async function POST(request: Request) {
         userId: user.id,
         action: 'APPROVED_CALIBRATION',
         details: `Approved calibration for ${calibration.item.name}`,
-        itemSerial: calibration.itemSerial
+        itemSerial: calibration.itemSerial,
+        type: ActivityType.CALIBRATION_UPDATED
       }
     });
     
@@ -330,47 +303,6 @@ export async function PATCH(request: Request) {
           endDate: new Date()
         }
       });
-      
-      // Add reminder notification for H-30 before validUntil
-      if (validUntil) {
-        const validUntilDate = new Date(validUntil);
-        const reminderDate = new Date(validUntilDate);
-        reminderDate.setDate(reminderDate.getDate() - 30);
-        
-        // Only create reminder if the date is in the future
-        if (reminderDate > new Date()) {
-          // Get an admin user for notifications
-          const adminUser = await prisma.user.findFirst({
-            where: { role: 'ADMIN' }
-          });
-          
-          if (!adminUser) {
-            console.error('No admin user found for sending notification');
-          } else {
-            // Create reminder notification for the user
-            await prisma.notification.create({
-              data: {
-                userId: calibration.userId,
-                type: 'CALIBRATION_REMINDER',
-                title: 'Calibration Expiring Soon',
-                message: `Your calibration for ${calibration.item.name} will expire in 30 days (on ${format(validUntilDate, 'dd/MM/yyyy')})`,
-                isRead: false
-              }
-            });
-            
-            // Create reminder notification for admin
-            await prisma.notification.create({
-              data: {
-                userId: adminUser.id,
-                type: 'CALIBRATION_REMINDER',
-                title: 'Calibration Expiring Soon',
-                message: `Calibration for ${calibration.item.name} (User: ${calibration.user.name}) will expire in 30 days`,
-                isRead: false
-              }
-            });
-          }
-        }
-      }
     }
     
     // Update the calibration
@@ -399,61 +331,6 @@ export async function PATCH(request: Request) {
         userId: user.id
       }
     });
-    
-    // Create notification for the user
-    const statusMap: Record<string, string> = {
-      [IN_PROGRESS]: 'updated to in progress',
-      [COMPLETED]: 'completed',
-      [CANCELLED]: 'cancelled'
-    };
-    
-    // Get an admin user for notifications
-    const adminUser = await prisma.user.findFirst({
-      where: { role: 'ADMIN' }
-    });
-    
-    // Send notification to user about status change
-    await prisma.notification.create({
-      data: {
-        userId: calibration.userId,
-        type: 'CALIBRATION_STATUS_CHANGE',
-        title: `Calibration ${statusMap[status] || 'Updated'}`,
-        message: `Your calibration for ${calibration.item.name} has been ${statusMap[status] || 'updated'}`,
-        isRead: false
-      }
-    });
-    
-    // Create reminder notification if completing calibration and validUntil is set
-    if (status === COMPLETED && validUntil && adminUser) {
-      const validUntilDate = new Date(validUntil);
-      const reminderDate = new Date(validUntilDate);
-      reminderDate.setDate(reminderDate.getDate() - 30);
-      
-      // Only create reminder if the date is in the future
-      if (reminderDate > new Date()) {
-        // Notification for user
-      await prisma.notification.create({
-        data: {
-            userId: calibration.userId,
-            type: 'CALIBRATION_REMINDER',
-            title: 'Calibration Expiring Soon',
-            message: `Your calibration for ${calibration.item.name} will expire in 30 days (on ${format(validUntilDate, 'dd/MM/yyyy')})`,
-          isRead: false
-        }
-      });
-      
-        // Notification for admin
-        await prisma.notification.create({
-        data: {
-            userId: adminUser.id,
-            type: 'CALIBRATION_REMINDER',
-            title: 'Calibration Expiring Soon',
-            message: `Calibration for ${calibration.item.name} (User: ${calibration.user.name}) will expire in 30 days`,
-            isRead: false
-        }
-      });
-    }
-    }
     
     // Create activity log
     const actionMap: Record<string, string> = {
