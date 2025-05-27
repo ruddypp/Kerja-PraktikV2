@@ -9,13 +9,6 @@ const nextConfig = {
   // Skip staticGeneration during building
   env: {
     SKIP_STATIC_GENERATION: 'true'
-  },
-  // Add webpack function to suppress warnings
-  webpack: (config, options) => {
-    config.infrastructureLogging = {
-      level: 'error',
-    }
-    return config
   }
 }
 

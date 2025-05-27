@@ -221,212 +221,82 @@ export default function MaintenancePage() {
           </div>
         ) : (
           <>
-            {/* Table view for medium and larger screens */}
-            <div className="hidden md:block bg-white rounded-lg border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Barang
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Serial Number
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Tanggal Mulai
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Tanggal Selesai
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Laporan
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Aksi
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {maintenances.map((maintenance) => (
-                      <tr key={maintenance.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {maintenance.item.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {maintenance.item.partNumber}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {maintenance.itemSerial}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(maintenance.startDate)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {maintenance.endDate ? formatDate(maintenance.endDate) : "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(maintenance.status)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {maintenance.status === "COMPLETED" && (
-                            <div className="space-y-1">
-                              {maintenance.serviceReport && (
-                              <a
-                                href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                  className="text-green-600 hover:text-green-800 flex items-center"
-                              >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                  CSR Report
-                              </a>
-                              )}
-                              {maintenance.technicalReport && (
-                              <a
-                                href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                  className="text-green-600 hover:text-green-800 flex items-center"
-                              >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                Technical Report
-                              </a>
-                              )}
-                              {!maintenance.serviceReport && !maintenance.technicalReport && (
-                                <span className="text-gray-500">No reports</span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {maintenance.status === "PENDING" ? (
-                            <Link
-                              href={`/user/maintenance/${maintenance.id}`}
-                              className="text-green-600 hover:text-green-800"
-                            >
-                              Lapor Hasil
-                            </Link>
-                          ) : (
-                            <Link
-                              href={`/user/maintenance/${maintenance.id}`}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              Lihat Detail
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Card view for small screens */}
-            <div className="md:hidden space-y-4">
+            {/* Card view untuk semua ukuran layar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {maintenances.map((maintenance) => (
-                <div key={maintenance.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-base font-medium text-gray-900">{maintenance.item.name}</h3>
-                      <p className="text-xs text-gray-500">{maintenance.item.partNumber}</p>
+                <div key={maintenance.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
+                  <div className="p-4 flex-grow flex flex-col">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-md font-medium text-gray-900">{maintenance.item.name}</h3>
+                        <p className="text-sm text-gray-500">{maintenance.item.partNumber}</p>
+                      </div>
+                      <div>{getStatusBadge(maintenance.status)}</div>
                     </div>
-                    <div>{getStatusBadge(maintenance.status)}</div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                    <div>
-                      <p className="text-gray-500">Serial Number:</p>
-                      <p className="font-medium">{maintenance.itemSerial}</p>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-4 text-sm flex-grow">
+                      <div>
+                        <p className="text-gray-500 font-medium">Serial Number</p>
+                        <p className="text-gray-800">{maintenance.itemSerial}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium">Tanggal Mulai</p>
+                        <p className="text-gray-800">{formatDate(maintenance.startDate)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium">Tanggal Selesai</p>
+                        <p className="text-gray-800">{maintenance.endDate ? formatDate(maintenance.endDate) : "-"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-gray-500">Tanggal Mulai:</p>
-                      <p className="font-medium">{formatDate(maintenance.startDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Tanggal Selesai:</p>
-                      <p className="font-medium">{maintenance.endDate ? formatDate(maintenance.endDate) : "-"}</p>
-                    </div>
-                  </div>
-                  
-                  {maintenance.status === "COMPLETED" && (
-                    <div className="my-3 flex flex-wrap gap-2">
-                      {maintenance.serviceReport && (
-                        <a
-                          href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-green-600 hover:text-green-800 flex items-center"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          CSR Report
-                        </a>
-                      )}
-                      {maintenance.technicalReport && (
-                        <a
-                          href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-green-600 hover:text-green-800 flex items-center"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Technical Report
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="mt-3 pt-3 border-t border-gray-100 text-center">
-                    {maintenance.status === "PENDING" ? (
-                      <Link
-                        href={`/user/maintenance/${maintenance.id}`}
-                        className="text-sm font-medium text-green-600 hover:text-green-800"
-                      >
-                        Lapor Hasil
-                      </Link>
-                    ) : (
-                      <Link
-                        href={`/user/maintenance/${maintenance.id}`}
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900"
-                      >
-                        Lihat Detail
-                      </Link>
+                    
+                    {maintenance.status === "COMPLETED" && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {maintenance.serviceReport && (
+                          <a
+                            href={`/api/user/maintenance/${maintenance.id}/report?type=csr`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            CSR Report
+                          </a>
+                        )}
+                        {maintenance.technicalReport && (
+                          <a
+                            href={`/api/user/maintenance/${maintenance.id}/report?type=technical`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Technical Report
+                          </a>
+                        )}
+                      </div>
                     )}
+                    
+                    <div className="pt-3 border-t border-gray-100 mt-auto">
+                      {maintenance.status === "PENDING" ? (
+                        <Link
+                          href={`/user/maintenance/${maintenance.id}`}
+                          className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        >
+                          Lapor Hasil
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/user/maintenance/${maintenance.id}`}
+                          className="w-full inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        >
+                          Lihat Detail
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

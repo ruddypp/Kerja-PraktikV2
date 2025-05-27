@@ -746,17 +746,34 @@ export default function ManagerDashboard() {
                     <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
                       <p className="text-sm font-medium text-gray-800 mb-1">Pending Approvals</p>
                       <p className="text-sm text-gray-600">
-                        {stats && typeof stats.pendingRequests === 'number' ? stats.pendingRequests : 0} requests 
+                        {stats && typeof stats.pendingRentals === 'number' ? stats.pendingRentals : 0} rentals 
                         waiting for your approval
                       </p>
-                      <Link href="/manager/requests" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
-                        Review pending requests
+                      <Link href="/manager/rentals" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
+                        Review pending rentals
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </Link>
                     </div>
-                </div>
+                  </div>
+                  
+                  <div className="relative pl-8 border-l-2 border-orange-300 py-1">
+                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-orange-400"></div>
+                    <div className="bg-orange-50 p-4 rounded-md border border-orange-100">
+                      <p className="text-sm font-medium text-gray-800 mb-1">Maintenance Items</p>
+                      <p className="text-sm text-gray-600">
+                        {stats && typeof stats.inMaintenanceItems === 'number' ? stats.inMaintenanceItems : 0} items 
+                        currently under maintenance
+                      </p>
+                      <Link href="/manager/inventory?filter=maintenance" className="text-xs text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center mt-2">
+                        View maintenance items
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
               

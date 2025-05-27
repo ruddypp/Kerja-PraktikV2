@@ -289,118 +289,53 @@ export default function UserItemsPage() {
               </p>
             </div>
             
-            {/* Table view for desktop - hidden on mobile */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Serial Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Part Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sensor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {items.map((item) => (
-                    <tr key={item.serialNumber} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{item.serialNumber}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{item.partNumber}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{item.sensor || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
+            {/* Card view for all screen sizes */}
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {items.map((item) => (
+                  <div key={item.serialNumber} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
+                    <div className="p-4 flex-grow flex flex-col">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{item.name}</h3>
+                          <p className="text-sm text-gray-500">SN: {item.serialNumber}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>
                           {getStatusDisplayName(item.status)}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <Link 
-                            href={`/user/barang/history/${item.serialNumber}`}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            View History
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Card view for mobile */}
-            <div className="md:hidden p-4 space-y-4">
-              {items.map((item) => (
-                <div key={item.serialNumber} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
-                        <p className="text-xs text-gray-500">SN: {item.serialNumber}</p>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>
-                        {getStatusDisplayName(item.status)}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
-                      <div>
-                        <p className="text-gray-500 font-medium">Part Number</p>
-                        <p>{item.partNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 font-medium">Sensor</p>
-                        <p>{item.sensor || '-'}</p>
                       </div>
                       
-                      <div className="col-span-2">
-                        <p className="text-gray-500 font-medium">Customer</p>
-                        <p>{item.customer?.name || '-'}</p>
+                      <div className="grid grid-cols-2 gap-3 mb-4 text-sm flex-grow">
+                        <div>
+                          <p className="text-gray-500 font-medium">Part Number</p>
+                          <p className="text-gray-800">{item.partNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Sensor</p>
+                          <p className="text-gray-800">{item.sensor || '-'}</p>
+                        </div>
+                        
+                        <div className="col-span-2">
+                          <p className="text-gray-500 font-medium">Customer</p>
+                          <p className="text-gray-800">{item.customer?.name || '-'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-3 border-t border-gray-100 mt-auto">
+                        <Link 
+                          href={`/user/barang/history/${item.serialNumber}`}
+                          className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        >
+                          View History
+                        </Link>
                       </div>
                     </div>
-                    
-                    <div className="pt-3 border-t border-gray-100">
-                      <Link 
-                        href={`/user/barang/history/${item.serialNumber}`}
-                        className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-                      >
-                        View History
-                      </Link>
-                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             
-            {/* Pagination controls - similar for both layouts */}
+            {/* Pagination controls */}
             <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <button

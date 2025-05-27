@@ -309,81 +309,110 @@ export default function ManagerRentalsPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Daftar Rental Barang</h1>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => mutate()}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
+        {/* Header Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-800">Rental Management</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage equipment rental requests</p>
+            </div>
+            <div className="flex gap-2">
             <Link
               href="/manager/rentals/new"
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Tambah Rental
+                New Rental
             </Link>
+            </div>
           </div>
         </div>
         
-        {error && (
-          <div className="bg-red-50 p-3 md:p-4 rounded-lg border border-red-200 text-red-700 mb-6 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Filter Section */}
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
-          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Filter Rental</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
               <select
-                id="status-filter"
+                id="statusFilter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "ALL")}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               >
-                <option value="ALL">Semua Status</option>
-                <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
-                <option value={RequestStatus.APPROVED}>Disetujui</option>
-                <option value={RequestStatus.COMPLETED}>Selesai</option>
-                <option value={RequestStatus.REJECTED}>Ditolak</option>
-                <option value={RequestStatus.CANCELLED}>Dibatalkan</option>
+                <option value="ALL">All Statuses</option>
+                <option value={RequestStatus.PENDING}>Pending</option>
+                <option value={RequestStatus.APPROVED}>Approved</option>
+                <option value={RequestStatus.COMPLETED}>Completed</option>
+                <option value={RequestStatus.REJECTED}>Rejected</option>
+                <option value={RequestStatus.CANCELLED}>Cancelled</option>
               </select>
             </div>
-            <div>
-              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+            
+            <div className="flex-1">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
               <input
                 type="date"
-                id="start-date"
+                id="startDate"
                 value={dateFilter.startDate}
-                onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <div>
-              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+            
+            <div className="flex-1">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
               <input
                 type="date"
-                id="end-date"
+                id="endDate"
                 value={dateFilter.endDate}
-                onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
+            </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={() => setDateFilter({ startDate: "", endDate: "" })}
+                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
+        
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Loading state */}
+        {!data && !error && (
+          <div className="bg-white rounded-lg shadow-sm p-10 mb-6">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading ? (

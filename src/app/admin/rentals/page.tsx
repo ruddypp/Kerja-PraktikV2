@@ -307,81 +307,110 @@ export default function RentalsPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Daftar Rental Barang</h1>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => mutate()}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
+        {/* Header Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-800">Rental Management</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage all equipment rental requests</p>
+            </div>
+            <div className="flex gap-2">
             <Link
               href="/admin/rentals/new"
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Tambah Rental
+                New Rental
             </Link>
+            </div>
           </div>
         </div>
         
-        {error && (
-          <div className="bg-red-50 p-3 md:p-4 rounded-lg border border-red-200 text-red-700 mb-6 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Filter Section */}
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
-          <h2 className="text-base md:text-lg font-medium text-gray-800 mb-3">Filter Rental</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
               <select
-                id="status-filter"
+                id="statusFilter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "ALL")}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               >
-                <option value="ALL">Semua Status</option>
-                <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
-                <option value={RequestStatus.APPROVED}>Disetujui</option>
-                <option value={RequestStatus.COMPLETED}>Selesai</option>
-                <option value={RequestStatus.REJECTED}>Ditolak</option>
-                <option value={RequestStatus.CANCELLED}>Dibatalkan</option>
+                <option value="ALL">All Statuses</option>
+                <option value={RequestStatus.PENDING}>Pending</option>
+                <option value={RequestStatus.APPROVED}>Approved</option>
+                <option value={RequestStatus.COMPLETED}>Completed</option>
+                <option value={RequestStatus.REJECTED}>Rejected</option>
+                <option value={RequestStatus.CANCELLED}>Cancelled</option>
               </select>
             </div>
-            <div>
-              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+            
+            <div className="flex-1">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
               <input
                 type="date"
-                id="start-date"
+                id="startDate"
                 value={dateFilter.startDate}
-                onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <div>
-              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+            
+            <div className="flex-1">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
               <input
                 type="date"
-                id="end-date"
+                id="endDate"
                 value={dateFilter.endDate}
-                onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
+            </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={() => setDateFilter({ startDate: "", endDate: "" })}
+                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
+        
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Loading state */}
+        {!data && !error && (
+          <div className="bg-white rounded-lg shadow-sm p-10 mb-6">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading ? (
@@ -390,51 +419,17 @@ export default function RentalsPage() {
             <span className="ml-3 text-sm text-gray-700">Memuat data rental...</span>
           </div>
         ) : (
-          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="text-base md:text-lg font-medium text-gray-800">Daftar Rental</h2>
-              {data?.pagination && (
-                <p className="text-xs md:text-sm text-gray-600 mt-1">
-                  Menampilkan {rentals.length} dari {data.pagination.totalCount} data
-                </p>
-              )}
-            </div>
-            
-            {rentals.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data rental</h3>
-                <p className="mt-1 text-xs md:text-sm text-gray-500">
-                  Tidak ada data rental yang sesuai dengan filter yang dipilih.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Table view for desktop - hidden on mobile */}
-                <div className="hidden md:block overflow-x-auto">
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            {/* Desktop view - Table */}
+            <div className="hidden md:block">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Barang
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Peminjam
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Periode
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Dokumen
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Aksi
-                        </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renter</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -444,73 +439,59 @@ export default function RentalsPage() {
                             <div className="flex items-center">
                               <div>
                                 <div className="text-sm font-medium text-gray-900">{rental.item.name}</div>
-                                <div className="text-sm text-gray-500">SN: {rental.item.serialNumber}</div>
+                            <div className="text-xs text-gray-500">{rental.item.serialNumber}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{rental.user.name}</div>
-                            <div className="text-sm text-gray-500">{rental.user.email}</div>
+                        <div className="text-sm text-gray-900">{rental.renterName || rental.user.name}</div>
+                        <div className="text-xs text-gray-500">{rental.renterPhone || ''}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">Start: {formatDate(rental.startDate)}</div>
+                        <div className="text-sm text-gray-500">End: {formatDate(rental.endDate)}</div>
+                        {rental.returnDate && (
+                          <div className="text-xs text-green-600">Returned: {formatDate(rental.returnDate)}</div>
+                        )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(rental.status)}`}>
                               {getStatusText(rental.status)}
                             </span>
-                            {rental.returnDate && rental.status === RequestStatus.APPROVED && (
-                              <div className="text-xs text-green-600 mt-1">
-                                Pengembalian diajukan
-                              </div>
-                            )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">Mulai: {formatDate(rental.startDate)}</div>
-                            <div className="text-sm text-gray-500">Selesai: {formatDate(rental.endDate)}</div>
-                            {rental.returnDate && (
-                              <div className="text-sm text-gray-500">
-                                Dikembalikan: {formatDate(rental.returnDate)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {rental.poNumber && <div>PO: {rental.poNumber}</div>}
-                              {rental.doNumber && <div>DO: {rental.doNumber}</div>}
-                              {!rental.poNumber && !rental.doNumber && "-"}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => viewRentalDetails(rental)}
-                              className="text-green-600 hover:text-green-900 mr-3"
-                            >
-                              Detail
-                            </button>
-                            
-                            {rental.status === RequestStatus.PENDING && (
-                              <>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex space-x-2">
                                 <button
-                                  onClick={() => handleApprove(rental)}
-                                  className="text-green-600 hover:text-green-900 mr-3"
+                            onClick={() => viewRentalDetails(rental)}
+                            className="text-green-600 hover:text-green-900 focus:outline-none focus:underline"
                                 >
-                                  Setujui
+                            Details
                                 </button>
+                          {rental.status === RequestStatus.PENDING && (
+                            <>
                                 <button
-                                  onClick={() => handleReject(rental)}
-                                  className="text-red-600 hover:text-red-900"
+                                onClick={() => handleApprove(rental)}
+                                className="text-green-600 hover:text-green-900 focus:outline-none focus:underline"
                                 >
-                                  Tolak
+                                Approve
                                 </button>
-                              </>
-                            )}
-                            
-                            {rental.status === RequestStatus.APPROVED && rental.returnDate && (
                               <button
-                                onClick={() => handleComplete(rental)}
-                                className="text-yellow-600 hover:text-yellow-900"
+                                onClick={() => handleReject(rental)}
+                                className="text-red-600 hover:text-red-900 focus:outline-none focus:underline"
                               >
-                                Verifikasi Pengembalian
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {rental.status === RequestStatus.APPROVED && (
+                              <button
+                              onClick={() => handleComplete(rental)}
+                              className="text-blue-600 hover:text-blue-900 focus:outline-none focus:underline"
+                              >
+                              Complete
                               </button>
                             )}
+                        </div>
                           </td>
                         </tr>
                       ))}
@@ -518,375 +499,326 @@ export default function RentalsPage() {
                   </table>
                 </div>
 
-                {/* Card view for mobile */}
-                <div className="md:hidden p-4 space-y-4">
+            {/* Mobile/Tablet view - Cards */}
+            <div className="block md:hidden">
+              <div className="divide-y divide-gray-200">
                   {rentals.map((rental) => (
-                    <div key={rental.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                      <div className="p-4">
-                        <div className="flex justify-between items-start mb-3">
+                  <div key={rental.id} className="p-4">
+                    <div className="flex justify-between items-start mb-2">
                           <div>
                             <h3 className="text-sm font-medium text-gray-900">{rental.item.name}</h3>
                             <p className="text-xs text-gray-500">SN: {rental.item.serialNumber}</p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(rental.status)}`}>
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(rental.status)}`}>
                             {getStatusText(rental.status)}
                           </span>
                         </div>
                         
-                        <div className="border-t border-gray-100 -mx-4 px-4 py-2 mb-2 bg-gray-50">
-                          <p className="text-xs text-gray-700">
-                            <span className="font-medium">Peminjam:</span> {rental.user.name}
-                          </p>
-                          <p className="text-xs text-gray-500">{rental.user.email}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-500">Renter:</p>
+                        <p className="font-medium">{rental.renterName || rental.user.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Phone:</p>
+                        <p className="font-medium">{rental.renterPhone || '-'}</p>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
                           <div>
-                            <p className="text-gray-500 font-medium">Tanggal Mulai</p>
-                            <p>{formatDate(rental.startDate)}</p>
+                        <p className="text-gray-500">Start Date:</p>
+                        <p className="font-medium">{formatDate(rental.startDate)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 font-medium">Tanggal Selesai</p>
-                            <p>{formatDate(rental.endDate)}</p>
+                        <p className="text-gray-500">End Date:</p>
+                        <p className="font-medium">{formatDate(rental.endDate)}</p>
                           </div>
-                          
                           {rental.returnDate && (
                             <div className="col-span-2">
-                              <p className="text-gray-500 font-medium">Tanggal Pengembalian</p>
-                              <p>{formatDate(rental.returnDate)}</p>
-                            </div>
-                          )}
-                          
-                          {(rental.poNumber || rental.doNumber) && (
-                            <div className="col-span-2">
-                              <p className="text-gray-500 font-medium">Dokumen</p>
-                              <div>
-                                {rental.poNumber && <span className="mr-3">PO: {rental.poNumber}</span>}
-                                {rental.doNumber && <span>DO: {rental.doNumber}</span>}
-                              </div>
+                          <p className="text-gray-500">Return Date:</p>
+                          <p className="font-medium text-green-600">{formatDate(rental.returnDate)}</p>
                             </div>
                           )}
                         </div>
                         
-                        <div className="pt-3 border-t border-gray-100">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => viewRentalDetails(rental)}
+                        className="px-3 py-1 bg-green-50 text-green-700 text-xs rounded-md hover:bg-green-100"
+                      >
+                        Details
+                      </button>
                           {rental.status === RequestStatus.PENDING && (
-                            <div className="flex gap-2">
+                        <>
                               <button
                                 onClick={() => handleApprove(rental)}
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
+                            className="px-3 py-1 bg-green-50 text-green-700 text-xs rounded-md hover:bg-green-100"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Setujui
+                            Approve
                               </button>
                               <button
                                 onClick={() => handleReject(rental)}
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Tolak
+                            className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-md hover:bg-red-100"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {rental.status === RequestStatus.APPROVED && (
+                        <button
+                          onClick={() => handleComplete(rental)}
+                          className="px-3 py-1 bg-blue-50 text-blue-700 text-xs rounded-md hover:bg-blue-100"
+                        >
+                          Complete
                               </button>
-                            </div>
-                          )}
-                          
-                          {rental.status === RequestStatus.APPROVED && rental.returnDate && (
-                            <button
-                              onClick={() => handleComplete(rental)}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors duration-200 shadow-sm flex items-center justify-center"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Verifikasi Pengembalian
-                            </button>
-                          )}
-                          
-                          {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
-                            <div className="flex items-center justify-center text-xs text-green-600">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Sedang Dipinjam
-                            </div>
-                          )}
-                          
-                          {(rental.status === RequestStatus.COMPLETED || 
-                            rental.status === RequestStatus.REJECTED ||
-                            rental.status === RequestStatus.CANCELLED) && (
-                            <button
-                              onClick={() => viewRentalDetails(rental)}
-                              className="w-full text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-3 py-2 text-xs flex items-center justify-center"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Ubah Status
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                
-                {/* Pagination controls - same for both layouts */}
-                <div className="px-4 py-4">
-                {renderPagination()}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Rental Detail Modal */}
-      {detailModalOpen && selectedRental && (
-        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black opacity-50"></div>
-          <div className="relative bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
-            <button 
-              onClick={() => setDetailModalOpen(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              aria-label="Close modal"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Detail Rental</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Barang</h3>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Nama Barang:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.item.name}</div>
                   </div>
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Serial Number:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.item.serialNumber}</div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-600">Part Number:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.item.partNumber || '-'}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-md font-medium text-gray-800 mb-2">Periode Rental</h3>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Tanggal Mulai:</span>
-                    <div className="text-sm text-gray-800">{formatDate(selectedRental.startDate)}</div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-600">Tanggal Selesai:</span>
-                    <div className="text-sm text-gray-800">{formatDate(selectedRental.endDate) || 'Tidak ditentukan'}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Peminjam</h3>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Nama Peminjam:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.renterName || selectedRental.user.name}</div>
-                  </div>
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Telepon:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.renterPhone || '-'}</div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-600">Alamat:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.renterAddress || '-'}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Dokumen</h3>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Nomor PO:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.poNumber || '-'}</div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-600">Nomor DO:</span>
-                    <div className="text-sm text-gray-800">{selectedRental.doNumber || '-'}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="md:col-span-2">
-                <h3 className="text-md font-medium text-gray-800 mb-2">Kondisi Barang</h3>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Kondisi Awal:</span>
-                    <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.initialCondition || '-'}</div>
-                  </div>
-                  
-                  {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
-                    <div className="mt-4">
-                      <span className="text-sm font-medium text-gray-600">Kondisi Saat Pengembalian:</span>
-                      <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.returnCondition || 'Belum ada informasi'}</div>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             </div>
-            
-            {/* Action Section */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <h3 className="text-md font-medium text-gray-800 mb-3">Aksi</h3>
-              
-              {/* Status information */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  <span className="font-medium">Status Saat Ini:</span> 
-                  <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedRental.status)}`}>
-                    {getStatusText(selectedRental.status)}
-                  </span>
-                </p>
+                            </div>
+                          )}
+                          
+        {/* Pagination */}
+        {data?.pagination && data.pagination.totalPages > 1 && (
+          <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
+            <div className="hidden sm:block">
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{((data.pagination.page - 1) * data.pagination.limit) + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(data.pagination.page * data.pagination.limit, data.pagination.totalCount)}</span> of{' '}
+                <span className="font-medium">{data.pagination.totalCount}</span> rentals
+              </p>
+            </div>
+            <div className="flex flex-1 justify-between sm:justify-end space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              <div className="hidden md:flex">
+                {renderPagination()}
               </div>
+                            <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === data.pagination.totalPages}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === data.pagination.totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+                            </button>
+            </div>
+                            </div>
+                          )}
+                          
+        {/* Rental Detail Modal */}
+        {detailModalOpen && selectedRental && (
+          <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center" onClick={() => setDetailModalOpen(false)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50"></div>
+            <div 
+              className="bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-2xl mx-4 z-10 relative" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-green-600 px-6 py-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium text-white">Rental Details</h3>
+                            <button
+                    onClick={() => setDetailModalOpen(false)}
+                    className="text-white hover:text-gray-200 focus:outline-none"
+                    title="Close"
+                            >
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                        </div>
+                      </div>
               
-              {/* Action form */}
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {selectedRental.status === RequestStatus.PENDING && (
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
-                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Verifikasi Pengajuan Rental</h4>
-                    <p className="text-xs text-yellow-700 mb-3">Silakan periksa detail pengajuan rental di atas sebelum menyetujui atau menolak</p>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Item Information</h4>
+                    <p className="text-base font-medium text-gray-900">{selectedRental.item.name}</p>
+                    <p className="text-sm text-gray-600">Serial: {selectedRental.item.serialNumber}</p>
+                    <p className="text-sm text-gray-600">Part Number: {selectedRental.item.partNumber}</p>
                   </div>
-                )}
-                
-                {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
-                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Verifikasi Pengembalian Rental</h4>
-                    <p className="text-xs text-yellow-700 mb-2">Kondisi barang saat dikembalikan oleh pengguna:</p>
-                    <div className="p-2 bg-white rounded border border-yellow-200 text-xs">
-                      {selectedRental.returnCondition || 'Tidak ada informasi kondisi'}
+                  
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Renter Information</h4>
+                    <p className="text-base font-medium text-gray-900">{selectedRental.renterName || selectedRental.user.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedRental.renterPhone && `Phone: ${selectedRental.renterPhone}`}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {selectedRental.renterAddress && `Address: ${selectedRental.renterAddress}`}
+                    </p>
                     </div>
-                  </div>
-                )}
+                </div>
                 
-                {/* Update Status */}
-            <div className="mb-4">
-              <label htmlFor="new-status" className="block text-sm font-medium text-gray-700 mb-1">Status Baru</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Start Date</h4>
+                    <p className="text-sm font-medium text-gray-900">{formatDate(selectedRental.startDate)}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">End Date</h4>
+                    <p className="text-sm font-medium text-gray-900">{formatDate(selectedRental.endDate)}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Status</h4>
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedRental.status)}`}>
+                      {getStatusText(selectedRental.status)}
+                    </span>
+                  </div>
+                </div>
+                
+                {selectedRental.initialCondition && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Initial Condition</h4>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md">{selectedRental.initialCondition}</p>
+                  </div>
+            )}
+                
+                {selectedRental.returnDate && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Return Date</h4>
+                    <p className="text-sm text-gray-900">{formatDate(selectedRental.returnDate)}</p>
+          </div>
+        )}
+                
+                {selectedRental.statusLogs && selectedRental.statusLogs.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">Status History</h4>
+                    <div className="bg-gray-50 rounded-md p-3">
+                      <ul className="space-y-3">
+                        {selectedRental.statusLogs.map((log) => (
+                          <li key={log.id} className="flex space-x-2 text-sm">
+                            <div className="flex-shrink-0 pt-0.5">
+                              <div className="h-2 w-2 rounded-full bg-green-600"></div>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                Status changed to {getStatusText(log.status)}
+                              </p>
+                              <p className="text-gray-500">
+                                By {log.changedBy.name} on {format(new Date(log.createdAt), "dd MMM yyyy HH:mm")}
+                              </p>
+                              {log.notes && <p className="text-gray-600 mt-1">{log.notes}</p>}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+      </div>
+                )}
+
+                {/* Status Change Form */}
+                {selectedRental.status !== RequestStatus.COMPLETED && selectedRental.status !== RequestStatus.CANCELLED && (
+                  <div className="mt-6 border-t border-gray-200 pt-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">Update Status</h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="newStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                          New Status
+                        </label>
               <select
-                id="new-status"
+                          id="newStatus"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as RequestStatus)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 text-sm"
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
               >
-                <option value="">Pilih Status</option>
-                <option value={RequestStatus.PENDING}>Menunggu Persetujuan</option>
-                <option value={RequestStatus.APPROVED}>Disetujui</option>
-                <option value={RequestStatus.COMPLETED}>Selesai</option>
-                <option value={RequestStatus.REJECTED}>Ditolak</option>
-                <option value={RequestStatus.CANCELLED}>Dibatalkan</option>
+                          <option value="">Select a status</option>
+                          {selectedRental.status === RequestStatus.PENDING && (
+                            <>
+                              <option value={RequestStatus.APPROVED}>Approve</option>
+                              <option value={RequestStatus.REJECTED}>Reject</option>
+                            </>
+                          )}
+                          {selectedRental.status === RequestStatus.APPROVED && (
+                            <option value={RequestStatus.COMPLETED}>Complete</option>
+                          )}
               </select>
             </div>
             
-                {/* Return Condition - Show only when completing a return */}
-                {newStatus === RequestStatus.COMPLETED && selectedRental.returnDate && (
-                  <div className="mb-4">
-                    <label htmlFor="returnCondition" className="block text-sm font-medium text-gray-700 mb-1">Catatan Verifikasi Pengembalian:</label>
-                    <textarea
-                      id="returnCondition"
-                      value={returnCondition}
-                      onChange={(e) => setReturnCondition(e.target.value)}
-                      placeholder="Deskripsikan kondisi barang saat verifikasi pengembalian"
-                      rows={3}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                    />
-                  </div>
-                )}
-                
-                {/* Notes */}
-                <div className="mb-4">
-                  <label htmlFor="statusNotes" className="block text-sm font-medium text-gray-700 mb-1">Catatan (opsional):</label>
+                      <div>
+                        <label htmlFor="statusNotes" className="block text-sm font-medium text-gray-700 mb-1">
+                          Notes
+                        </label>
               <textarea
-                    id="statusNotes"
+                          id="statusNotes"
                 value={statusNotes}
                 onChange={(e) => setStatusNotes(e.target.value)}
-                    placeholder="Tambahkan catatan untuk perubahan status"
                 rows={3}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                  />
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                          placeholder="Add notes about this status change"
+              ></textarea>
             </div>
             
-                {/* Action buttons */}
-            <div className="flex justify-end space-x-3">
+                      {newStatus === RequestStatus.COMPLETED && (
+                        <div>
+                          <label htmlFor="returnCondition" className="block text-sm font-medium text-gray-700 mb-1">
+                            Return Condition
+                          </label>
+                          <textarea
+                            id="returnCondition"
+                            value={returnCondition}
+                            onChange={(e) => setReturnCondition(e.target.value)}
+                            rows={3}
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                            placeholder="Describe the condition of the item upon return"
+                          ></textarea>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end">
               <button
-                    onClick={() => setDetailModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                disabled={processingAction}
+                type="button"
+                          onClick={() => setDetailModalOpen(false)}
+                          className="mr-3 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
-                    Tutup
-                  </button>
-                  
-                  {selectedRental.status === RequestStatus.PENDING && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setNewStatus(RequestStatus.REJECTED);
-                          handleStatusChange();
-                        }}
-                        className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        disabled={processingAction}
-                      >
-                        Tolak
+                          Cancel
               </button>
               <button
-                        onClick={() => {
-                          setNewStatus(RequestStatus.APPROVED);
-                          handleStatusChange();
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        disabled={processingAction}
-                      >
-                        Setujui
-                      </button>
-                    </>
-                  )}
-                  
-                  {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
-                    <button
-                      onClick={() => {
-                        setNewStatus(RequestStatus.COMPLETED);
-                        handleStatusChange();
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                      disabled={processingAction}
-                    >
-                      Verifikasi Pengembalian
-                    </button>
-                  )}
-                  
-                  {newStatus && newStatus !== selectedRental.status && !(
-                    (selectedRental.status === RequestStatus.PENDING && (newStatus === RequestStatus.APPROVED || newStatus === RequestStatus.REJECTED)) ||
-                    (selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && newStatus === RequestStatus.COMPLETED)
-                  ) && (
-                    <button
+                type="button"
                 onClick={handleStatusChange}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                      disabled={processingAction}
+                disabled={!newStatus || processingAction}
+                          className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                            !newStatus || processingAction
+                              ? 'bg-green-300 cursor-not-allowed'
+                              : 'bg-green-600 hover:bg-green-700'
+                          }`}
               >
-                      {processingAction ? 'Memproses...' : 'Simpan Perubahan'}
+                          {processingAction ? (
+                            <span className="flex items-center">
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </span>
+                          ) : (
+                            'Update Status'
+                          )}
               </button>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
       )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 } 

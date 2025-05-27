@@ -931,138 +931,59 @@ export default function UserCalibrationPage() {
             </div>
           ) : (
             <>
-              {/* Table view for medium and larger screens */}
-              <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Item
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vendor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Valid Until
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Certificate
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
-                      <tr key={calibration.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {calibration.item.name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {calibration.item.serialNumber}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{calibration.vendor.name}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
-                            {getDisplayStatus(calibration.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(calibration.calibrationDate)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(calibration.validUntil)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
-                            <button
-                              onClick={() => openCertificateModal(calibration)}
-                              className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                            >
-                              <FiFileText className="mr-1" />
-                              Certificate
-                            </button>
-                          ) : isStatusMatching(calibration.status, RequestStatus.PENDING) ? (
-                            <button
-                              onClick={() => openCompleteModal(calibration)}
-                              className="text-green-600 hover:text-green-900 inline-flex items-center"
-                            >
-                              <FiFileText className="mr-1" />
-                              Complete
-                            </button>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Card view for small screens */}
-              <div className="md:hidden space-y-4">
+              {/* Card view untuk semua ukuran layar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.isArray(filteredCalibrations) && filteredCalibrations.map((calibration) => (
-                  <div key={calibration.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-base font-medium text-gray-900">{calibration.item.name}</h3>
-                        <p className="text-xs text-gray-500">{calibration.item.serialNumber}</p>
-                      </div>
-                      <div>
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeStyle(calibration.status)}`}>
+                  <div key={calibration.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
+                    <div className="p-4 flex-grow flex flex-col">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{calibration.item.name}</h3>
+                          <p className="text-sm text-gray-500">{calibration.item.serialNumber}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeStyle(calibration.status)}`}>
                           {getDisplayStatus(calibration.status)}
                         </span>
                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                      <div>
-                        <p className="text-gray-500">Vendor:</p>
-                        <p className="font-medium">{calibration.vendor.name}</p>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-4 text-sm flex-grow">
+                        <div>
+                          <p className="text-gray-500 font-medium">Vendor</p>
+                          <p className="text-gray-800">{calibration.vendor.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Date</p>
+                          <p className="text-gray-800">{formatDate(calibration.calibrationDate)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Valid Until</p>
+                          <p className="text-gray-800">{formatDate(calibration.validUntil) || "-"}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-500">Date:</p>
-                        <p className="font-medium">{formatDate(calibration.calibrationDate)}</p>
+                      
+                      <div className="pt-3 border-t border-gray-100 mt-auto">
+                        {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
+                          <button
+                            onClick={() => openCertificateModal(calibration)}
+                            className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                          >
+                            <FiFileText className="mr-1" />
+                            View Certificate
+                          </button>
+                        ) : isStatusMatching(calibration.status, RequestStatus.PENDING) ? (
+                          <button
+                            onClick={() => openCompleteModal(calibration)}
+                            className="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                          >
+                            <FiFileText className="mr-1" />
+                            Complete Calibration
+                          </button>
+                        ) : (
+                          <span className="w-full inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-400 bg-gray-50">
+                            No Action Available
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-gray-500">Valid Until:</p>
-                        <p className="font-medium">{formatDate(calibration.validUntil) || "-"}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3 pt-3 border-t border-gray-100 text-center">
-                      {isStatusMatching(calibration.status, RequestStatus.COMPLETED) ? (
-                        <button
-                          onClick={() => openCertificateModal(calibration)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center justify-center w-full"
-                        >
-                          <FiFileText className="mr-1" />
-                          View Certificate
-                        </button>
-                      ) : isStatusMatching(calibration.status, RequestStatus.PENDING) ? (
-                        <button
-                          onClick={() => openCompleteModal(calibration)}
-                          className="text-sm font-medium text-green-600 hover:text-green-900 inline-flex items-center justify-center w-full"
-                        >
-                          <FiFileText className="mr-1" />
-                          Complete Calibration
-                        </button>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
                     </div>
                   </div>
                 ))}
