@@ -80,6 +80,8 @@ model User {
   maintenanceStatusLogs MaintenanceStatusLog[]
   rentalStatusLogs      RentalStatusLog[]
   notifications         Notification[]
+  notificationPreference NotificationPreference?
+  pushSubscriptions     PushSubscription[]
   affectedUserLogs      ActivityLog[]    @relation("AffectedUserLogs")
 }
 
@@ -481,5 +483,37 @@ model Notification {
   type        NotificationType
   isRead      Boolean          @default(false)
   relatedId   String?          // Reference to related entity (rental/calibration/etc)
+  actionUrl   String?          // URL to navigate to when clicked
+  actionLabel String?          // Label for the action button
+  secondaryActionUrl String?   // URL for secondary action
+  secondaryActionLabel String? // Label for secondary action
   createdAt   DateTime         @default(now())
+}
+
+// User notification preferences
+model NotificationPreference {
+  id                      String   @id @default(uuid())
+  user                    User     @relation(fields: [userId], references: [id])
+  userId                  String   @unique
+  rentalNotifications     Boolean  @default(true)
+  calibrationNotifications Boolean  @default(true)
+  maintenanceNotifications Boolean  @default(true)
+  inventoryNotifications  Boolean  @default(true)
+  systemNotifications     Boolean  @default(true)
+  emailNotifications      Boolean  @default(false)
+  pushNotifications       Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// Push notification subscription
+model PushSubscription {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }

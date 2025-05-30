@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '../app/context/UserContext';
+import NotificationDropdown from './ui/NotificationDropdown';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -121,6 +122,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Notification Dropdown */}
+            <NotificationDropdown />
+            
             <div className="flex items-center space-x-2">
               <span className="hidden md:inline text-sm font-medium text-gray-900">
                 {user?.name || (

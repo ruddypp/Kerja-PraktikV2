@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "./context/UserContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { Providers } from "./providers";
+import ToastContainer from "@/components/ui/ToastContainer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +34,10 @@ export default function RootLayout({
       >
         <Providers>
           <UserProvider>
-            {children}
+            <NotificationProvider>
+              {children}
+              <ToastContainer />
+            </NotificationProvider>
           </UserProvider>
         </Providers>
         
@@ -48,6 +53,24 @@ export default function RootLayout({
                 console.error('Status setup error:', e);
               }
             })();
+          `}
+        </Script>
+
+        {/* Script to register service worker for push notifications */}
+        <Script id="register-sw">
+          {`
+            // Register service worker for push notifications
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                  .then(function(registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                  })
+                  .catch(function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                  });
+              });
+            }
           `}
         </Script>
       </body>

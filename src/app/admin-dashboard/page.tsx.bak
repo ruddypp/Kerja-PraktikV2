@@ -430,7 +430,7 @@ export default function AdminDashboard() {
         )}
         
         {/* Main Statistics Cards - Improved grid layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div>
@@ -551,9 +551,11 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-          
-          {/* Notification Card */}
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        </div>
+        
+        {/* Notification Card - Moved below the main stats */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow p-6 border border-gray-100 hover:shadow-md transition-all">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-500">Notifikasi</p>
@@ -583,238 +585,367 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-        
-        {/* Second Row with Upcoming Schedules and Pie Chart - Improved layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Upcoming Schedules Card */}
-          <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Jadwal Mendatang</h3>
-            <UpcomingSchedulesCard 
-              title="Upcoming Inventory Checks"
-              apiUrl="/api/admin/inventory-schedules"
-              viewAllLink="/admin/inventory/schedules"
-            />
-          </div>
 
-          {/* Item Status Pie Chart - Improved styling */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Distribusi Status Barang</h3>
-            <div className="h-64 flex items-center justify-center">
-              {stats ? (
-                <Pie data={pieChartData} options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'right',
-                      labels: {
-                        boxWidth: 12,
-                        padding: 15,
-                        font: {
-                          size: 12
+        {/* Rest of dashboard */}
+        <div className="space-y-8">
+          {/* Main Statistics Cards - Improved grid layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Barang</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalItems === 'number' ? formatNumber(stats.totalItems) : 0}</h2>
+                    <Link href="/admin/inventory" className="text-sm text-green-600 hover:text-green-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat inventaris
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Maintenance Tertunda</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}</h2>
+                    <Link href="/admin/maintenance" className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat permintaan maintenance
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Kalibrasi</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingCalibrations === 'number' ? formatNumber(stats.pendingCalibrations) : 0}</h2>
+                    <Link href="/admin/calibrations" className="text-sm text-purple-600 hover:text-purple-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat kalibrasi
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Permintaan Peminjaman</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingRentals === 'number' ? formatNumber(stats.pendingRentals) : 0}</h2>
+                    <Link href="/admin/rentals" className="text-sm text-amber-600 hover:text-amber-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat peminjaman
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-amber-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Vendor Card */}
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Vendor</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalVendors === 'number' ? formatNumber(stats.totalVendors) : 0}</h2>
+                    <Link href="/admin/vendors" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat vendor
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-indigo-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Users Card */}
+              <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Pengguna</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalUsers === 'number' ? formatNumber(stats.totalUsers) : 0}</h2>
+                    <Link href="/admin/users" className="text-sm text-teal-600 hover:text-teal-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat pengguna
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="bg-teal-50 p-3 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+          {/* Second Row with Upcoming Schedules and Pie Chart - Improved layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+              {/* Upcoming Schedules Card */}
+            <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <h3 className="text-lg font-medium text-gray-800 mb-4">Jadwal Mendatang</h3>
+                <UpcomingSchedulesCard 
+                  title="Upcoming Inventory Checks"
+                  apiUrl="/api/admin/inventory-schedules"
+                  viewAllLink="/admin/inventory/schedules"
+                />
+              </div>
+
+            {/* Item Status Pie Chart - Improved styling */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <h3 className="text-lg font-medium text-gray-800 mb-4">Distribusi Status Barang</h3>
+                <div className="h-64 flex items-center justify-center">
+                  {stats ? (
+                    <Pie data={pieChartData} options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'right',
+                          labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                              size: 12
+                            }
+                          }
+                        },
+                        title: {
+                          display: false
+                        },
+                        tooltip: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          titleColor: '#1f2937',
+                          bodyColor: '#4b5563',
+                          borderColor: '#e5e7eb',
+                          borderWidth: 1,
+                          padding: 12,
+                          boxPadding: 6,
+                          usePointStyle: true,
+                          callbacks: {
+                            label: function(context) {
+                              const value = context.raw as number;
+                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                              const percentage = Math.round((value / total) * 100);
+                              return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                          }
                         }
                       }
-                    },
-                    title: {
-                      display: false
-                    },
-                    tooltip: {
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      titleColor: '#1f2937',
-                      bodyColor: '#4b5563',
-                      borderColor: '#e5e7eb',
-                      borderWidth: 1,
-                      padding: 12,
-                      boxPadding: 6,
-                      usePointStyle: true,
-                      callbacks: {
-                        label: function(context) {
-                          const value = context.raw as number;
-                          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                          const percentage = Math.round((value / total) * 100);
-                          return `${context.label}: ${value} (${percentage}%)`;
-                        }
-                      }
-                    }
-                  }
-                }} />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500 text-sm">Loading chart data...</p>
+                    }} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500 text-sm">Loading chart data...</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Item Status Overview - Improved layout and styling */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-6">Ikhtisar Status Barang</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-gray-700 font-medium">Tersedia</span>
-                </div>
-                <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-                  {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
-                </span>
               </div>
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="bg-green-500 h-2 rounded-full" 
-                  style={{ 
-                    width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
-                  Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% dari total inventaris
-              </p>
             </div>
             
-            <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                  <span className="text-gray-700 font-medium">Dalam Kalibrasi</span>
+          {/* Item Status Overview - Improved layout and styling */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <h2 className="text-xl font-bold text-gray-800 mb-6">Ikhtisar Status Barang</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Tersedia</span>
+                    </div>
+                    <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+                      {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% dari total inventaris
+                  </p>
                 </div>
-                <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-                  {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
-                </span>
+                
+              <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Dalam Kalibrasi</span>
+                    </div>
+                    <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+                      {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% dari total inventaris
+                  </p>
+                </div>
+                
+              <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Dipinjam</span>
+                    </div>
+                    <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+                      {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-amber-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% dari total inventaris
+                  </p>
+                </div>
+                
+              <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                      <span className="text-gray-700 font-medium">Maintenance</span>
+                    </div>
+                    <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+                      {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-red-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
+                          calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
+                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% dari total inventaris
+                  </p>
+                </div>
               </div>
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="bg-purple-500 h-2 rounded-full" 
-                  style={{ 
-                    width: `${stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      calculatePercentage(stats.inCalibrationItems, stats.totalItems) : 0}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
-                  Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% dari total inventaris
-              </p>
             </div>
             
-            <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
-                  <span className="text-gray-700 font-medium">Dipinjam</span>
-                </div>
-                <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-                  {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
-                </span>
-              </div>
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="bg-amber-500 h-2 rounded-full" 
-                  style={{ 
-                    width: `${stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      calculatePercentage(stats.inRentalItems, stats.totalItems) : 0}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
-                  Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% dari total inventaris
-              </p>
-            </div>
-            
-            <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                  <span className="text-gray-700 font-medium">Maintenance</span>
-                </div>
-                <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-                  {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
-                </span>
-              </div>
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="bg-red-500 h-2 rounded-full" 
-                  style={{ 
-                    width: `${stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      calculatePercentage(stats.inMaintenanceItems, stats.totalItems) : 0}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
-                  Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% dari total inventaris
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Activity and Reminders - Improved design */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-5">Aktivitas & Pengingat</h2>
-            
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="relative pl-8 border-l-2 border-yellow-300 py-1">
-              <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-yellow-400"></div>
-              <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100 hover:shadow-sm transition-shadow">
-                <p className="text-sm font-medium text-gray-800 mb-1">Kalibrasi Mendatang</p>
-                <p className="text-sm text-gray-600">
-                  {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} barang 
-                  dijadwalkan untuk kalibrasi dalam 7 hari kedepan
-                </p>
-                <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:text-yellow-700 hover:underline inline-flex items-center mt-2">
-                  Lihat jadwal kalibrasi
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-            </div>
+          {/* Activity and Reminders - Improved design */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
+            <h2 className="text-xl font-bold text-gray-800 mb-5">Aktivitas & Pengingat</h2>
               
-            <div className="relative pl-8 border-l-2 border-red-300 py-1">
-              <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-red-400"></div>
-              <div className="bg-red-50 p-4 rounded-md border border-red-100 hover:shadow-sm transition-shadow">
-                <p className="text-sm font-medium text-gray-800 mb-1">Peminjaman Terlambat</p>
-                <p className="text-sm text-gray-600">
-                  {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} barang 
-                  telah melewati batas waktu pengembalian
-                </p>
-                <Link href="/admin/rentals?filter=overdue" className="text-xs text-red-600 hover:text-red-700 hover:underline inline-flex items-center mt-2">
-                  Lihat peminjaman terlambat
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="relative pl-8 border-l-2 border-yellow-300 py-1">
+                  <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-yellow-400"></div>
+                <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100 hover:shadow-sm transition-shadow">
+                    <p className="text-sm font-medium text-gray-800 mb-1">Kalibrasi Mendatang</p>
+                    <p className="text-sm text-gray-600">
+                      {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} barang 
+                      dijadwalkan untuk kalibrasi dalam 7 hari kedepan
+                    </p>
+                    <Link href="/admin/calibrations" className="text-xs text-yellow-600 hover:text-yellow-700 hover:underline inline-flex items-center mt-2">
+                      Lihat jadwal kalibrasi
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+                
+                <div className="relative pl-8 border-l-2 border-red-300 py-1">
+                  <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-red-400"></div>
+                <div className="bg-red-50 p-4 rounded-md border border-red-100 hover:shadow-sm transition-shadow">
+                    <p className="text-sm font-medium text-gray-800 mb-1">Peminjaman Terlambat</p>
+                    <p className="text-sm text-gray-600">
+                      {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} barang 
+                      telah melewati batas waktu pengembalian
+                    </p>
+                    <Link href="/admin/rentals?filter=overdue" className="text-xs text-red-600 hover:text-red-700 hover:underline inline-flex items-center mt-2">
+                      Lihat peminjaman terlambat
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+                
+                <div className="relative pl-8 border-l-2 border-blue-300 py-1">
+                  <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-400"></div>
+                <div className="bg-blue-50 p-4 rounded-md border border-blue-100 hover:shadow-sm transition-shadow">
+                    <p className="text-sm font-medium text-gray-800 mb-1">Persetujuan Maintenance</p>
+                    <p className="text-sm text-gray-600">
+                      {stats && typeof stats.inMaintenanceItems === 'number' ? stats.inMaintenanceItems : 0} barang 
+                      dalam proses maintenance
+                    </p>
+                    <Link href="/admin/maintenance" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
+                      Tinjau maintenance
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
-              
-            <div className="relative pl-8 border-l-2 border-blue-300 py-1">
-              <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-400"></div>
-              <div className="bg-blue-50 p-4 rounded-md border border-blue-100 hover:shadow-sm transition-shadow">
-                <p className="text-sm font-medium text-gray-800 mb-1">Persetujuan Maintenance</p>
-                <p className="text-sm text-gray-600">
-                  {stats && typeof stats.inMaintenanceItems === 'number' ? stats.inMaintenanceItems : 0} barang 
-                  dalam proses maintenance
-                </p>
-                <Link href="/admin/maintenance" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
-                  Tinjau maintenance
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
+            
+              {/* Equipment Activity Chart */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                <EquipmentActivityChart title="Aktivitas Peralatan" />
               </div>
             </div>
-          </div>
-        </div>
-          
-        {/* Equipment Activity Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-          <EquipmentActivityChart title="Aktivitas Peralatan" />
-        </div>
       </div>
     </DashboardLayout>
   );
