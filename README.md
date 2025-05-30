@@ -34,3 +34,35 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Recurring Schedules
+
+The system supports recurring inventory schedules that can be set to repeat monthly or yearly. These schedules will automatically send notifications to users when they are due.
+
+### Setting Up the Cron Job
+
+To ensure recurring schedules work properly, you need to set up a cron job to run the schedule processor. This can be done using a cron service like cron-job.org, GitHub Actions, or a simple script on your server.
+
+#### Using a Cron Service
+
+Set up a cron job to call the following endpoint daily:
+
+```
+https://your-domain.com/api/cron/inventory-schedules?key=YOUR_CRON_API_KEY
+```
+
+You should set the `CRON_API_KEY` environment variable in your `.env` file for security:
+
+```
+CRON_API_KEY=your-secure-random-key
+```
+
+#### Local Development Testing
+
+To test the recurring schedules locally, you can manually trigger the cron job by visiting:
+
+```
+http://localhost:3000/api/cron/inventory-schedules?key=YOUR_CRON_API_KEY
+```
+
+This will process all due recurring schedules, update their next occurrence date, and send notifications to users.

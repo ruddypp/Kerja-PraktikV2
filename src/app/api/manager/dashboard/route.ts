@@ -75,7 +75,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Get total vendors
-    const totalVendors = await prisma.vendor.count();
+    const totalVendors = await prisma.vendor.count({
+      where: { isDeleted: false }
+    });
 
     // Get total users
     const totalUsers = await prisma.user.count();

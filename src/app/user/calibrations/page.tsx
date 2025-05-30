@@ -107,6 +107,10 @@ export default function UserCalibrationPage() {
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
   const vendorSearchRef = useRef<HTMLDivElement>(null);
   
+  // Add vendor loading state
+  const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [vendorsError, setVendorsError] = useState('');
+  
   // Add pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -186,6 +190,8 @@ export default function UserCalibrationPage() {
   
   // Fetcher function for SWR
   const fetcher = async (url: string) => {
+    try {
+      console.log(`Fetching: ${url}`);
     const res = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -194,11 +200,19 @@ export default function UserCalibrationPage() {
     });
     
     if (!res.ok) {
-      const error = new Error('An error occurred while fetching the data.');
+        console.error(`Error fetching ${url}: ${res.status} ${res.statusText}`);
+        const errorText = await res.text();
+        console.error(`Error response: ${errorText}`);
+        throw new Error(`API error: ${res.status} ${res.statusText}`);
+      }
+      
+      const data = await res.json();
+      console.log(`Response from ${url}:`, data);
+      return data;
+    } catch (error) {
+      console.error(`Exception in fetcher for ${url}:`, error);
       throw error;
     }
-    
-    return res.json();
   };
   
   useEffect(() => {
@@ -222,17 +236,41 @@ export default function UserCalibrationPage() {
   }, [currentPage]);
   
   // Gunakan SWR untuk mendapatkan data vendors
-  useSWR('/api/vendors?limit=10000', fetcher, {
+  useSWR('api-vendors', () => {
+    return fetch(`/api/vendors?limit=10000&timestamp=${Date.now()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    })
+    .then(res => {
+      if (!res.ok) throw new Error(`Failed to fetch vendors: ${res.status}`);
+      return res.json();
+    });
+  }, {
     onSuccess: (data) => {
+      console.log('Vendors data received:', data); // Debug log
       if (Array.isArray(data)) {
         setVendors(data);
       } else if (data && typeof data === 'object') {
         setVendors(data.items || []);
       } else {
         setVendors([]);
+        console.error('Unexpected vendors data format:', data);
       }
+      setVendorsLoading(false);
+      setVendorsError('');
     },
-    ...SWR_CONFIG
+    onError: (error) => {
+      console.error('Error fetching vendors:', error);
+      setVendors([]);
+      setVendorsLoading(false);
+      setVendorsError('Failed to load vendors. Please try again later.');
+    },
+    revalidateOnFocus: false,
+    revalidateOnMount: true,
+    revalidateIfStale: false,
+    dedupingInterval: 600000 // 10 minutes
   });
   
   // Filter items based on search term
@@ -394,8 +432,43 @@ export default function UserCalibrationPage() {
   };
   
   const openCalibrationModal = () => {
-    if (!items || items.length === 0) {
+    // Always fetch fresh items when opening the modal
       fetchAvailableItems();
+    
+    // Set loading state for vendors, but don't refetch if we already have data
+    if (vendors.length === 0) {
+      setVendorsLoading(true);
+      setVendorsError('');
+      
+      // Only fetch vendors if we don't have any yet
+      fetch(`/api/vendors?limit=10000&timestamp=${Date.now()}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch vendors: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Vendors loaded on modal open:', data);
+        if (Array.isArray(data)) {
+          setVendors(data);
+        } else if (data && typeof data === 'object') {
+          setVendors(data.items || []);
+        }
+        setVendorsLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching vendors for modal:', err);
+        setVendorsError('Failed to load vendors. Please try again.');
+        setVendorsLoading(false);
+      });
+    } else {
+      setVendorsLoading(false);
     }
     
     setCalibrationForm({
@@ -441,12 +514,44 @@ export default function UserCalibrationPage() {
         credentials: 'include'
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create calibration');
+      // Get response text first to properly handle any error response
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        // Try to parse as JSON
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error(`Invalid response format from server: ${responseText.substring(0, 100)}...`);
       }
       
-      const data = await response.json();
+      if (!response.ok) {
+        let errorMessage = 'Failed to create calibration';
+        
+        if (data && typeof data === 'object') {
+          if (data.error) {
+            if (typeof data.error === 'string') {
+              errorMessage = data.error;
+            } else if (typeof data.error === 'object') {
+              // Format the validation errors
+              const errors = [];
+              for (const field in data.error) {
+                if (data.error[field] && data.error[field]._errors) {
+                  errors.push(`${field}: ${data.error[field]._errors.join(', ')}`);
+      }
+              }
+              if (errors.length > 0) {
+                errorMessage = `Validation errors: ${errors.join('; ')}`;
+              }
+            }
+          }
+        }
+        
+        console.error('Calibration creation failed:', data);
+        throw new Error(errorMessage);
+      }
+      
       setSuccess('Calibration request created successfully');
       setCalibrations(prev => [data, ...prev]);
       closeCalibrationModal();
@@ -470,8 +575,8 @@ export default function UserCalibrationPage() {
       fetchCalibrations();
       fetchAvailableItems();
     } catch (error: unknown) {
-      console.error('Error completing calibration:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to complete calibration';
+      console.error('Error creating calibration:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create calibration';
       setError(errorMsg);
     }
   };
@@ -577,9 +682,9 @@ export default function UserCalibrationPage() {
       }],
       
       // Detail Alat - auto-filled from item data
-      instrumentName: '',
-      modelNumber: calibration.item.partNumber || '',
-      configuration: calibration.item.sensor || '',
+      instrumentName: calibration.instrumentName || calibration.item.name || calibration.item.partNumber || 'Gas Detector',
+      modelNumber: calibration.modelNumber || calibration.item.partNumber || '',
+      configuration: calibration.configuration || calibration.item.sensor || '',
       
       // Notes
       notes: calibration.notes || ''
@@ -701,6 +806,29 @@ export default function UserCalibrationPage() {
         testResult: 'Pass' as 'Pass' | 'Fail'
       };
       
+      // Client-side validation before submitting
+      const validationErrors = [];
+      
+      // Check required fields
+      if (!completeForm.id) validationErrors.push('Calibration ID is missing');
+      if (!firstGasEntry.gasType) validationErrors.push('Gas Type is required');
+      if (!firstGasEntry.gasConcentration) validationErrors.push('Gas Concentration is required');
+      if (!firstGasEntry.gasBalance) validationErrors.push('Gas Balance is required');
+      if (!firstGasEntry.gasBatchNumber) validationErrors.push('Gas Batch Number is required');
+      if (!firstTestEntry.testSensor) validationErrors.push('Test Sensor is required');
+      if (!firstTestEntry.testSpan) validationErrors.push('Test Span is required');
+      if (!completeForm.instrumentName) validationErrors.push('Instrument Name is required');
+      if (!completeForm.modelNumber) validationErrors.push('Model Number is required');
+      if (!completeForm.configuration) validationErrors.push('Configuration is required');
+      if (!completeForm.approvedBy) validationErrors.push('Approver Name is required');
+      if (!completeForm.validUntil) validationErrors.push('Valid Until date is required');
+      
+      // If there are validation errors, show them and don't submit
+      if (validationErrors.length > 0) {
+        setError(`Please fix the following errors: ${validationErrors.join(', ')}`);
+        return;
+      }
+      
       // Format the data for the API
       const apiData = {
         id: completeForm.id,
@@ -754,14 +882,33 @@ export default function UserCalibrationPage() {
       try {
         // Parse the text response as JSON
         data = JSON.parse(responseText);
-      } catch {
+      } catch (parseError) {
         // No variable needed
         console.error('Failed to parse response as JSON:', responseText);
         throw new Error('Server returned invalid response format');
       }
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to complete calibration');
+        let errorMessage = 'Failed to complete calibration';
+        
+        if (data && typeof data === 'object') {
+          if (data.error) {
+            if (typeof data.error === 'string') {
+              errorMessage = data.error;
+            } else if (typeof data.error === 'object') {
+              // Try to format the validation errors
+              errorMessage = 'Validation errors: ' + JSON.stringify(data.error);
+            }
+          }
+          
+          // Include any details provided in the error response
+          if (data.details) {
+            console.error('Error details:', data.details);
+          }
+        }
+        
+        console.error('Calibration completion failed:', data);
+        throw new Error(errorMessage);
       }
       
       setSuccess('Calibration completed successfully. Certificate has been generated.');
@@ -793,18 +940,33 @@ export default function UserCalibrationPage() {
   };
   
   const handleVendorSelect = (vendor: Vendor) => {
+    console.log('Vendor selected:', vendor);
+    
+    if (!vendor || !vendor.id) {
+      console.error('Invalid vendor selected:', vendor);
+      setVendorsError('Invalid vendor selected. Please try again.');
+      return;
+    }
+    
     setVendorSearch(''); // Clear search
     setShowVendorSuggestions(false);
     
     // Set the selected vendor in the form
-    setCalibrationForm(prev => ({
+    setCalibrationForm(prev => {
+      const updated = {
       ...prev,
       vendorId: vendor.id,
       // Only set address and phone to empty, leave fax field as is
       address: '',
       phone: ''
       // Fax is not set here so it will keep whatever the user has entered manually
-    }));
+      };
+      console.log('Updated calibration form with vendor:', updated);
+      return updated;
+    });
+    
+    // Clear any vendor error
+    setVendorsError('');
   };
   
   // Function to handle page change
@@ -1186,10 +1348,29 @@ export default function UserCalibrationPage() {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   aria-labelledby="vendor-label"
                   onFocus={() => vendorSearch.length >= 2 && setShowVendorSuggestions(true)}
+                  disabled={vendorsLoading}
                 />
                 
+                {/* Show loading indicator */}
+                {vendorsLoading && (
+                  <div className="mt-2 p-2 border border-blue-200 bg-blue-50 rounded-md">
+                    <p className="font-medium text-sm text-blue-600">
+                      Loading vendors...
+                    </p>
+                  </div>
+                )}
+                
+                {/* Show error message if vendors failed to load */}
+                {vendorsError && (
+                  <div className="mt-2 p-2 border border-red-200 bg-red-50 rounded-md">
+                    <p className="font-medium text-sm text-red-600">
+                      {vendorsError}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Show selected vendor if any */}
-                {calibrationForm.vendorId && (
+                {calibrationForm.vendorId && !vendorsLoading && !vendorsError && (
                   <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
                     <p className="font-medium text-sm">
                       {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.name || "Selected Vendor"}
@@ -1203,7 +1384,7 @@ export default function UserCalibrationPage() {
                 )}
                 
                 {/* Suggestions dropdown */}
-                {showVendorSuggestions && (
+                {showVendorSuggestions && !vendorsLoading && !vendorsError && (
                   <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {filteredVendors.length > 0 ? (
                       <ul className="py-1">
@@ -1233,8 +1414,11 @@ export default function UserCalibrationPage() {
                   </div>
                 )}
               </div>
-              {!calibrationForm.vendorId && (
+              {!calibrationForm.vendorId && !vendorsLoading && !vendorsError && (
                 <p className="text-xs text-gray-500 mt-1">Search and select a vendor for calibration</p>
+              )}
+              {!vendorsLoading && !vendorsError && vendors.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">No vendors available. Please contact an administrator.</p>
               )}
             </div>
 
@@ -1382,13 +1566,26 @@ export default function UserCalibrationPage() {
       </div>
       
       <div className="overflow-y-auto flex-grow p-4 max-h-[calc(90vh-56px)]">
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 mb-4 rounded-md">
+            <p className="font-medium text-sm">{error}</p>
+            <button 
+              onClick={() => setError('')} 
+              className="text-xs text-red-600 underline mt-1 hover:text-red-800"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         <form onSubmit={handleCompleteSubmit} className="space-y-4">
           {/* Certificate Information */}
           <div>
             <h3 className="font-medium text-gray-700 mb-2">Certificate Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">Certificate Number</label>
+                <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Certificate Number <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   id="certificateNumber"
@@ -1402,7 +1599,9 @@ export default function UserCalibrationPage() {
               </div>
               
               <div>
-                <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">Calibration Date</label>
+                <label htmlFor="calibrationDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Calibration Date <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   id="calibrationDate"
@@ -1415,7 +1614,9 @@ export default function UserCalibrationPage() {
               </div>
               
               <div>
-                <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
+                <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-1">
+                  Valid Until <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   id="validUntil"
@@ -1428,7 +1629,9 @@ export default function UserCalibrationPage() {
               </div>
               
               <div>
-                <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
+                <label htmlFor="approvedBy" className="block text-sm font-medium text-gray-700 mb-1">
+                  Approved By <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   id="approvedBy"
@@ -1437,6 +1640,7 @@ export default function UserCalibrationPage() {
                   onChange={(e) => handleCompleteFormChange(e)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   placeholder="Enter approver name"
+                  required
                 />
               </div>
             </div>
@@ -1447,7 +1651,9 @@ export default function UserCalibrationPage() {
             <h3 className="font-medium text-gray-700 mb-2">Instrument Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
               <div>
-                <label className="block mb-1 text-sm font-medium text-gray-700">Instrument</label>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Instrument <span className="text-red-500">*</span>
+                </label>
                   <input
                     type="text"
                   name="instrumentName"
@@ -1455,6 +1661,7 @@ export default function UserCalibrationPage() {
                   onChange={(e) => handleCompleteFormChange(e)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   placeholder="Enter instrument name"
+                  required
                   />
                 </div>
                 
@@ -1466,17 +1673,33 @@ export default function UserCalibrationPage() {
                 </div>
                 
               <div>
-                <label className="block mb-1 text-sm font-medium text-gray-700">Model</label>
-                <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
-                  {completeForm.modelNumber || 'Not specified'}
-                </div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Model <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="modelNumber"
+                  value={completeForm.modelNumber}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Enter model number"
+                  required
+                />
                 </div>
                 
                   <div>
-                <label className="block mb-1 text-sm font-medium text-gray-700">Sensor</label>
-                <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
-                  {completeForm.configuration || 'Not specified'}
-                </div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Sensor <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="configuration"
+                  value={completeForm.configuration}
+                  onChange={(e) => handleCompleteFormChange(e)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Enter sensor configuration"
+                  required
+                />
               </div>
                   </div>
                 </div>
@@ -1509,10 +1732,10 @@ export default function UserCalibrationPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Gas Type</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Concentration</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Balance</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Batch No.</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Gas Type <span className="text-red-500">*</span></th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Concentration <span className="text-red-500">*</span></th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Balance <span className="text-red-500">*</span></th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Batch No. <span className="text-red-500">*</span></th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
                   </tr>
                 </thead>
@@ -1618,9 +1841,9 @@ export default function UserCalibrationPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">No</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Sensor</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Span</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Result</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Sensor <span className="text-red-500">*</span></th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Span <span className="text-red-500">*</span></th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Result <span className="text-red-500">*</span></th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-gray-500"></th>
                   </tr>
                 </thead>

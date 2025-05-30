@@ -68,7 +68,7 @@ export default function MaintenanceForm({
     techSupport: "",
     dateIn: new Date(maintenance.startDate).toISOString().split("T")[0],
     estimateWork: "",
-    reasonForReturn: "Maintenance & calibration",
+    reasonForReturn: "",
     findings: "",
     action: "",
     beforePhotoUrl: "",
@@ -104,8 +104,8 @@ export default function MaintenanceForm({
         return;
       }
       
-      if (!technicalReportData.findings) {
-        toast.error("Lengkapi temuan pada form Technical Report");
+      if (!technicalReportData.findings || !technicalReportData.reasonForReturn || !technicalReportData.action) {
+        toast.error("Lengkapi semua field yang diperlukan pada form Technical Report");
         setActiveTab("technical");
         setIsSubmitting(false);
         return;

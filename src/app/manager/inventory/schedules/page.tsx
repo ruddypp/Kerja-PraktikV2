@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiRefreshCw } from 'react-icons/fi';
 
-// Updated interface to match InventoryCheck model with recurring fields
+// Updated interface to match InventoryCheck model
 interface InventoryCheck {
   id: string;
   name: string | null;
@@ -17,9 +17,12 @@ interface InventoryCheck {
   createdAt: string;
   updatedAt: string;
   isRecurring: boolean;
-  frequency: 'MONTHLY' | 'YEARLY' | null;
-  nextScheduleDate: string | null;
-  lastNotificationSent: string | null;
+  recurrenceType: string | null;
+  nextDate: string | null;
+  createdBy?: {
+    name: string;
+    role: string;
+  };
 }
 
 export default function InventorySchedulesPage() {
@@ -31,26 +34,31 @@ export default function InventorySchedulesPage() {
     id: '',
     name: '',
     description: '',
+    nextDate: new Date().toISOString().split('T')[0],
     isRecurring: false,
-    frequency: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
-    nextDate: new Date().toISOString().split('T')[0]
+    recurrenceType: 'MONTHLY' // Default to monthly
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
-  const fetchSchedules = async () => {
+  const fetchSchedules = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/manager/inventory-schedules');
+      // Add timestamp to bust cache when forced refresh
+      const url = forceRefresh 
+        ? `/api/manager/inventory-schedules?t=${Date.now()}` 
+        : '/api/manager/inventory-schedules';
+      
+      console.log('Fetching schedules from:', url);
+      const res = await fetch(url);
       
       if (!res.ok) {
         throw new Error('Failed to fetch inventory schedules');
       }
       
       const data = await res.json();
+      console.log('Received schedules:', data.length);
       setSchedules(data);
     } catch (err) {
       setError('Error loading schedules. Please try again.');
@@ -93,8 +101,6 @@ export default function InventorySchedulesPage() {
         id: formData.id,
         name: formData.name,
         description: formData.description,
-        isRecurring: formData.isRecurring,
-        frequency: formData.frequency,
         nextDate
       });
 
@@ -106,8 +112,6 @@ export default function InventorySchedulesPage() {
         body: JSON.stringify({
           name: formData.name,
           description: formData.description || null,
-          isRecurring: formData.isRecurring,
-          frequency: formData.isRecurring ? formData.frequency : null,
           nextDate
         })
       });
@@ -122,8 +126,6 @@ export default function InventorySchedulesPage() {
         id: '', 
         name: '', 
         description: '', 
-        isRecurring: false,
-        frequency: 'MONTHLY',
         nextDate: new Date().toISOString().split('T')[0]
       });
       setIsEditing(false);
@@ -150,9 +152,9 @@ export default function InventorySchedulesPage() {
       id: schedule.id,
       name: schedule.name || '',
       description: schedule.notes || '',
+      nextDate,
       isRecurring: schedule.isRecurring || false,
-      frequency: schedule.frequency || 'MONTHLY',
-      nextDate
+      recurrenceType: schedule.recurrenceType || 'MONTHLY'
     });
     setIsEditing(true);
     setShowForm(true);
@@ -160,69 +162,11 @@ export default function InventorySchedulesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteClick = (id: string) => {
-    setScheduleToDelete(id);
-    setShowDeleteConfirmation(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!scheduleToDelete) return;
-    
-    try {
-      setIsSubmitting(true);
-      setError('');
-      
-      console.log(`Attempting to delete schedule with ID: ${scheduleToDelete}`);
-      
-      const res = await fetch(`/api/manager/inventory-schedules/${scheduleToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Delete response status:', res.status);
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error('Delete response error:', errorData);
-        throw new Error(errorData.error || 'Failed to delete schedule');
-      }
-      
-      // Update the UI immediately by filtering out the deleted schedule
-      setSchedules(prevSchedules => prevSchedules.filter(schedule => schedule.id !== scheduleToDelete));
-      
-      const message = 'Schedule deleted successfully';
-      setSuccessMessage(message);
-      setTimeout(() => setSuccessMessage(''), 3000);
-      toast.success(message);
-    } catch (err: unknown) {
-      console.error('Delete error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete schedule. Please try again.';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      
-      // If there was an error, refresh the schedules to ensure UI is in sync
-      fetchSchedules();
-    } finally {
-      setIsSubmitting(false);
-      setShowDeleteConfirmation(false);
-      setScheduleToDelete(null);
-    }
-  };
-
-  const cancelDelete = () => {
-    setShowDeleteConfirmation(false);
-    setScheduleToDelete(null);
-  };
-
   const cancelForm = () => {
     setFormData({ 
       id: '', 
       name: '', 
       description: '', 
-      isRecurring: false,
-      frequency: 'MONTHLY',
       nextDate: new Date().toISOString().split('T')[0]
     });
     setIsEditing(false);
@@ -235,14 +179,30 @@ export default function InventorySchedulesPage() {
       <div className="p-6">
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-gray-800">Inventory Schedules</h1>
-          {!showForm && (
+          <div className="flex space-x-2">
             <button
-              onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+              onClick={() => fetchSchedules(true)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md flex items-center"
+              disabled={loading}
             >
-              <FiPlus className="mr-2" /> Create Schedule
+              <FiRefreshCw className={`${loading ? "animate-spin" : ""} mr-2`} /> Refresh
             </button>
-          )}
+            {!showForm && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+              >
+                <FiPlus className="mr-2" /> Create Schedule
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+          <p className="text-sm">
+            <strong>Note:</strong> You can view all inventory schedules including those created by administrators. 
+            You can edit any schedule, but only administrators can delete schedules.
+          </p>
         </div>
 
         {successMessage && (
@@ -322,24 +282,28 @@ export default function InventorySchedulesPage() {
                     name="isRecurring"
                     checked={formData.isRecurring}
                     onChange={handleFormChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="isRecurring" className="ml-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
                     Recurring Schedule
                   </label>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Recurring schedules will automatically create a notification at the specified interval
+                </p>
               </div>
 
               {formData.isRecurring && (
                 <div className="mb-4">
-                  <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
-                    Frequency
+                  <label htmlFor="recurrenceType" className="block text-sm font-medium text-gray-700 mb-1">
+                    Recurrence Type*
                   </label>
                   <select
-                    id="frequency"
-                    name="frequency"
-                    value={formData.frequency}
+                    id="recurrenceType"
+                    name="recurrenceType"
+                    value={formData.recurrenceType}
                     onChange={handleFormChange}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="MONTHLY">Monthly</option>
@@ -377,39 +341,6 @@ export default function InventorySchedulesPage() {
           </div>
         )}
 
-        {showDeleteConfirmation && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
-              <p className="mb-6">Are you sure you want to delete this schedule? This action cannot be undone.</p>
-              <div className="flex justify-end">
-                <button
-                  onClick={cancelDelete}
-                  className="mr-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md flex items-center"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <FiRefreshCw className="animate-spin mr-2" /> Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <FiTrash2 className="mr-2" /> Delete
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {!showForm && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {loading ? (
@@ -438,10 +369,13 @@ export default function InventorySchedulesPage() {
                         Date
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Recurring
+                        Description
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        Recurrence
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created By
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -458,26 +392,29 @@ export default function InventorySchedulesPage() {
                           <div className="text-sm text-gray-900">
                             {new Date(schedule.scheduledDate).toLocaleDateString()}
                           </div>
-                          {schedule.nextScheduleDate && (
-                            <div className="text-sm text-gray-500">
-                              Next: {new Date(schedule.nextScheduleDate).toLocaleDateString()}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {schedule.isRecurring ? (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              {schedule.frequency === 'MONTHLY' ? 'Monthly' : 'Yearly'}
-                            </span>
-                          ) : (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                              One-time
-                            </span>
-                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-500 max-w-xs truncate">
                             {schedule.notes || '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {schedule.isRecurring ? (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                {schedule.recurrenceType === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                              </span>
+                            ) : (
+                              'One-time'
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {schedule.createdBy?.name || 'Unknown'}
+                            {schedule.createdBy?.role === 'ADMIN' && 
+                              <span className="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Admin</span>
+                            }
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -488,13 +425,6 @@ export default function InventorySchedulesPage() {
                               title="Edit"
                             >
                               <FiEdit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(schedule.id)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete"
-                            >
-                              <FiTrash2 size={18} />
                             </button>
                           </div>
                         </td>

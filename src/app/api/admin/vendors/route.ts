@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
     
-    // Build where conditions
+    // Build where conditions - always exclude deleted vendors
     const where: any = {
       isDeleted: false
     };
@@ -38,7 +38,8 @@ export async function GET(request: Request) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { contactName: { contains: search, mode: 'insensitive' } },
-        { contactEmail: { contains: search, mode: 'insensitive' } }
+        { contactEmail: { contains: search, mode: 'insensitive' } },
+        { service: { contains: search, mode: 'insensitive' } }
       ];
     }
     

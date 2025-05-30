@@ -8,12 +8,25 @@ import { DashboardStats } from '@/lib/utils/dashboard';
 interface DashboardResponse extends DashboardStats {}
 
 // GET dashboard statistics
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Check for timestamp parameter to determine if this is a forced refresh
+    const url = new URL(request.url);
+    const hasTimestamp = url.searchParams.has('t');
+    
     // Set headers for HTTP caching
     const headers = new Headers();
-    headers.set('Cache-Control', 'private, max-age=30'); // Cache for 30 seconds
-    headers.set('Vary', 'Cookie'); // Vary cache by cookie (for user-specific data)
+    if (hasTimestamp) {
+      // If timestamp is present, it's a forced refresh - don't cache
+      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      headers.set('Pragma', 'no-cache');
+      headers.set('Expires', '0');
+      console.log('Admin dashboard: Forced refresh detected, using no-cache headers');
+    } else {
+      // Normal request - use short-lived cache
+      headers.set('Cache-Control', 'private, max-age=30'); // Cache for 30 seconds
+      headers.set('Vary', 'Cookie'); // Vary cache by cookie (for user-specific data)
+    }
     
     // Use Promise.allSettled to fetch all data in parallel
     // This ensures that a failure in one query doesn't affect others

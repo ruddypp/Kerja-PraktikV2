@@ -895,19 +895,11 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     color: black
   });
   
-  page.drawText('To :', {
-    x: margin + tableWidth * 0.33 + 10,
-    y: height - 75,
-    size: 9,
-    font: helveticaBold,
-    color: black
-  });
-  
   // Customer name
   page.drawText(tr?.deliveryTo || maintenanceData.item.customer?.name || 'N/A', {
-    x: margin + tableWidth * 0.33 + 35,
-    y: height - 75,
-    size: 9,
+    x: margin + tableWidth * 0.33 + 85,
+    y: height - 60,
+    size: 11,
     font: helvetica,
     color: black
   });
@@ -969,11 +961,11 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   // --- SECOND SECTION - REASON & DATE ---
   const reasonY = height - 160;
   
-  // Reason for Return section - Left box
+  // Reason for Return section - Left box (make it equal width for symmetry)
   page.drawRectangle({
     x: margin,
     y: reasonY - 35,
-    width: tableWidth * 0.69,
+    width: tableWidth * 0.33,
     height: 35,
     borderColor: black,
     borderWidth: 1
@@ -996,18 +988,18 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     color: black
   });
   
-  // Date In box - Right box
+  // Date In box - Middle box (positioned next to Reason For Return with equal width)
   page.drawRectangle({
-    x: margin + tableWidth * 0.69,
+    x: margin + tableWidth * 0.33,
     y: reasonY - 35,
-    width: tableWidth * 0.31,
+    width: tableWidth * 0.33,
     height: 35,
     borderColor: black,
     borderWidth: 1
   });
   
   page.drawText('Date In :', {
-    x: margin + tableWidth * 0.69 + 10,
+    x: margin + tableWidth * 0.33 + 10,
     y: reasonY - 15,
     size: 9,
     font: helveticaBold,
@@ -1016,26 +1008,26 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   const dateIn = tr?.dateIn ? formatDateID(tr.dateIn) : formatDateID(maintenanceData.startDate);
   page.drawText(dateIn, {
-    x: margin + tableWidth * 0.69 + 55,
+    x: margin + tableWidth * 0.33 + 60,
     y: reasonY - 15,
     size: 9,
     font: helvetica,
     color: black
   });
   
-  // Estimate Work box - Right
+  // Estimate Work box - Right box (positioned next to Date In with equal width)
   page.drawRectangle({
-    x: margin + tableWidth * 0.69,
-    y: reasonY - 70,
-    width: tableWidth * 0.31,
+    x: margin + tableWidth * 0.66,
+    y: reasonY - 35,
+    width: tableWidth * 0.34,
     height: 35,
     borderColor: black,
     borderWidth: 1
   });
   
   page.drawText('Estimate Work :', {
-    x: margin + tableWidth * 0.69 + 10,
-    y: reasonY - 55,
+    x: margin + tableWidth * 0.66 + 10,
+    y: reasonY - 15,
     size: 9,
     font: helveticaBold,
     color: black
@@ -1043,18 +1035,18 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   if (tr?.estimateWork) {
     page.drawText(tr.estimateWork, {
-      x: margin + tableWidth * 0.69 + 90,
-      y: reasonY - 55,
+      x: margin + tableWidth * 0.66 + 85,
+      y: reasonY - 15,
       size: 9,
       font: helvetica,
       color: black
     });
   }
   
-  // Third section - Findings details
+  // Third section - Findings details (now directly below the horizontal row of fields)
   page.drawRectangle({
     x: margin,
-    y: reasonY - 115,
+    y: reasonY - 80, // Adjusted to be below the horizontal row
     width: tableWidth,
     height: 45,
     borderColor: black,
@@ -1063,7 +1055,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Findings :', {
     x: margin + 10,
-    y: reasonY - 90,
+    y: reasonY - 55, // Adjusted y position
     size: 9,
     font: helveticaBold,
     color: black
@@ -1072,10 +1064,10 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   // Add detailed findings content if available
   if (tr?.findings) {
     const findingsLines = splitTextToLines(tr.findings, tableWidth - 100, helvetica, 9);
-    let lineY = reasonY - 90;
+    let lineY = reasonY - 55; // Adjusted y position
     
     findingsLines.forEach((line, idx) => {
-      if (lineY > reasonY - 110 && idx < 2) { // Show max 2 lines
+      if (lineY > reasonY - 75 && idx < 2) { // Show max 2 lines
         page.drawText(line, {
           x: margin + 80,
           y: lineY,
@@ -1088,10 +1080,10 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     });
   }
   
-  // --- FOURTH SECTION - DEVICE IMAGES ---
-  const photosY = reasonY - 115;
+  // --- FOURTH SECTION - DEVICE IMAGES --- (adjusted position to follow the new layout)
+  const photosY = reasonY - 80;
   
-  // Draw container for photos
+  // Draw container for photos (adjusted position)
   page.drawRectangle({
     x: margin,
     y: photosY - 150,
@@ -1181,7 +1173,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
     console.error('Error processing device images:', e);
   }
   
-  // --- FIFTH SECTION - ACTION ---
+  // --- FIFTH SECTION - ACTION --- (adjusted to follow the photos section)
   const actionY = photosY - 150;
   
   page.drawRectangle({
@@ -1346,10 +1338,10 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   // --- SIXTH SECTION - TERMS & CONDITIONS ---
   const termsY = partsY - 25 - (rowCount * rowHeight);
-  // --- FOOTER TEXT ---
+  // --- FOOTER TEXT --- (moved higher up)
   page.drawText('This Report is generated by the system automatically, please verify the accuracy of the report before signing.', {
     x: margin,
-    y: termsY - 100,
+    y: termsY - 60, // Moved up from -100
     size: 9,
     font: helvetica,
     color: black
@@ -1357,7 +1349,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Best regards', {
     x: margin,
-    y: termsY - 115,
+    y: termsY - 75, // Moved up from -115
     size: 9,
     font: helvetica,
     color: black
@@ -1365,16 +1357,16 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('PT. PARAMATA BARAYA INTERNASIONAL', {
     x: margin,
-    y: termsY - 130,
+    y: termsY - 90, // Moved up from -130
     size: 9,
     font: helveticaBold,
     color: black
   });
   
-  // Signature
+  // Signature (moved higher up)
   page.drawText('Gerhan M.Y', {
     x: margin,
-    y: termsY - 160,
+    y: termsY - 120, // Moved up from -160
     size: 9,
     font: helveticaBold,
     color: black
@@ -1382,7 +1374,7 @@ async function generateTechnicalReportPDF(maintenanceData: TechnicalReportMainte
   
   page.drawText('Director', {
     x: margin,
-    y: termsY - 175,
+    y: termsY - 135, // Moved up from -175
     size: 9,
     font: helvetica,
     color: black

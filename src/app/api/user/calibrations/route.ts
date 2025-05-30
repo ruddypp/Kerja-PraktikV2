@@ -163,10 +163,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log('Received calibration request:', body);
     
     // Validasi request body
     const validation = createCalibrationSchema.safeParse(body);
     if (!validation.success) {
+      console.error('Validation error:', validation.error.format());
       return NextResponse.json(
         { error: validation.error.format() },
         { status: 400 }
@@ -176,15 +178,25 @@ export async function POST(request: Request) {
     const { 
       itemSerial, 
       vendorId, 
-      calibrationDate 
+      calibrationDate,
+      notes,
+      manufacturer,
+      instrumentName,
+      modelNumber,
+      configuration
     } = validation.data;
+    
+    console.log('Validated data:', { itemSerial, vendorId, calibrationDate });
     
     // Verifikasi session user
     const user = await getUserFromRequest(request);
     
     if (!user) {
+      console.error('Unauthorized access attempt with no user session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    console.log('User authorized:', user.id, user.email);
     
     // Verify if the item exists and is available
     const item = await prisma.item.findUnique({
@@ -192,30 +204,78 @@ export async function POST(request: Request) {
     });
     
     if (!item) {
+      console.error('Item not found:', itemSerial);
       return NextResponse.json(
         { error: 'Item tidak ditemukan' },
         { status: 404 }
       );
     }
     
+    console.log('Item found:', item.serialNumber, 'Status:', item.status);
+    
     // If item is not available, reject calibration
     if (item.status !== ItemStatus.AVAILABLE) {
+      console.error('Item not available for calibration. Current status:', item.status);
       return NextResponse.json(
         { error: `Item tidak tersedia untuk kalibrasi. Status saat ini: ${item.status}` },
         { status: 400 }
       );
     }
     
-    // Create calibration
+    // Create calibration with only the fields that are defined in the Prisma schema
+    console.log('Creating calibration with data:', {
+      itemSerial,
+      userId: user.id,
+      vendorId,
+      status: RequestStatus.PENDING,
+      calibrationDate: new Date(calibrationDate),
+      notes: notes || null
+    });
+    
+    // Create the calibration
     const calibration = await prisma.calibration.create({
       data: {
         itemSerial,
         userId: user.id,
         vendorId,
         status: RequestStatus.PENDING,
+        calibrationDate: new Date(calibrationDate),
+        notes: notes || null
+      }
+    });
+    
+    console.log('Calibration created successfully:', calibration.id);
+    
+    // Update item status to IN_CALIBRATION
+    await prisma.item.update({
+      where: { serialNumber: itemSerial },
+      data: { status: ItemStatus.IN_CALIBRATION }
+    });
+    
+    console.log('Item status updated to IN_CALIBRATION');
+    
+    // Add an entry to the item history
+    await prisma.itemHistory.create({
+      data: {
+        itemSerial,
+        action: 'CALIBRATED',
+        details: `Calibration started by ${user.name}`,
+        relatedId: calibration.id,
         startDate: new Date()
       }
     });
+    
+    console.log('Item history entry created');
+    
+    // Log activity
+    await logCalibrationActivity(
+      user.id,
+      calibration.id,
+      ActivityType.CALIBRATION_CREATED,
+      'Calibration request created'
+    );
+    
+    console.log('Activity logged');
     
     // Return full calibration data
     const fullCalibration = await prisma.calibration.findUnique({
@@ -249,8 +309,30 @@ export async function POST(request: Request) {
     return NextResponse.json(fullCalibration);
   } catch (error) {
     console.error('Error creating calibration:', error);
+    
+    // Return detailed error message for better debugging
+    let errorMessage = 'Gagal membuat kalibrasi';
+    let errorDetails = {};
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // If it's a Prisma error, try to extract more detailed information
+      if (error.name === 'PrismaClientKnownRequestError' || 
+          error.name === 'PrismaClientValidationError') {
+        // @ts-ignore - Prisma errors have a meta property
+        if (error.meta) {
+          errorDetails = error.meta;
+        }
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Gagal membuat kalibrasi' },
+      { 
+        error: errorMessage,
+        details: errorDetails,
+        stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

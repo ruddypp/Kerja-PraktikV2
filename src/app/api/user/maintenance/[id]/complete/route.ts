@@ -198,6 +198,7 @@ export async function POST(
             estimateWork: technicalReportData.estimateWork,
             reasonForReturn: technicalReportData.reasonForReturn,
             findings: technicalReportData.findings,
+            action: technicalReportData.action,
             beforePhotoUrl: technicalReportData.beforePhotoUrl || null,
             afterPhotoUrl: technicalReportData.afterPhotoUrl || null,
           },

@@ -78,6 +78,9 @@ export default function VendorsPage() {
       params.append('page', page.toString());
       params.append('limit', limit.toString());
       
+      // Add a timestamp to bust cache when needed
+      params.append('timestamp', Date.now().toString());
+      
       const queryString = params.toString() ? `?${params.toString()}` : '';
       const cacheKey = getCacheKey(search, page, limit);
       

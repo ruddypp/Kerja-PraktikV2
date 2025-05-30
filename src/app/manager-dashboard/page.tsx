@@ -9,6 +9,7 @@ import { FiSearch, FiRefreshCw } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import EquipmentActivityChart from '@/components/EquipmentActivityChart';
+import UpcomingSchedulesCard from '@/components/UpcomingSchedulesCard';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -133,7 +134,12 @@ export default function ManagerDashboard() {
         }
       }
       
-      const res = await fetch('/api/manager/dashboard', {
+      // Add timestamp to URL for cache busting when force refresh is true
+      const url = forceRefresh 
+        ? `/api/manager/dashboard?t=${Date.now()}` 
+        : '/api/manager/dashboard';
+      
+      const res = await fetch(url, {
         cache: forceRefresh ? 'no-store' : 'default',
         headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : {}
       });
@@ -144,6 +150,8 @@ export default function ManagerDashboard() {
       
       const data = await res.json();
       const validatedData = ensureNumericValues(data);
+      
+      console.log('Fresh dashboard data fetched:', validatedData);
       
       // Cache the validated results
       sessionStorage.setItem(CACHE_KEY, JSON.stringify(validatedData));
@@ -595,9 +603,69 @@ export default function ManagerDashboard() {
               </div>
             </div>
             
-            {/* Item Status Overview */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">Ikhtisar Status Barang</h2>
+            {/* Second Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              {/* Upcoming Schedules Card */}
+              <div className="col-span-1">
+                <UpcomingSchedulesCard 
+                  title="Upcoming Inventory Checks"
+                  apiUrl="/api/manager/inventory-schedules"
+                  viewAllLink="/manager/inventory/schedules"
+                />
+              </div>
+
+              {/* Item Status Pie Chart */}
+              <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h3 className="text-md font-medium text-gray-800 mb-4">Item Status Distribution</h3>
+                <div className="h-64 flex items-center justify-center">
+                  {stats ? (
+                    <Pie data={pieChartData} options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'right',
+                          labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                              size: 12
+                            }
+                          }
+                        },
+                        title: {
+                          display: false
+                        },
+                        tooltip: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          titleColor: '#1f2937',
+                          bodyColor: '#4b5563',
+                          borderColor: '#e5e7eb',
+                          borderWidth: 1,
+                          padding: 12,
+                          boxPadding: 6,
+                          usePointStyle: true,
+                          callbacks: {
+                            label: function(context) {
+                              const value = context.raw as number;
+                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                              const percentage = Math.round((value / total) * 100);
+                              return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                          }
+                        }
+                      }
+                    }} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500 text-sm">Loading chart data...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Third Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
@@ -699,64 +767,10 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </div>
-            </div>
-            
-            {/* Reminders and Chart */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Pie Chart - Item Status Distribution */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Item Status Distribution</h2>
-                <div className="h-64">
-                  {stats ? (
-                    <Pie data={pieChartData} options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'right',
-                          labels: {
-                            boxWidth: 12,
-                            padding: 15,
-                            font: {
-                              size: 12
-                            }
-                          }
-                        },
-                        title: {
-                          display: false
-                        },
-                        tooltip: {
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          titleColor: '#1f2937',
-                          bodyColor: '#4b5563',
-                          borderColor: '#e5e7eb',
-                          borderWidth: 1,
-                          padding: 12,
-                          boxPadding: 6,
-                          usePointStyle: true,
-                          callbacks: {
-                            label: function(context) {
-                              const value = context.raw as number;
-                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                              const percentage = Math.round((value / total) * 100);
-                              return `${context.label}: ${value} (${percentage}%)`;
-                            }
-                          }
-                        }
-                      }
-                    }} />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500 text-sm">Loading chart data...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
 
               {/* Equipment Activity Chart */}
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <EquipmentActivityChart title="Aktivitas Peralatan" />
-              </div>
             </div>
           </div>
         )}

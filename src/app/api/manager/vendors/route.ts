@@ -38,7 +38,8 @@ export async function GET(request: Request) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { contactName: { contains: search, mode: 'insensitive' } },
-        { contactEmail: { contains: search, mode: 'insensitive' } }
+        { contactEmail: { contains: search, mode: 'insensitive' } },
+        { service: { contains: search, mode: 'insensitive' } }
       ];
     }
     

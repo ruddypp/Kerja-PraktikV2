@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromRequest, isManager } from '@/lib/auth';
+import { getUserFromRequest, isManager, isAdmin } from '@/lib/auth';
 import { ActivityType } from '@prisma/client';
 
 // Type definition for params as Promise
@@ -19,8 +19,7 @@ export async function GET(
     }
     
     // Get ID properly from params
-    // Using destructuring to avoid direct property access
-    const { id } = params;
+    const id = params.id;
     
     if (!id) {
       return NextResponse.json(
@@ -63,8 +62,7 @@ export async function PATCH(
     }
     
     // Get ID properly from params
-    // Using destructuring to avoid direct property access
-    const { id } = params;
+    const id = params.id;
     
     if (!id) {
       return NextResponse.json(
@@ -74,7 +72,7 @@ export async function PATCH(
     }
     
     const body = await request.json();
-    const { name, description, nextDate, isRecurring, frequency } = body;
+    const { name, description, nextDate } = body;
     
     // Check if schedule exists
     const existingSchedule = await prisma.inventoryCheck.findUnique({
@@ -88,29 +86,13 @@ export async function PATCH(
       );
     }
     
-    // Calculate next schedule date if recurring
-    let nextScheduleDate = null;
-    if (isRecurring && frequency) {
-      const scheduledDate = new Date(nextDate);
-      nextScheduleDate = new Date(scheduledDate);
-      
-      if (frequency === 'MONTHLY') {
-        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
-      } else if (frequency === 'YEARLY') {
-        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
-      }
-    }
-    
-    // Update schedule with recurring information
+    // Update schedule
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
         name,
         notes: description,
-        scheduledDate: new Date(nextDate),
-        isRecurring: isRecurring || false,
-        frequency: isRecurring ? frequency : null,
-        nextScheduleDate
+        scheduledDate: new Date(nextDate)
       }
     });
     
@@ -134,21 +116,24 @@ export async function PATCH(
   }
 }
 
-// DELETE an inventory schedule
+// DELETE an inventory schedule - restricted to admins only
 export async function DELETE(
   request: Request,
   { params }: { params: ParamsType }
 ) {
   try {
-    // Verify manager authentication
+    // Verify user authentication
     const user = await getUserFromRequest(request);
-    if (!user || !isManager(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    // Only admins can delete schedules
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ 
+        error: 'Unauthorized. Only administrators can delete inventory schedules.' 
+      }, { status: 401 });
     }
     
     // Get ID properly from params
-    // Using destructuring to avoid direct property access
-    const { id } = params;
+    const id = params.id;
     
     if (!id) {
       return NextResponse.json(

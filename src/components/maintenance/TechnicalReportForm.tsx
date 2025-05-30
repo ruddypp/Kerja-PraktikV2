@@ -247,7 +247,7 @@ export default function TechnicalReportForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reasonForReturn">
-            Reason For Return
+            Reason For Return <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -255,9 +255,10 @@ export default function TechnicalReportForm({
             name="reasonForReturn"
             value={data.reasonForReturn}
             onChange={handleChange}
-            placeholder="Maintenance & calibration"
+            placeholder="Jelaskan alasan maintenance (ex: kerusakan, kalibrasi rutin, etc.)"
             className="w-full p-2 border border-gray-300 rounded-md"
             title="Reason For Return"
+            required
           />
         </div>
         <div>

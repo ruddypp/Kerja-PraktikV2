@@ -8,361 +8,6 @@ datasource db {
   url      = "postgresql://postgres:ganteng@localhost:5432/project-paramata?schema=public"
 }
 
-model User {
-  id                    String                 @id @default(uuid())
-  name                  String
-  email                 String                 @unique
-  password              String
-  role                  Role
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  affectedUserLogs      ActivityLog[]          @relation("AffectedUserLogs")
-  activities            ActivityLog[]
-  calibrations          Calibration[]
-  calibrationStatusLogs CalibrationStatusLog[]
-  inventoryChecks       InventoryCheck[]
-  maintenances          Maintenance[]
-  maintenanceStatusLogs MaintenanceStatusLog[]
-  notifications         Notification[]
-  rentals               Rental[]
-  rentalStatusLogs      RentalStatusLog[]
-}
-
-model Item {
-  serialNumber        String               @id
-  name                String
-  partNumber          String
-  sensor              String?
-  description         String?
-  customerId          String?
-  status              ItemStatus           @default(AVAILABLE)
-  lastVerifiedAt      DateTime?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  activityLogs        ActivityLog[]
-  calibrations        Calibration[]
-  inventoryCheckItems InventoryCheckItem[]
-  customer            Vendor?              @relation("CustomerItems", fields: [customerId], references: [id])
-  histories           ItemHistory[]
-  maintenances        Maintenance[]
-  rentals             Rental[]
-}
-
-model Rental {
-  id                  String            @id @default(uuid())
-  itemSerial          String
-  userId              String
-  status              RequestStatus     @default(PENDING)
-  startDate           DateTime
-  endDate             DateTime?
-  returnDate          DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  doNumber            String?
-  poNumber            String?
-  renterName          String?
-  renterPhone         String?
-  renterAddress       String?
-  initialCondition    String?
-  returnCondition     String?
-  activityLogs        ActivityLog[]
-  item                Item              @relation(fields: [itemSerial], references: [serialNumber])
-  user                User              @relation(fields: [userId], references: [id])
-  statusLogs          RentalStatusLog[]
-}
-
-model Calibration {
-  id                String                  @id @default(uuid())
-  itemSerial        String
-  userId            String
-  status            RequestStatus           @default(PENDING)
-  calibrationDate   DateTime
-  validUntil        DateTime?
-  certificateNumber String?
-  certificateUrl    String?
-  vendorId          String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  notes             String?
-  activityLogs      ActivityLog[]
-  item              Item                    @relation(fields: [itemSerial], references: [serialNumber])
-  user              User                    @relation(fields: [userId], references: [id])
-  vendor            Vendor?                 @relation(fields: [vendorId], references: [id])
-  certificate       CalibrationCertificate?
-  statusLogs        CalibrationStatusLog[]
-}
-
-model CalibrationCertificate {
-  id             String                @id @default(uuid())
-  calibrationId  String                @unique
-  vendorAddress  String?
-  vendorPhone    String?
-  vendorFax      String?
-  vendorName     String?
-  manufacturer   String?
-  instrumentName String?
-  modelNumber    String?
-  configuration  String?
-  approvedBy     String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  calibration    Calibration           @relation(fields: [calibrationId], references: [id], onDelete: Cascade)
-  gasEntries     GasCalibrationEntry[]
-  testEntries    TestResultEntry[]
-}
-
-model GasCalibrationEntry {
-  id               String                 @id @default(uuid())
-  certificateId    String
-  gasType          String
-  gasConcentration String
-  gasBalance       String
-  gasBatchNumber   String
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  certificate      CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
-}
-
-model TestResultEntry {
-  id            String                 @id @default(uuid())
-  certificateId String
-  testSensor    String
-  testSpan      String
-  testResult    String
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  certificate   CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
-}
-
-model Maintenance {
-  id              String                 @id @default(uuid())
-  itemSerial      String
-  userId          String
-  status          RequestStatus          @default(PENDING)
-  startDate       DateTime               @default(now())
-  endDate         DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  activityLogs    ActivityLog[]
-  item            Item                   @relation(fields: [itemSerial], references: [serialNumber])
-  user            User                   @relation(fields: [userId], references: [id])
-  statusLogs      MaintenanceStatusLog[]
-  serviceReport   ServiceReport?
-  technicalReport TechnicalReport?
-}
-
-model ServiceReport {
-  id                       String              @id @default(uuid())
-  maintenanceId            String              @unique
-  reportNumber             String?
-  customer                 String?
-  location                 String?
-  brand                    String?
-  model                    String?
-  serialNumber             String?
-  dateIn                   DateTime?
-  reasonForReturn          String?
-  findings                 String?
-  action                   String?
-  sensorCO                 Boolean             @default(false)
-  sensorH2S                Boolean             @default(false)
-  sensorO2                 Boolean             @default(false)
-  sensorLEL                Boolean             @default(false)
-  lampClean                Boolean             @default(false)
-  lampReplace              Boolean             @default(false)
-  pumpTested               Boolean             @default(false)
-  pumpRebuilt              Boolean             @default(false)
-  pumpReplaced             Boolean             @default(false)
-  pumpClean                Boolean             @default(false)
-  instrumentCalibrate      Boolean             @default(false)
-  instrumentUpgrade        Boolean             @default(false)
-  instrumentCharge         Boolean             @default(false)
-  instrumentClean          Boolean             @default(false)
-  instrumentSensorAssembly Boolean             @default(false)
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
-  maintenance              Maintenance         @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
-  parts                    ServiceReportPart[]
-}
-
-model TechnicalReport {
-  id              String                @id @default(uuid())
-  maintenanceId   String                @unique
-  csrNumber       String?
-  deliveryTo      String?
-  dateReport      DateTime?
-  techSupport     String?
-  dateIn          DateTime?
-  estimateWork    String?
-  reasonForReturn String?
-  findings        String?
-  beforePhotoUrl  String?
-  afterPhotoUrl   String?
-  termsConditions String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  maintenance     Maintenance           @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
-  partsList       TechnicalReportPart[]
-}
-
-model ServiceReportPart {
-  id              String        @id @default(uuid())
-  serviceReportId String
-  itemNumber      Int
-  description     String
-  snPnOld         String?
-  snPnNew         String?
-  createdAt       DateTime      @default(now())
-  serviceReport   ServiceReport @relation(fields: [serviceReportId], references: [id], onDelete: Cascade)
-}
-
-model TechnicalReportPart {
-  id                String          @id @default(uuid())
-  technicalReportId String
-  itemNumber        Int
-  namaUnit          String?
-  description       String?
-  quantity          Int             @default(1)
-  unitPrice         Float?
-  totalPrice        Float?
-  createdAt         DateTime        @default(now())
-  technicalReport   TechnicalReport @relation(fields: [technicalReportId], references: [id], onDelete: Cascade)
-}
-
-model ItemHistory {
-  id         String    @id @default(uuid())
-  itemSerial String
-  action     String
-  details    String?
-  relatedId  String?
-  startDate  DateTime  @default(now())
-  endDate    DateTime?
-  createdAt  DateTime  @default(now())
-  item       Item      @relation(fields: [itemSerial], references: [serialNumber])
-}
-
-model ActivityLog {
-  id             String       @id @default(uuid())
-  type           ActivityType
-  action         String
-  details        String?
-  userId         String
-  itemSerial     String?
-  rentalId       String?
-  calibrationId  String?
-  maintenanceId  String?
-  affectedUserId String?
-  vendorId       String?
-  createdAt      DateTime     @default(now())
-  affectedUser   User?        @relation("AffectedUserLogs", fields: [affectedUserId], references: [id])
-  calibration    Calibration? @relation(fields: [calibrationId], references: [id])
-  item           Item?        @relation(fields: [itemSerial], references: [serialNumber])
-  maintenance    Maintenance? @relation(fields: [maintenanceId], references: [id])
-  rental         Rental?      @relation(fields: [rentalId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
-  vendor         Vendor?      @relation(fields: [vendorId], references: [id])
-}
-
-model Vendor {
-  id            String          @id @default(uuid())
-  name          String
-  address       String?
-  contactName   String?
-  contactPhone  String?
-  contactEmail  String?
-  service       String?
-  isDeleted     Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  activityLogs  ActivityLog[]
-  calibrations  Calibration[]
-  customerItems Item[]          @relation("CustomerItems")
-  vendorHistory VendorHistory[]
-}
-
-model VendorHistory {
-  id          String   @id @default(uuid())
-  vendorId    String
-  action      String
-  details     String?
-  performance Float?
-  createdAt   DateTime @default(now())
-  vendor      Vendor   @relation(fields: [vendorId], references: [id])
-}
-
-model InventoryCheck {
-  id            String               @id @default(uuid())
-  scheduledDate DateTime
-  completedDate DateTime?
-  notes         String?
-  userId        String
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  name          String?
-  isRecurring   Boolean              @default(false)
-  frequency     ScheduleFrequency?
-  nextScheduleDate DateTime?
-  lastNotificationSent DateTime?
-  createdBy     User                 @relation(fields: [userId], references: [id])
-  items         InventoryCheckItem[]
-}
-
-model InventoryCheckItem {
-  id             String         @id @default(uuid())
-  checkId        String
-  itemSerial     String
-  verifiedStatus ItemStatus
-  notes          String?
-  createdAt      DateTime       @default(now())
-  inventoryCheck InventoryCheck @relation(fields: [checkId], references: [id])
-  item           Item           @relation(fields: [itemSerial], references: [serialNumber])
-}
-
-model CalibrationStatusLog {
-  id            String        @id @default(uuid())
-  calibrationId String
-  status        RequestStatus
-  notes         String?
-  userId        String
-  createdAt     DateTime      @default(now())
-  calibration   Calibration   @relation(fields: [calibrationId], references: [id])
-  changedBy     User          @relation(fields: [userId], references: [id])
-}
-
-model MaintenanceStatusLog {
-  id            String        @id @default(uuid())
-  maintenanceId String
-  status        RequestStatus
-  notes         String?
-  userId        String
-  createdAt     DateTime      @default(now())
-  maintenance   Maintenance   @relation(fields: [maintenanceId], references: [id])
-  changedBy     User          @relation(fields: [userId], references: [id])
-}
-
-model RentalStatusLog {
-  id        String        @id @default(uuid())
-  rentalId  String
-  status    RequestStatus
-  notes     String?
-  userId    String
-  createdAt DateTime      @default(now())
-  rental    Rental        @relation(fields: [rentalId], references: [id])
-  changedBy User          @relation(fields: [userId], references: [id])
-}
-
-model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  title     String
-  message   String
-  type      NotificationType
-  isRead    Boolean          @default(false)
-  relatedId String?
-  createdAt DateTime         @default(now())
-  user      User             @relation(fields: [userId], references: [id])
-}
-
 enum Role {
   ADMIN
   USER
@@ -417,7 +62,424 @@ enum ActivityType {
   VENDOR_DELETED
 }
 
-enum ScheduleFrequency {
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rentals               Rental[]
+  calibrations          Calibration[]
+  maintenances          Maintenance[]
+  activities            ActivityLog[]
+  inventoryChecks       InventoryCheck[]
+  calibrationStatusLogs CalibrationStatusLog[]
+  maintenanceStatusLogs MaintenanceStatusLog[]
+  rentalStatusLogs      RentalStatusLog[]
+  notifications         Notification[]
+  affectedUserLogs      ActivityLog[]    @relation("AffectedUserLogs")
+}
+
+model Item {
+  serialNumber    String         @id
+  name            String
+  partNumber      String
+  sensor          String?
+  description     String?
+  customer        Vendor?        @relation("CustomerItems", fields: [customerId], references: [id])
+  customerId      String?
+  status          ItemStatus     @default(AVAILABLE)
+  lastVerifiedAt  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  rentals           Rental[]
+  calibrations      Calibration[]
+  maintenances      Maintenance[]
+  histories         ItemHistory[]
+  inventoryCheckItems InventoryCheckItem[]
+  activityLogs      ActivityLog[]
+}
+
+model Rental {
+  id           String        @id @default(uuid())
+  item         Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial   String
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  poNumber     String?       // Purchase Order Number (opsional)
+  doNumber     String?       // Delivery Order Number (opsional)
+  status       RequestStatus @default(PENDING)
+  startDate    DateTime
+  endDate      DateTime?
+  returnDate   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Rental details
+  renterName     String?     // Name of the person renting the item
+  renterPhone    String?     // Phone number of the renter
+  renterAddress  String?     // Address of the renter
+  initialCondition String?   // Initial condition of the item when rented
+  returnCondition String?    // Condition of the item when returned
+  
+  statusLogs   RentalStatusLog[]
+  activityLogs ActivityLog[]
+}
+
+model Calibration {
+  id              String        @id @default(uuid())
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  status          RequestStatus @default(PENDING)
+  calibrationDate DateTime
+  validUntil      DateTime?
+  
+  // Informasi Sertifikat
+  certificateNumber String?     // Format: [Nomor Urut]/CAL-PBI/[Bulan Romawi]/[Tahun]
+  certificateUrl  String?       // URL ke file PDF sertifikat
+  
+  // Relasi
+  statusLogs      CalibrationStatusLog[]
+  vendor          Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  vendorId        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Catatan tambahan
+  notes           String?
+  
+  // Relasi ke sertifikat
+  certificate     CalibrationCertificate?
+  activityLogs    ActivityLog[]
+}
+
+// Model baru untuk detail sertifikat kalibrasi
+model CalibrationCertificate {
+  id                String     @id @default(uuid())
+  calibration       Calibration @relation(fields: [calibrationId], references: [id], onDelete: Cascade)
+  calibrationId     String     @unique // One-to-one relationship
+  
+  // Detail Vendor untuk Kalibrasi
+  vendorAddress     String?    // Alamat vendor kalibrasi
+  vendorPhone       String?    // Nomor telepon vendor
+  vendorFax         String?    // Nomor fax vendor
+  vendorName        String?    // Nama vendor untuk historis
+  
+  // Detail Alat
+  manufacturer      String?    // Pembuat alat (contoh: RAE Systems)
+  instrumentName    String?    // Nama instrumen (contoh: MeshGuard H2S)
+  modelNumber       String?    // Model (contoh: FTD 2000 S)
+  configuration     String?    // Konfigurasi (contoh: H2S)
+  
+  // Approval
+  approvedBy        String?    // Nama yang menyetujui kalibrasi
+  
+  // Relations to multiple entries
+  gasEntries        GasCalibrationEntry[]
+  testEntries       TestResultEntry[]
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+// Model for gas calibration entries
+model GasCalibrationEntry {
+  id                String     @id @default(uuid())
+  certificate       CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  certificateId     String
+  gasType           String    // Jenis gas (contoh: Hydrogen Sulphide (H2S))
+  gasConcentration  String    // Konsentrasi gas (contoh: 25 ppm)
+  gasBalance        String    // Balance gas (contoh: Nitrogen)
+  gasBatchNumber    String    // Batch/Lot No (contoh: WO261451-1)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+// Model for test result entries
+model TestResultEntry {
+  id                String     @id @default(uuid())
+  certificate       CalibrationCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  certificateId     String
+  testSensor        String    // Sensor yang diuji (contoh: Hydrogen Sulphide (H2S))
+  testSpan          String    // Span pengujian (contoh: 25 ppm)
+  testResult        String    // Pass atau Fail
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model Maintenance {
+  id              String        @id @default(uuid())
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  status          RequestStatus @default(PENDING)
+  startDate       DateTime      @default(now())
+  endDate         DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relasi ke form
+  serviceReport   ServiceReport?
+  technicalReport TechnicalReport?
+  
+  statusLogs      MaintenanceStatusLog[]
+  activityLogs    ActivityLog[]
+}
+
+// Form 1: Customer Service Report
+model ServiceReport {
+  id                String      @id @default(uuid())
+  maintenance       Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  maintenanceId     String      @unique // One-to-one relationship
+  
+  reportNumber      String?     // No.: ___/CSR-PBI/___/2023
+  customer          String?     // PT. Pertamina EP dsb
+  location          String?
+  brand             String?
+  model             String?
+  serialNumber      String?     // Item serial sebenarnya
+  dateIn            DateTime?
+  reasonForReturn   String?
+  findings          String?
+  action            String?
+  
+  // Service checklist
+  sensorCO          Boolean     @default(false)
+  sensorH2S         Boolean     @default(false)
+  sensorO2          Boolean     @default(false)
+  sensorLEL         Boolean     @default(false)
+  lampClean         Boolean     @default(false)
+  lampReplace       Boolean     @default(false)
+  pumpTested        Boolean     @default(false)
+  pumpRebuilt       Boolean     @default(false)
+  pumpReplaced      Boolean     @default(false)
+  pumpClean         Boolean     @default(false)
+  instrumentCalibrate Boolean   @default(false)
+  instrumentUpgrade  Boolean    @default(false)
+  instrumentCharge   Boolean    @default(false)
+  instrumentClean    Boolean    @default(false)
+  instrumentSensorAssembly Boolean @default(false)
+  
+  // Parts List
+  parts             ServiceReportPart[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Form 2: Technical Report
+model TechnicalReport {
+  id                String      @id @default(uuid())
+  maintenance       Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  maintenanceId     String      @unique // One-to-one relationship
+  
+  csrNumber         String?     // CSR NO: 090/CSR-PBI/IX/24
+  deliveryTo        String?     // PT. Archroma Indonesia
+  quoNumber         String?     // QUO No:
+  dateReport        DateTime?   // Tanggal report (17 Sept 2024)
+  techSupport       String?     // Nama technical support (Harry Sutiawan)
+  dateIn            DateTime?   // Date In: 10 Sept 2024
+  estimateWork      String?     // Estimate Work:
+  reasonForReturn   String?     // Maintenance & calibration
+  findings          String?     // QRAE 3 SN: M02A053250, Unit perlu kalibrasi ulang...
+  action            String?     // Actions taken to fix the issue
+  
+  beforePhotoUrl    String?
+  afterPhotoUrl     String?
+  
+  // Unit details
+  partsList         TechnicalReportPart[]
+  
+  // Terms and conditions
+  termsConditions   String?     // Opsional: jika terms berbeda antar laporan
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model ServiceReportPart {
+  id                String       @id @default(uuid())
+  serviceReport     ServiceReport @relation(fields: [serviceReportId], references: [id], onDelete: Cascade)
+  serviceReportId   String
+  itemNumber        Int          // Nomor urut item
+  description       String       // Deskripsi part
+  snPnOld           String?      // SN/PN/OLD pada form
+  snPnNew           String?      // SN/PN/NEW pada form
+  createdAt         DateTime     @default(now())
+}
+
+model TechnicalReportPart {
+  id                String        @id @default(uuid())
+  technicalReport   TechnicalReport @relation(fields: [technicalReportId], references: [id], onDelete: Cascade)
+  technicalReportId String
+  itemNumber        Int           // No
+  namaUnit          String?       // Nama Unit (QRAE 3)
+  description       String?       // Description (Kalibrasi)
+  quantity          Int           @default(1) // QTY
+  unitPrice         Float?        // Unit Price
+  totalPrice        Float?        // Total Price
+  createdAt         DateTime      @default(now())
+}
+
+// For usage tracking - rentals, calibrations, maintenance history
+model ItemHistory {
+  id         String      @id @default(uuid())
+  item       Item        @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial String
+  action     String      // RENTED, CALIBRATED, MAINTAINED
+  details    String?     // Details about the usage
+  relatedId  String?     // ID of related rental/calibration/maintenance record
+  startDate  DateTime    @default(now())
+  endDate    DateTime?
+  createdAt  DateTime    @default(now())
+}
+
+// For movement and actions tracking
+model ActivityLog {
+  id               String       @id @default(uuid())
+  type             ActivityType
+  action           String       // Additional details about the action
+  details          String?      // Description of the activity
+
+  // Who performed the action
+  user             User         @relation(fields: [userId], references: [id])
+  userId           String
+
+  // What was affected - only one of these will be set
+  item             Item?        @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial       String?
+
+  rental           Rental?      @relation(fields: [rentalId], references: [id])
+  rentalId         String?
+
+  calibration      Calibration? @relation(fields: [calibrationId], references: [id])
+  calibrationId    String?
+
+  maintenance      Maintenance? @relation(fields: [maintenanceId], references: [id])
+  maintenanceId    String?
+
+  affectedUser     User?        @relation("AffectedUserLogs", fields: [affectedUserId], references: [id])
+  affectedUserId   String?
+
+  vendor           Vendor?      @relation(fields: [vendorId], references: [id])
+  vendorId         String?
+
+  createdAt        DateTime     @default(now())
+}
+
+model Vendor {
+  id           String        @id @default(uuid())
+  name         String
+  address      String?
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  service      String?
+  isDeleted    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  calibrations   Calibration[]
+  vendorHistory  VendorHistory[]
+  customerItems  Item[]       @relation("CustomerItems")
+  activityLogs   ActivityLog[]
+}
+
+model VendorHistory {
+  id           String      @id @default(uuid())
+  vendor       Vendor      @relation(fields: [vendorId], references: [id])
+  vendorId     String
+  action       String      // CALIBRATION_COMPLETED, CONTRACT_RENEWED, etc.
+  details      String?
+  performance  Float?      // Rating for this specific interaction
+  createdAt    DateTime    @default(now())
+}
+
+// Inventarisasi berkala
+model InventoryCheck {
+  id           String      @id @default(uuid())
+  name         String?     // Nama jadwal inventory check
+  scheduledDate DateTime
+  completedDate DateTime?
+  notes        String?
+  createdBy    User        @relation(fields: [userId], references: [id])
+  userId       String
+  items        InventoryCheckItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  // Recurrence fields
+  isRecurring  Boolean     @default(false)
+  recurrenceType RecurrenceType? // MONTHLY or YEARLY
+  nextDate     DateTime?   // Next occurrence date
+}
+
+// Add RecurrenceType enum
+enum RecurrenceType {
   MONTHLY
   YEARLY
+}
+
+model InventoryCheckItem {
+  id              String        @id @default(uuid())
+  inventoryCheck  InventoryCheck @relation(fields: [checkId], references: [id])
+  checkId         String
+  item            Item          @relation(fields: [itemSerial], references: [serialNumber])
+  itemSerial      String
+  verifiedStatus  ItemStatus
+  notes           String?
+  createdAt       DateTime      @default(now())
+}
+
+// Status change logs
+model CalibrationStatusLog {
+  id            String        @id @default(uuid())
+  calibration   Calibration   @relation(fields: [calibrationId], references: [id])
+  calibrationId String
+  status        RequestStatus
+  notes         String?
+  changedBy     User          @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime      @default(now())
+}
+
+model MaintenanceStatusLog {
+  id              String        @id @default(uuid())
+  maintenance     Maintenance   @relation(fields: [maintenanceId], references: [id])
+  maintenanceId   String
+  status          RequestStatus
+  notes           String?
+  changedBy       User          @relation(fields: [userId], references: [id])
+  userId          String
+  createdAt       DateTime      @default(now())
+}
+
+model RentalStatusLog {
+  id            String        @id @default(uuid())
+  rental        Rental        @relation(fields: [rentalId], references: [id])
+  rentalId      String
+  status        RequestStatus
+  notes         String?
+  changedBy     User          @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime      @default(now())
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String
+  title       String
+  message     String
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  relatedId   String?          // Reference to related entity (rental/calibration/etc)
+  createdAt   DateTime         @default(now())
 }

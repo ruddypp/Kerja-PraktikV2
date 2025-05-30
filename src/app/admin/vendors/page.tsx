@@ -79,6 +79,9 @@ export default function VendorsPage() {
       params.append('page', page.toString());
       params.append('limit', limit.toString());
       
+      // Add a timestamp to bust cache when needed
+      params.append('timestamp', Date.now().toString());
+      
       const queryString = params.toString() ? `?${params.toString()}` : '';
       const cacheKey = getCacheKey(search, page, limit);
       
@@ -302,6 +305,7 @@ export default function VendorsPage() {
     if (!selectedVendor) return;
     
     try {
+      setLoading(true);
       const res = await fetch(`/api/admin/vendors/${selectedVendor.id}`, {
         method: 'DELETE',
         headers: {
@@ -319,9 +323,16 @@ export default function VendorsPage() {
       setSuccess('Vendor deleted successfully!');
       closeDeleteModal();
       
+      // Remove the deleted vendor from the local state immediately
+      setVendors(prevVendors => prevVendors.filter(v => v.id !== selectedVendor.id));
+      
       // Invalidate cache before fetching fresh data
       invalidateCache();
-      fetchVendors();
+      
+      // Refresh with a slight delay to ensure API has processed the change
+      setTimeout(() => {
+        fetchVendors();
+      }, 300);
       
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -334,6 +345,8 @@ export default function VendorsPage() {
       setTimeout(() => {
         setError('');
       }, 3000);
+    } finally {
+      setLoading(false);
     }
   };
   

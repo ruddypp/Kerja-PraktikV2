@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 
 // GET all vendors - accessible by all authenticated users
 export async function GET(request: Request) {
   try {
+    console.log('Vendors API called:', request.url);
+    
     // Verify the user is authenticated (but don't check role)
     const user = await getUserFromRequest(request);
     
     if (!user) {
+      console.error('Unauthorized access to vendors API');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    console.log('User authenticated:', user.id, user.email);
     
     // Get search query and pagination params from URL
     const { searchParams } = new URL(request.url);
@@ -43,6 +48,8 @@ export async function GET(request: Request) {
       where: whereClause
     });
     
+    console.log(`Found ${totalVendors} total vendors`);
+    
     // Get vendors with pagination
     const vendors = await prisma.vendor.findMany({
       where: whereClause,
@@ -61,6 +68,8 @@ export async function GET(request: Request) {
       }
     });
     
+    console.log(`Returning ${vendors.length} vendors for page ${page}`);
+    
     // Return data with pagination info
     return NextResponse.json(
       {
@@ -72,15 +81,18 @@ export async function GET(request: Request) {
       },
       {
         headers: {
-          // Add caching header for 5 minutes to reduce frequent requests
-          'Cache-Control': 'public, max-age=300, s-maxage=300'
+          // Disable caching completely
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
         }
       }
     );
   } catch (error) {
     console.error('Error fetching vendors:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch vendors' },
+      { error: 'Failed to fetch vendors', details: error.message },
       { status: 500 }
     );
   }

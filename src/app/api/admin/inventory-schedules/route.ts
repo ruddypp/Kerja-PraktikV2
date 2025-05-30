@@ -2,17 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { z } from 'zod';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, RecurrenceType } from '@prisma/client';
 
-// Updated validation schema for inventory schedule with recurring fields
+// Updated validation schema for inventory schedule
 const inventoryCheckSchema = z.object({
   name: z.string().min(1, "Schedule name is required"),
   description: z.string().nullable(),
-  isRecurring: z.boolean().default(false),
-  frequency: z.enum(['MONTHLY', 'YEARLY']).nullable(),
   nextDate: z.string().refine(val => !isNaN(Date.parse(val)), {
     message: "Next date must be a valid date"
-  })
+  }),
+  isRecurring: z.boolean().optional().default(false),
+  recurrenceType: z.enum(['MONTHLY', 'YEARLY']).optional()
 });
 
 // GET all inventory schedules
@@ -24,10 +24,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('Admin fetching inventory schedules');
+    console.log('Inventory schedules being fetched by admin:', user.id);
     
-    // Select fields including recurring schedule information - without filtering by completedDate
-    // to ensure all schedules are visible
+    // Select all inventory schedules
     const schedules = await prisma.inventoryCheck.findMany({
       select: {
         id: true,
@@ -38,10 +37,12 @@ export async function GET(request: Request) {
         userId: true,
         createdAt: true,
         updatedAt: true,
-        isRecurring: true,
-        frequency: true,
-        nextScheduleDate: true,
-        lastNotificationSent: true
+        createdBy: {
+          select: {
+            name: true,
+            role: true
+          }
+        }
       },
       orderBy: {
         scheduledDate: 'asc'
@@ -50,9 +51,11 @@ export async function GET(request: Request) {
       take: 100
     });
     
+    console.log(`Admin found ${schedules.length} inventory schedules`);
+    
     // Create response with cache headers
     const response = NextResponse.json(schedules);
-    response.headers.set('Cache-Control', 'public, max-age=60');
+    response.headers.set('Cache-Control', 'no-store'); // Disable caching to ensure fresh data
     
     return response;
   } catch (error) {
@@ -89,63 +92,46 @@ export async function POST(request: Request) {
       );
     }
     
-    const { name, description, isRecurring, frequency, nextDate } = validationResult.data;
+    const { name, description, nextDate, isRecurring, recurrenceType } = validationResult.data;
     
-    // Calculate next schedule date if recurring
-    let nextScheduleDate = null;
-    if (isRecurring && frequency) {
-      const scheduledDate = new Date(nextDate);
-      nextScheduleDate = new Date(scheduledDate);
-      
-      if (frequency === 'MONTHLY') {
-        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
-      } else if (frequency === 'YEARLY') {
-        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
-      }
+    // Validate that recurrenceType is provided if isRecurring is true
+    if (isRecurring && !recurrenceType) {
+      return NextResponse.json(
+        { error: 'Recurrence type is required for recurring schedules' },
+        { status: 400 }
+      );
     }
     
-    // Create schedule with recurring information
+    // Create schedule
     const schedule = await prisma.inventoryCheck.create({
       data: {
         name: name,
         notes: description,
         scheduledDate: new Date(nextDate),
         userId: user.id,
-        isRecurring: isRecurring,
-        frequency: frequency,
-        nextScheduleDate: nextScheduleDate
+        isRecurring: isRecurring || false,
+        recurrenceType: isRecurring ? recurrenceType : null,
+        nextDate: isRecurring ? new Date(nextDate) : null
       }
     });
     
     // Create notification for the schedule
-    if (isRecurring) {
-      await prisma.notification.create({
-        data: {
-          userId: user.id,
-          title: 'New Recurring Inventory Schedule',
-          message: `A new recurring ${frequency?.toLowerCase()} inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}`,
-          type: 'INVENTORY_SCHEDULE',
-          relatedId: schedule.id
-        }
-      });
-    } else {
-      await prisma.notification.create({
-        data: {
-          userId: user.id,
-          title: 'New Inventory Schedule',
-          message: `A new inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}`,
-          type: 'INVENTORY_SCHEDULE',
-          relatedId: schedule.id
-        }
-      });
-    }
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: 'New Inventory Schedule',
+        message: `A new inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (Recurring ${recurrenceType})` : ''}`,
+        type: 'INVENTORY_SCHEDULE',
+        relatedId: schedule.id
+      }
+    });
     
     // Log activity
     await prisma.activityLog.create({
       data: {
         userId: user.id,
         action: 'SCHEDULED_INVENTORY',
-        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (${frequency} recurring)` : ''}`,
+        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (Recurring ${recurrenceType})` : ''}`,
         type: ActivityType.ITEM_UPDATED
       }
     });
@@ -213,31 +199,26 @@ export async function PATCH(request: Request) {
       );
     }
     
-    const { name, description, isRecurring, frequency, nextDate } = validationResult.data;
+    const { name, description, nextDate, isRecurring, recurrenceType } = validationResult.data;
     
-    // Calculate next schedule date if recurring
-    let nextScheduleDate = null;
-    if (isRecurring && frequency) {
-      const scheduledDate = new Date(nextDate);
-      nextScheduleDate = new Date(scheduledDate);
-      
-      if (frequency === 'MONTHLY') {
-        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
-      } else if (frequency === 'YEARLY') {
-        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
-      }
+    // Validate that recurrenceType is provided if isRecurring is true
+    if (isRecurring && !recurrenceType) {
+      return NextResponse.json(
+        { error: 'Recurrence type is required for recurring schedules' },
+        { status: 400 }
+      );
     }
     
-    // Update schedule with recurring information
+    // Update schedule
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
         name: name,
         notes: description,
         scheduledDate: new Date(nextDate),
-        isRecurring: isRecurring,
-        frequency: frequency,
-        nextScheduleDate: nextScheduleDate
+        isRecurring: isRecurring || false,
+        recurrenceType: isRecurring ? recurrenceType : null,
+        nextDate: isRecurring ? new Date(nextDate) : null
       }
     });
     
@@ -246,7 +227,7 @@ export async function PATCH(request: Request) {
       data: {
         userId: user.id,
         action: 'UPDATED_SCHEDULE',
-        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (${frequency} recurring)` : ''}`,
+        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (Recurring ${recurrenceType})` : ''}`,
         type: ActivityType.ITEM_UPDATED
       }
     });

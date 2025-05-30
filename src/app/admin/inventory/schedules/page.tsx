@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiRefreshCw } from 'react-icons/fi';
 
-// Updated interface to match InventoryCheck model with recurring fields
+// Updated interface to match InventoryCheck model
 interface InventoryCheck {
   id: string;
   name: string | null;
@@ -17,9 +17,12 @@ interface InventoryCheck {
   createdAt: string;
   updatedAt: string;
   isRecurring: boolean;
-  frequency: 'MONTHLY' | 'YEARLY' | null;
-  nextScheduleDate: string | null;
-  lastNotificationSent: string | null;
+  recurrenceType: string | null;
+  nextDate: string | null;
+  createdBy?: {
+    name: string;
+    role: string;
+  };
 }
 
 export default function InventorySchedulesPage() {
@@ -31,9 +34,9 @@ export default function InventorySchedulesPage() {
     id: '',
     name: '',
     description: '',
+    nextDate: new Date().toISOString().split('T')[0],
     isRecurring: false,
-    frequency: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
-    nextDate: new Date().toISOString().split('T')[0]
+    recurrenceType: 'MONTHLY' // Default to monthly
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +92,13 @@ export default function InventorySchedulesPage() {
 
       const nextDate = new Date(formData.nextDate).toISOString();
 
+      console.log('Submitting form data:', {
+        id: formData.id,
+        name: formData.name,
+        description: formData.description,
+        nextDate
+      });
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -97,8 +107,6 @@ export default function InventorySchedulesPage() {
         body: JSON.stringify({
           name: formData.name,
           description: formData.description || null,
-          isRecurring: formData.isRecurring,
-          frequency: formData.isRecurring ? formData.frequency : null,
           nextDate
         })
       });
@@ -113,8 +121,6 @@ export default function InventorySchedulesPage() {
         id: '', 
         name: '', 
         description: '', 
-        isRecurring: false,
-        frequency: 'MONTHLY',
         nextDate: new Date().toISOString().split('T')[0]
       });
       setIsEditing(false);
@@ -141,9 +147,9 @@ export default function InventorySchedulesPage() {
       id: schedule.id,
       name: schedule.name || '',
       description: schedule.notes || '',
+      nextDate,
       isRecurring: schedule.isRecurring || false,
-      frequency: schedule.frequency || 'MONTHLY',
-      nextDate
+      recurrenceType: schedule.recurrenceType || 'MONTHLY'
     });
     setIsEditing(true);
     setShowForm(true);
@@ -203,8 +209,6 @@ export default function InventorySchedulesPage() {
       id: '', 
       name: '', 
       description: '', 
-      isRecurring: false,
-      frequency: 'MONTHLY',
       nextDate: new Date().toISOString().split('T')[0]
     });
     setIsEditing(false);
@@ -267,7 +271,7 @@ export default function InventorySchedulesPage() {
         )}
 
         {showForm && (
-          <div className="bg-white rounded-lg border border-gray-100 p-4 md:p-6">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">{isEditing ? 'Edit Schedule' : 'Create New Schedule'}</h2>
               <button
@@ -278,57 +282,23 @@ export default function InventorySchedulesPage() {
                 <FiArrowLeft size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Schedule Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleFormChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
-                    Frequency <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="frequency"
-                    name="frequency"
-                    value={formData.frequency}
-                    onChange={handleFormChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    required
-                  >
-                    <option value="MONTHLY">Monthly</option>
-                    <option value="YEARLY">Yearly</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label htmlFor="nextDate" className="block text-sm font-medium text-gray-700 mb-1">
-                  Next Scheduled Date <span className="text-red-500">*</span>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Schedule Name*
                 </label>
                 <input
-                  type="date"
-                  id="nextDate"
-                  name="nextDate"
-                  value={formData.nextDate}
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
                   onChange={handleFormChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
-              <div>
+              <div className="mb-4">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
@@ -338,25 +308,86 @@ export default function InventorySchedulesPage() {
                   value={formData.description}
                   onChange={handleFormChange}
                   rows={3}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                ></textarea>
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
-              
-              <div className="flex justify-end gap-2 pt-2">
+
+              <div className="mb-4">
+                <label htmlFor="nextDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Schedule Date*
+                </label>
+                <input
+                  type="date"
+                  id="nextDate"
+                  name="nextDate"
+                  value={formData.nextDate}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isRecurring"
+                    name="isRecurring"
+                    checked={formData.isRecurring}
+                    onChange={handleFormChange}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                    Recurring Schedule
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Recurring schedules will automatically create a notification at the specified interval
+                </p>
+              </div>
+
+              {formData.isRecurring && (
+                <div className="mb-4">
+                  <label htmlFor="recurrenceType" className="block text-sm font-medium text-gray-700 mb-1">
+                    Recurrence Type*
+                  </label>
+                  <select
+                    id="recurrenceType"
+                    name="recurrenceType"
+                    value={formData.recurrenceType}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="YEARLY">Yearly</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={cancelForm}
+                  className="mr-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
+                      <FiRefreshCw className="animate-spin mr-2" /> Saving...
                     </>
-                  ) : isEditing ? 'Update Schedule' : 'Create Schedule'}
+                  ) : (
+                    <>
+                      <FiPlus className="mr-2" /> {isEditing ? 'Update' : 'Create'}
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -424,10 +455,13 @@ export default function InventorySchedulesPage() {
                         Date
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Recurring
+                        Description
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        Recurrence
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created By
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -444,26 +478,29 @@ export default function InventorySchedulesPage() {
                           <div className="text-sm text-gray-900">
                             {new Date(schedule.scheduledDate).toLocaleDateString()}
                           </div>
-                          {schedule.nextScheduleDate && (
-                            <div className="text-sm text-gray-500">
-                              Next: {new Date(schedule.nextScheduleDate).toLocaleDateString()}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {schedule.isRecurring ? (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              {schedule.frequency === 'MONTHLY' ? 'Monthly' : 'Yearly'}
-                            </span>
-                          ) : (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                              One-time
-                            </span>
-                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-500 max-w-xs truncate">
                             {schedule.notes || '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {schedule.isRecurring ? (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                {schedule.recurrenceType === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                              </span>
+                            ) : (
+                              'One-time'
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {schedule.createdBy?.name || 'Unknown'}
+                            {schedule.createdBy?.role === 'ADMIN' && 
+                              <span className="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Admin</span>
+                            }
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
