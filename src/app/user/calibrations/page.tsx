@@ -803,6 +803,7 @@ export default function UserCalibrationPage() {
       // Only set address and phone to empty, leave fax field as is
       address: '',
       phone: ''
+      // Fax is not set here so it will keep whatever the user has entered manually
     }));
   };
   
@@ -1142,7 +1143,7 @@ export default function UserCalibrationPage() {
             </div>
             
             <div className="mb-3">
-              <label className="block mb-1 text-sm font-medium text-gray-700">Configuration</label>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Sensor</label>
               <input
                 type="text"
                 name="configuration"

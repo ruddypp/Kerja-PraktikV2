@@ -17,7 +17,7 @@ export async function POST(
 
     const managerId = user.id;
     const { id: rentalId } = await params;
-    const { notes } = await req.json();
+    const { notes, verificationNotes } = await req.json();
 
     // Find the rental
     const rental = await prisma.rental.findUnique({
@@ -32,10 +32,10 @@ export async function POST(
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
 
-    // Verify rental status
-    if (rental.status !== RequestStatus.APPROVED) {
+    // Verify rental status - should be PENDING with returnDate set (return requested)
+    if (rental.status !== RequestStatus.PENDING || !rental.returnDate) {
       return NextResponse.json(
-        { error: `Cannot return rental with status ${rental.status}` },
+        { error: `Cannot verify return for rental with status ${rental.status}` },
         { status: 400 }
       );
     }
@@ -44,8 +44,7 @@ export async function POST(
     const updatedRental = await prisma.rental.update({
       where: { id: rentalId },
       data: {
-        status: RequestStatus.COMPLETED,
-        returnDate: new Date()
+        status: RequestStatus.COMPLETED
       },
       include: {
         item: true,
@@ -59,13 +58,13 @@ export async function POST(
       data: { status: ItemStatus.AVAILABLE }
     });
 
-    // Create rental status log
+    // Create rental status log with verification notes
     await prisma.rentalStatusLog.create({
       data: {
         rentalId,
         status: RequestStatus.COMPLETED,
         userId: managerId,
-        notes: notes || 'Item returned'
+        notes: verificationNotes || notes || 'Return verified by manager'
       }
     });
 
@@ -86,7 +85,7 @@ export async function POST(
     await prisma.activityLog.create({
       data: {
         type: ActivityType.RENTAL_UPDATED,
-        action: 'Item returned',
+        action: `Return verified by ${user.name}`,
         userId: managerId,
         itemSerial: rental.itemSerial,
         rentalId
@@ -95,9 +94,9 @@ export async function POST(
 
     return NextResponse.json(updatedRental);
   } catch (error) {
-    console.error('Error processing rental return:', error);
+    console.error('Error processing rental return verification:', error);
     return NextResponse.json(
-      { error: 'Failed to process rental return' },
+      { error: 'Failed to process return verification' },
       { status: 500 }
     );
   }

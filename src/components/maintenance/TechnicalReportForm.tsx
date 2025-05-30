@@ -17,7 +17,6 @@ interface TechnicalReportPart {
 interface TechnicalReportData {
   csrNumber: string;
   deliveryTo: string;
-  quoNumber: string;
   dateReport: string;
   techSupport: string;
   dateIn: string;
@@ -179,18 +178,12 @@ export default function TechnicalReportForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="csrNumber">
-            CSR Number
+            Technical Report Number
           </label>
-          <input
-            type="text"
-            id="csrNumber"
-            name="csrNumber"
-            value={data.csrNumber}
-            onChange={handleChange}
-            placeholder="090/CSR-PBI/IX/24"
-            className="w-full p-2 border border-gray-300 rounded-md"
-            title="CSR Number"
-          />
+          <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-600 font-medium">Auto-generated with format: Number/TCR-PBI/Month(Roman)/Year</p>
+            <p className="text-xs text-blue-500 mt-1">Example: 1/TCR-PBI/V/2025</p>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="deliveryTo">
@@ -205,21 +198,6 @@ export default function TechnicalReportForm({
             placeholder="PT. Archroma Indonesia"
             className="w-full p-2 border border-gray-300 rounded-md"
             title="Delivery To"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="quoNumber">
-            QUO No
-          </label>
-          <input
-            type="text"
-            id="quoNumber"
-            name="quoNumber"
-            value={data.quoNumber}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            title="QUO Number"
-            placeholder="Enter QUO Number"
           />
         </div>
         <div>

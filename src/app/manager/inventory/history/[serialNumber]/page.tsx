@@ -71,11 +71,15 @@ interface Calibration {
 interface Maintenance {
   id: string;
   itemSerial: string;
-  issue: string;
   status: string;
   startDate: string;
   endDate: string | null;
   createdAt: string;
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+  };
 }
 
 interface Rental {
@@ -129,7 +133,7 @@ export default function ItemHistoryPage() {
       if (!serialNumber) return;
       
       // Use a simpler endpoint or query parameter to fetch only the item details
-      const url = `/api/admin/items?serialNumber=${encodeURIComponent(serialNumber)}&basicDetails=true`;
+      const url = `/api/manager/items?serialNumber=${encodeURIComponent(serialNumber)}&basicDetails=true`;
       const res = await fetch(url, {
         // Add cache control headers to prevent browser caching
         cache: 'no-store',
@@ -191,7 +195,7 @@ export default function ItemHistoryPage() {
         
         // Use a timestamp to prevent browser caching
         const timestamp = new Date().getTime();
-        const url = `/api/admin/items/history?serialNumber=${encodeURIComponent(serialNumber)}&page=${currentPage}&limit=${itemsPerPage}&type=${type}&t=${timestamp}`;
+        const url = `/api/manager/items/history?serialNumber=${encodeURIComponent(serialNumber)}&page=${currentPage}&limit=${itemsPerPage}&type=${type}&t=${timestamp}`;
         
         const res = await fetch(url, {
           cache: 'no-store',
@@ -246,7 +250,7 @@ export default function ItemHistoryPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
           <Link 
-            href="/admin/inventory" 
+            href="/manager/inventory" 
             className="flex items-center text-green-600 hover:text-green-800 transition-colors duration-200 bg-green-50 hover:bg-green-100 px-4 py-2 rounded-md"
           >
             <FiArrowLeft className="mr-2" />
@@ -548,7 +552,8 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        System
+                                        {/* System actions are recorded in ItemHistory */}
+                                        System Action
                                       </td>
                                     </tr>
                                   ))}
@@ -598,7 +603,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
-                                        {maintenance.issue}
+                                        Status: {maintenance.status}
                                         {maintenance.endDate && (
                                           <span className="ml-2 text-green-600">
                                             (Completed: {formatDate(maintenance.endDate)})
@@ -619,7 +624,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        System
+                                        {maintenance.user ? maintenance.user.name : 'Unknown'}
                                       </td>
                                     </tr>
                                   ))}
@@ -679,16 +684,16 @@ export default function ItemHistoryPage() {
                                       Date
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Activity Type
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Details
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Vendor
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Requested By
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Notes
+                                      User
                                     </th>
                                   </tr>
                                 </thead>
@@ -697,6 +702,14 @@ export default function ItemHistoryPage() {
                                     <tr key={cal.id} className="hover:bg-gray-50">
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {formatDate(cal.createdAt)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                          CALIBRATION
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                        Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -712,13 +725,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {cal.vendor?.name || 'N/A'}
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {cal.user.name}
-                                      </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
-                                        {cal.notes || 'N/A'}
                                       </td>
                                     </tr>
                                   ))}
@@ -741,16 +748,19 @@ export default function ItemHistoryPage() {
                                 <thead className="bg-gray-50">
                                   <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Start Date
+                                      Date
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      End Date
+                                      Activity Type
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Details
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Issue
+                                      User
                                     </th>
                                   </tr>
                                 </thead>
@@ -760,8 +770,18 @@ export default function ItemHistoryPage() {
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {formatDate(maintenance.startDate)}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {maintenance.endDate ? formatDate(maintenance.endDate) : 'Ongoing'}
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                          MAINTENANCE
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                        Status: {maintenance.status}
+                                        {maintenance.endDate && (
+                                          <span className="ml-2 text-green-600">
+                                            (Completed: {formatDate(maintenance.endDate)})
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -776,8 +796,8 @@ export default function ItemHistoryPage() {
                                           {maintenance.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
-                                        {maintenance.issue}
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {maintenance.user ? maintenance.user.name : 'Unknown'}
                                       </td>
                                     </tr>
                                   ))}
@@ -800,19 +820,19 @@ export default function ItemHistoryPage() {
                                 <thead className="bg-gray-50">
                                   <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Start Date
+                                      Date
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      End Date
+                                      Activity Type
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Return Date
+                                      Details
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                      Renter
+                                      User
                                     </th>
                                   </tr>
                                 </thead>
@@ -822,11 +842,15 @@ export default function ItemHistoryPage() {
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {formatDate(rental.startDate)}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {rental.endDate ? formatDate(rental.endDate) : '-'}
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                          RENTAL
+                                        </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {rental.returnDate ? formatDate(rental.returnDate) : '-'}
+                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                        {rental.renterName ? `Renter: ${rental.renterName}` : ''}
+                                        {rental.endDate && <span className="ml-2">End: {formatDate(rental.endDate)}</span>}
+                                        {rental.returnDate && <span className="ml-2">Returned: {formatDate(rental.returnDate)}</span>}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -841,7 +865,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {rental.renterName || rental.user.name}
+                                        {rental.user.name}
                                       </td>
                                     </tr>
                                   ))}

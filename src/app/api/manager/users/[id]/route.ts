@@ -27,7 +27,9 @@ export async function GET(
       );
     }
     
-    const userId = params.id;
+    // Get the user ID from params
+    const paramsData = await params;
+    const userId = paramsData.id;
     
     // Find the user
     const foundUser = await prisma.user.findUnique({
@@ -74,7 +76,10 @@ export async function PUT(
       );
     }
     
-    const userId = params.id;
+    // Get the user ID from params
+    const paramsData = await params;
+    const userId = paramsData.id;
+    
     const data: UserUpdateData = await request.json();
     
     // Validate required fields
@@ -173,7 +178,9 @@ export async function DELETE(
       );
     }
     
-    const userId = params.id;
+    // Get the user ID from params
+    const paramsData = await params;
+    const userId = paramsData.id;
     
     // Check if user exists
     const existingUser = await prisma.user.findUnique({

@@ -21,6 +21,13 @@ type CalibrationWithRelations = Calibration & {
   };
 };
 
+type MaintenanceWithUser = Maintenance & {
+  user: {
+    id: string;
+    name: string;
+  };
+};
+
 interface Rental {
   id: string;
   itemSerial: string;
@@ -41,7 +48,7 @@ interface PaginatedResponse {
   itemHistory: ItemHistory[];
   activityLogs: ActivityLogWithUser[];
   calibrations: CalibrationWithRelations[];
-  maintenances: Maintenance[];
+  maintenances: MaintenanceWithUser[];
   rentals: Rental[];
   pagination: {
     page: number;
@@ -243,7 +250,13 @@ export async function GET(request: Request) {
             startDate: true,
             endDate: true,
             createdAt: true,
-            updatedAt: true
+            updatedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           },
           orderBy: { createdAt: 'desc' },
           take: type === 'maintenance' ? limit : 5, // Limit results if showing all types
@@ -259,7 +272,7 @@ export async function GET(request: Request) {
           response.pagination.totalPages = Math.ceil(count / limit);
         }
         
-        response.maintenances = maintenances as Maintenance[];
+        response.maintenances = maintenances as MaintenanceWithUser[];
       } catch (error) {
         console.error('Error fetching maintenance data:', error);
         // Continue with other data even if maintenance data fails
@@ -324,4 +337,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} ````
+}

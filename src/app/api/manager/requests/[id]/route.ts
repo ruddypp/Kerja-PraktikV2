@@ -15,7 +15,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const requestId = params.id;
+    // Get the request ID from params
+    const paramsData = await params;
+    const requestId = paramsData.id;
 
     // Find the request with related data
     const requestItem = await prisma.request.findUnique({
@@ -73,7 +75,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const requestId = params.id;
+    // Get the request ID from params
+    const paramsData = await params;
+    const requestId = paramsData.id;
+    
     const data = await request.json();
 
     // Validate required fields
@@ -177,7 +182,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const requestId = params.id;
+    // Get the request ID from params
+    const paramsData = await params;
+    const requestId = paramsData.id;
 
     // Verify request exists
     const existingRequest = await prisma.request.findUnique({

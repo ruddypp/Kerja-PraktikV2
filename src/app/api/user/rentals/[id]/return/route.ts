@@ -48,11 +48,11 @@ export async function POST(
       );
     }
 
-    // Update the rental status - use COMPLETED instead of RETURNED
+    // Update the rental status - change to PENDING for admin approval
     const updatedRental = await prisma.rental.update({
       where: { id: rentalId },
       data: {
-        status: RequestStatus.COMPLETED, 
+        status: RequestStatus.PENDING, 
         returnDate: new Date(),
         returnCondition: returnCondition || null
       },
@@ -68,32 +68,15 @@ export async function POST(
       }
     });
     
-    // Update the item status
-    await prisma.item.update({
-      where: { serialNumber: updatedRental.itemSerial },
-      data: { status: 'AVAILABLE' }
-    });
+    // Don't update the item status yet - it remains RENTED until admin approves
     
     // Create rental status log
     await prisma.rentalStatusLog.create({
       data: {
         rentalId: rentalId,
-        status: RequestStatus.COMPLETED,
-        notes: notes || 'Item returned by user',
+        status: RequestStatus.PENDING,
+        notes: notes || 'Return requested by user',
         userId: user.id
-      }
-    });
-    
-    // Update item history
-    await prisma.itemHistory.updateMany({
-      where: {
-        itemSerial: updatedRental.itemSerial,
-        action: 'RENTED',
-        relatedId: rentalId,
-        endDate: null
-      },
-      data: {
-        endDate: new Date()
       }
     });
     
@@ -103,7 +86,7 @@ export async function POST(
       ActivityType.RENTAL_UPDATED,
       rentalId,
       updatedRental.itemSerial,
-      `User ${user.name} returned item ${updatedRental.item.name}`
+      `User ${user.name} requested return for item ${updatedRental.item.name}`
     );
     
     // Return the updated rental

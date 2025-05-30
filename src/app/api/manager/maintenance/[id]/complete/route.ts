@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, isManager } from "@/lib/auth";
 import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
 import { logMaintenanceActivity } from "@/lib/activity-logger";
+import { generateCSRNumber, generateTCRNumber } from "@/lib/report-number-generator";
 
 interface ServiceReportPartData {
   itemNumber: number;
@@ -77,8 +78,41 @@ export async function POST(
       );
     }
     
+    // Get the current month and year for report numbering
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
+    // Generate report numbers
+    let csrNumber = '';
+    let tcrNumber = '';
+    
     // Selesaikan maintenance dan tambahkan laporan
     const updatedMaintenance = await prisma.$transaction(async (prisma) => {
+      // Generate CSR Number - Get count for current month/year
+      const csrCount = await prisma.serviceReport.count({
+        where: {
+          createdAt: {
+            gte: new Date(currentYear, currentMonth - 1, 1),
+            lt: new Date(currentYear, currentMonth, 1)
+          }
+        }
+      });
+      
+      // Generate TCR Number - Get count for current month/year
+      const tcrCount = await prisma.technicalReport.count({
+        where: {
+          createdAt: {
+            gte: new Date(currentYear, currentMonth - 1, 1),
+            lt: new Date(currentYear, currentMonth, 1)
+          }
+        }
+      });
+      
+      // Generate sequential numbers - add 1 to current count
+      csrNumber = generateCSRNumber(csrCount + 1, today);
+      tcrNumber = generateTCRNumber(tcrCount + 1, today);
+      
       // 1. Update maintenance status dan tanggal selesai
       const updatedMaintenance = await prisma.maintenance.update({
         where: { id: maintenanceId },
@@ -88,12 +122,12 @@ export async function POST(
         },
       });
       
-      // 2. Buat ServiceReport
+      // 2. Buat ServiceReport with auto-generated report number
       if (serviceReportData) {
         const serviceReport = await prisma.serviceReport.create({
           data: {
             maintenanceId,
-            reportNumber: serviceReportData.reportNumber,
+            reportNumber: csrNumber, // Use auto-generated CSR number
             customer: serviceReportData.customer,
             location: serviceReportData.location,
             brand: serviceReportData.brand,
@@ -139,7 +173,7 @@ export async function POST(
         }
       }
       
-      // 3. Buat TechnicalReport
+      // 3. Buat TechnicalReport with auto-generated report number
       if (technicalReportData) {
         console.log("Creating technical report with photo URLs:", {
           beforePhotoUrl: technicalReportData.beforePhotoUrl,
@@ -149,9 +183,8 @@ export async function POST(
         const technicalReport = await prisma.technicalReport.create({
           data: {
             maintenanceId,
-            csrNumber: technicalReportData.csrNumber,
+            csrNumber: tcrNumber, // Use auto-generated TCR number
             deliveryTo: technicalReportData.deliveryTo,
-            quoNumber: technicalReportData.quoNumber,
             dateReport: technicalReportData.dateReport ? new Date(technicalReportData.dateReport) : null,
             techSupport: technicalReportData.techSupport,
             dateIn: technicalReportData.dateIn ? new Date(technicalReportData.dateIn) : null,
@@ -196,7 +229,7 @@ export async function POST(
           maintenanceId,
           status: RequestStatus.COMPLETED,
           userId: user.id,
-          notes: "Maintenance selesai (oleh manager)",
+          notes: `Maintenance selesai (oleh manager). CSR No: ${csrNumber}, TCR No: ${tcrNumber}`,
         },
       });
       
@@ -219,7 +252,7 @@ export async function POST(
           },
           data: {
             endDate: new Date(),
-            details: `Maintenance selesai: ${serviceReportData?.findings || "Maintenance selesai"} (oleh manager)`,
+            details: `Maintenance selesai: ${serviceReportData?.findings || "Maintenance selesai"} (oleh manager). CSR No: ${csrNumber}, TCR No: ${tcrNumber}`,
           },
         });
       }
@@ -230,13 +263,17 @@ export async function POST(
         ActivityType.MAINTENANCE_UPDATED, 
         maintenanceId,
         maintenance.itemSerial,
-        `Maintenance selesai untuk ${maintenance.item.name} (${maintenance.itemSerial}) oleh manager`
+        `Maintenance selesai untuk ${maintenance.item.name} (${maintenance.itemSerial}) oleh manager. CSR No: ${csrNumber}, TCR No: ${tcrNumber}`
       );
       
       return updatedMaintenance;
     });
     
-    return NextResponse.json(updatedMaintenance);
+    return NextResponse.json({
+      ...updatedMaintenance,
+      csrNumber,
+      tcrNumber
+    });
   } catch (error) {
     console.error("Error saat menyelesaikan maintenance:", error);
     return NextResponse.json(

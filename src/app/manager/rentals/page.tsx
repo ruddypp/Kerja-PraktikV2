@@ -167,6 +167,19 @@ export default function ManagerRentalsPage() {
     }
   };
 
+  // Helper to determine if a rental is in return request state
+  const isReturnRequested = (rental: Rental) => {
+    return rental.status === RequestStatus.PENDING && rental.returnDate !== null;
+  };
+
+  // Helper to get appropriate status text based on rental state
+  const getRentalStatusText = (rental: Rental) => {
+    if (isReturnRequested(rental)) {
+      return 'Menunggu Verifikasi Pengembalian';
+    }
+    return getStatusText(rental.status);
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
     return format(new Date(dateString), "dd MMMM yyyy");
@@ -178,21 +191,39 @@ export default function ManagerRentalsPage() {
     try {
       setProcessingAction(true);
       
-      const response = await fetch('/api/manager/rentals', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: selectedRental.id,
-          status: newStatus,
-          notes: statusNotes,
-          returnCondition: newStatus === RequestStatus.COMPLETED ? returnCondition : undefined,
-        }),
-      });
+      // For return verification (when a user has requested a return)
+      if (isReturnRequested(selectedRental) && newStatus === RequestStatus.COMPLETED) {
+        const response = await fetch(`/api/manager/rentals/${selectedRental.id}/return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            verificationNotes: statusNotes || 'Return verified by manager'
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to update rental status');
+        if (!response.ok) {
+          throw new Error('Failed to verify rental return');
+        }
+      } else {
+        // Regular status update
+        const response = await fetch('/api/manager/rentals', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: selectedRental.id,
+            status: newStatus,
+            notes: statusNotes,
+            returnCondition: newStatus === RequestStatus.COMPLETED ? returnCondition : undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update rental status');
+        }
       }
 
       // Close modal and reset form
@@ -482,7 +513,7 @@ export default function ManagerRentalsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(rental.status)}`}>
-                              {getStatusText(rental.status)}
+                              {getRentalStatusText(rental)}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -545,7 +576,7 @@ export default function ManagerRentalsPage() {
                             <p className="text-xs text-gray-500">SN: {rental.item.serialNumber}</p>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(rental.status)}`}>
-                            {getStatusText(rental.status)}
+                            {getRentalStatusText(rental)}
                           </span>
                         </div>
                         
@@ -710,15 +741,59 @@ export default function ManagerRentalsPage() {
               <div className="md:col-span-2">
                 <h3 className="text-md font-medium text-gray-800 mb-2">Kondisi Barang</h3>
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-600">Kondisi Awal:</span>
-                    <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.initialCondition || '-'}</div>
-                  </div>
-                  
-                  {selectedRental.status === RequestStatus.APPROVED && selectedRental.returnDate && (
-                    <div className="mt-4">
-                      <span className="text-sm font-medium text-gray-600">Kondisi Saat Pengembalian:</span>
-                      <div className="text-sm text-gray-800 whitespace-pre-line">{selectedRental.returnCondition || 'Belum ada informasi'}</div>
+                  {selectedRental.initialCondition && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-500 mb-1">Kondisi Awal</h4>
+                      <div className="mt-1 bg-gray-50 p-3 rounded-md">
+                        <p className="text-sm text-gray-600 whitespace-pre-line">{selectedRental.initialCondition}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedRental.returnCondition && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-500 mb-1">Kondisi Saat Pengembalian</h4>
+                      <div className="mt-1 bg-gray-50 p-3 rounded-md">
+                        <p className="text-sm text-gray-600 whitespace-pre-line">{selectedRental.returnCondition}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Return verification form */}
+                  {isReturnRequested(selectedRental) && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-500 mb-1">Verifikasi Pengembalian</h4>
+                      <div className="mt-1">
+                        <textarea
+                          value={statusNotes}
+                          onChange={(e) => setStatusNotes(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          rows={3}
+                          placeholder="Masukkan catatan verifikasi pengembalian..."
+                        ></textarea>
+                        <div className="mt-3 flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setNewStatus(RequestStatus.COMPLETED);
+                              handleStatusChange();
+                            }}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            disabled={processingAction}
+                          >
+                            {processingAction ? 'Memproses...' : 'Setujui Pengembalian'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNewStatus(RequestStatus.REJECTED);
+                              handleStatusChange();
+                            }}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            disabled={processingAction}
+                          >
+                            {processingAction ? 'Memproses...' : 'Tolak Pengembalian'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -734,7 +809,7 @@ export default function ManagerRentalsPage() {
                 <p className="text-sm text-gray-600 mb-2">
                   <span className="font-medium">Status Saat Ini:</span> 
                   <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedRental.status)}`}>
-                    {getStatusText(selectedRental.status)}
+                    {getRentalStatusText(selectedRental)}
                   </span>
                 </p>
               </div>

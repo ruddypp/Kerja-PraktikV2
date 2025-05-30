@@ -64,7 +64,6 @@ export default function MaintenanceForm({
   const [technicalReportData, setTechnicalReportData] = useState({
     csrNumber: "",
     deliveryTo: maintenance.item.customer?.name || "",
-    quoNumber: "",
     dateReport: new Date().toISOString().split("T")[0],
     techSupport: "",
     dateIn: new Date(maintenance.startDate).toISOString().split("T")[0],

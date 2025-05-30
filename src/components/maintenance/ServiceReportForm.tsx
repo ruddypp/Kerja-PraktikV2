@@ -65,14 +65,10 @@ export default function ServiceReportForm({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Report Number
           </label>
-          <input
-            type="text"
-            name="reportNumber"
-            value={data.reportNumber}
-            onChange={handleChange}
-            placeholder="___/CSR-PBI/___/2023"
-            className="w-full p-2 border border-gray-300 rounded-md"
-          />
+          <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-600 font-medium">Auto-generated with format: Number/CSR-PBI/Month(Roman)/Year</p>
+            <p className="text-xs text-blue-500 mt-1">Example: 1/CSR-PBI/V/2025</p>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

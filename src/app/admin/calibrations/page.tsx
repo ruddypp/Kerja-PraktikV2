@@ -1126,8 +1126,8 @@ export default function CalibrationPage() {
       // Field address dan phone tetap ada tapi diisi kosong
       // karena data ini sudah ada di data vendor yang dipilih
       address: '',
-      phone: '',
-      fax: ''
+      phone: ''
+      // Fax is not set here so it will keep whatever the user has entered manually
     }));
   };
   
@@ -1474,14 +1474,16 @@ export default function CalibrationPage() {
                             <FiCheckCircle className="mr-1" /> Complete
                               </button>
                               
-                          {/* Edit calibration */}
-                          <button
-                            onClick={() => openEditModal(calibration)}
-                            className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                            title="Edit Calibration"
-                          >
-                            <FiEdit2 className="mr-1" /> Edit
-                          </button>
+                          {/* Edit calibration - only show for COMPLETED status */}
+                          {(typeof calibration.status === 'object' ? calibration.status.name : calibration.status) === 'COMPLETED' && (
+                            <button
+                              onClick={() => openEditModal(calibration)}
+                              className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                              title="Edit Calibration"
+                            >
+                              <FiEdit2 className="mr-1" /> Edit
+                            </button>
+                          )}
                           
                           {/* Add Delete button for in-progress calibrations */}
                             <button
@@ -1580,13 +1582,15 @@ export default function CalibrationPage() {
                           <FiCheckCircle className="mr-1" /> Complete
                         </button>
                           
-                        {/* Edit calibration */}
-                        <button
-                          onClick={() => openEditModal(calibration)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center"
-                        >
-                          <FiEdit2 className="mr-1" /> Edit
-                        </button>
+                        {/* Edit calibration - only show for COMPLETED status */}
+                        {(typeof calibration.status === 'object' ? calibration.status.name : calibration.status) === 'COMPLETED' && (
+                          <button
+                            onClick={() => openEditModal(calibration)}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center"
+                          >
+                            <FiEdit2 className="mr-1" /> Edit
+                          </button>
+                        )}
                         
                         {/* Delete button */}
                         <button
@@ -2348,7 +2352,7 @@ export default function CalibrationPage() {
                       </div>
                       
                       <div>
-                        <label htmlFor="configuration" className="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                        <label htmlFor="configuration" className="block text-sm font-medium text-gray-700 mb-1">Sensor</label>
                         <input
                           type="text"
                           id="configuration"
@@ -2685,7 +2689,7 @@ export default function CalibrationPage() {
                       />
                     </div>
                     
-                    <div className="mb-3">
+                                        <div className="mb-3">
                       <label className="block mb-1 text-sm font-medium text-gray-700">Part Number</label>
                       <input
                         type="text"
@@ -2698,7 +2702,7 @@ export default function CalibrationPage() {
                     </div>
                     
                     <div className="mb-3">
-                      <label className="block mb-1 text-sm font-medium text-gray-700">Configuration</label>
+                      <label className="block mb-1 text-sm font-medium text-gray-700">Sensor</label>
                       <input
                         type="text"
                         name="configuration"

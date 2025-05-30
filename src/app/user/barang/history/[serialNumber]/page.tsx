@@ -252,21 +252,22 @@ export default function UserItemHistoryPage() {
   
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
         <div className="flex items-center mb-6">
           <Link 
             href="/user/barang" 
-            className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors duration-200 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-md"
+            className="flex items-center text-green-600 hover:text-green-800 transition-colors duration-200 bg-white hover:bg-green-50 px-4 py-2 rounded-lg shadow-sm"
           >
             <FiArrowLeft className="mr-2" />
             Back to Products
           </Link>
         </div>
         
-        <h1 className="text-2xl font-bold mb-6">
+        <h1 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+          <FiFileText className="mr-3 text-green-500" />
           Product History
           {historyData?.item && (
-            <span className="ml-2 text-gray-600">
+            <span className="ml-2 text-gray-600 font-normal">
               ({historyData.item.name} - {historyData.item.serialNumber})
             </span>
           )}
@@ -274,86 +275,125 @@ export default function UserItemHistoryPage() {
         
         {loading && !historyData ? (
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-lg shadow-sm">
             <p className="text-red-700">{error}</p>
           </div>
         ) : historyData ? (
           <div>
             {/* Item Details */}
-            <div className="bg-white shadow rounded-lg mb-6 p-6">
-              <h2 className="text-lg font-medium mb-4">Product Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Serial Number</p>
-                  <p className="font-medium">{historyData.item.serialNumber}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Name</p>
-                  <p className="font-medium">{historyData.item.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Part Number</p>
-                  <p className="font-medium">{historyData.item.partNumber}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Sensor</p>
-                  <p className="font-medium">{historyData.item.sensor || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Customer</p>
-                  <p className="font-medium">{historyData.item.customer?.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className="font-medium">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      historyData.item.status === 'AVAILABLE' 
-                        ? 'bg-green-100 text-green-800'
-                        : historyData.item.status === 'IN_USE'
-                        ? 'bg-blue-100 text-blue-800'
-                        : historyData.item.status === 'IN_CALIBRATION'
-                        ? 'bg-purple-100 text-purple-800'
-                        : historyData.item.status === 'IN_MAINTENANCE'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {historyData.item.status === 'AVAILABLE' 
-                        ? 'Available'
-                        : historyData.item.status === 'IN_USE'
-                        ? 'In Use'
-                        : historyData.item.status === 'IN_CALIBRATION'
-                        ? 'In Calibration'
-                        : historyData.item.status === 'IN_MAINTENANCE'
-                        ? 'In Maintenance'
-                        : historyData.item.status}
-                    </span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Last Verified</p>
-                  <p className="font-medium">{historyData.item.lastVerifiedAt ? formatDate(historyData.item.lastVerifiedAt) : 'Never'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Created At</p>
-                  <p className="font-medium">{formatDate(historyData.item.createdAt)}</p>
-                </div>
+            <div className="bg-white shadow-md rounded-xl mb-6 overflow-hidden">
+              <div className="border-b border-gray-100 bg-green-50 px-6 py-4">
+                <h2 className="text-lg font-medium text-gray-800 flex items-center">
+                  <FiBox className="mr-2 text-green-500" />
+                  Product Details
+                </h2>
               </div>
-
-              {/* Added expanded description section */}
-              {historyData.item.description && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-md font-medium mb-2 flex items-center">
-                    <FiInfo className="mr-2 text-indigo-500" />
-                    Detailed Description
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-5 border border-gray-100 shadow-sm">
-                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{historyData.item.description}</p>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Serial Number</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiHash className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.serialNumber}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Name</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiTag className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.name}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Part Number</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiInfo className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.partNumber}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Sensor</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiTool className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.sensor || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Customer</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiUser className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.customer?.name || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Status</p>
+                    <p className="font-medium">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center ${
+                        historyData.item.status === 'AVAILABLE' 
+                          ? 'bg-green-100 text-green-800'
+                          : historyData.item.status === 'IN_USE'
+                          ? 'bg-blue-100 text-blue-800'
+                          : historyData.item.status === 'IN_CALIBRATION'
+                          ? 'bg-purple-100 text-purple-800'
+                          : historyData.item.status === 'IN_MAINTENANCE'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                          historyData.item.status === 'AVAILABLE' 
+                            ? 'bg-green-500'
+                            : historyData.item.status === 'IN_USE'
+                            ? 'bg-blue-500'
+                            : historyData.item.status === 'IN_CALIBRATION'
+                            ? 'bg-purple-500'
+                            : historyData.item.status === 'IN_MAINTENANCE'
+                            ? 'bg-red-500'
+                            : 'bg-gray-500'
+                        }`}></span>
+                        {historyData.item.status === 'AVAILABLE' 
+                          ? 'Available'
+                          : historyData.item.status === 'IN_USE'
+                          ? 'In Use'
+                          : historyData.item.status === 'IN_CALIBRATION'
+                          ? 'In Calibration'
+                          : historyData.item.status === 'IN_MAINTENANCE'
+                          ? 'In Maintenance'
+                          : historyData.item.status}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Last Verified</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiClock className="mr-2 text-green-500 flex-shrink-0" />
+                      {historyData.item.lastVerifiedAt ? formatDate(historyData.item.lastVerifiedAt) : 'Never'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Created At</p>
+                    <p className="font-medium text-gray-800 flex items-center">
+                      <FiCalendar className="mr-2 text-green-500 flex-shrink-0" />
+                      {formatDate(historyData.item.createdAt)}
+                    </p>
                   </div>
                 </div>
-              )}
+
+                {/* Description section if available */}
+                {historyData.item.description && (
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <h3 className="text-md font-medium mb-3 flex items-center text-gray-800">
+                      <FiInfo className="mr-2 text-green-500" />
+                      Detailed Description
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-5 border border-gray-100">
+                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{historyData.item.description}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Add Technical Specifications Card if there's a description */}
@@ -408,55 +448,55 @@ export default function UserItemHistoryPage() {
             )}
             
             {/* History Tabs */}
-            <div className="bg-white shadow rounded-lg">
-              <div className="border-b border-gray-200">
-                <nav className="flex -mb-px">
+            <div className="bg-white shadow-md rounded-xl overflow-hidden">
+              <div className="border-b border-gray-100">
+                <nav className="flex flex-wrap">
                   <button
                     onClick={() => handleTabChange('history')}
-                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    className={`px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center ${
                       activeTab === 'history'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 text-green-600 bg-green-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                     aria-label="View product history"
                   >
-                    <FiFileText className="inline-block mr-2" />
+                    <FiFileText className="mr-2" />
                     Product History
                   </button>
                   <button
                     onClick={() => handleTabChange('calibrations')}
-                    className={`px-6 py-3 border-b-2 text-sm font-medium ${
+                    className={`px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center ${
                       activeTab === 'calibrations'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 text-green-600 bg-green-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                     aria-label="Calibrations"
                   >
-                    <FiCalendar className="inline-block mr-2" />
+                    <FiCalendar className="mr-2" />
                     Calibrations
                   </button>
                   <button
                     onClick={() => handleTabChange('maintenances')}
-                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    className={`px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center ${
                       activeTab === 'maintenances'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 text-green-600 bg-green-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                     aria-label="View maintenances"
                   >
-                    <FiTool className="inline-block mr-2" />
+                    <FiTool className="mr-2" />
                     Maintenances
                   </button>
                   <button
                     onClick={() => handleTabChange('rentals')}
-                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    className={`px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center ${
                       activeTab === 'rentals'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 text-green-600 bg-green-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                     aria-label="View rentals"
                   >
-                    <FiShoppingBag className="inline-block mr-2" />
+                    <FiShoppingBag className="mr-2" />
                     Rentals
                   </button>
                 </nav>
@@ -465,14 +505,14 @@ export default function UserItemHistoryPage() {
               {/* Loading state for tab content */}
               {isTabLoading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
                   <span className="ml-2 text-gray-500">Loading...</span>
                 </div>
               ) : (
                 <div className="p-6">
                   {loading && historyData && (
                     <div className="flex justify-center items-center py-10">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
                     </div>
                   )}
                   
@@ -481,56 +521,64 @@ export default function UserItemHistoryPage() {
                       {/* Product History - Now shows all activities */}
                       {activeTab === 'history' && (
                         <div>
-                          <h3 className="text-lg font-medium mb-4">Product History</h3>
+                          <h3 className="text-lg font-medium mb-4 text-gray-800 flex items-center">
+                            <FiActivity className="mr-2 text-green-500" />
+                            Product History
+                          </h3>
                           {historyData.activityLogs.length === 0 && 
                            historyData.itemHistory.length === 0 && 
                            historyData.calibrations.length === 0 && 
                            historyData.maintenances.length === 0 &&
                            historyData.rentals.length === 0 ? (
-                            <p className="text-gray-500">No history records found for this product.</p>
+                            <div className="bg-gray-50 rounded-lg p-8 text-center">
+                              <FiInfo className="mx-auto text-gray-400 text-4xl mb-2" />
+                              <p className="text-gray-500">No history records found for this product.</p>
+                            </div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Activity Type
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Details
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       User
                                     </th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-gray-100">
                                   {/* ActivityLogs */}
                                   {historyData.activityLogs.map(log => (
-                                    <tr key={`activity-${log.id}`} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={`activity-${log.id}`} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(log.createdAt)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span>
                                           {log.action}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {log.details || 'N/A'}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
                                           COMPLETED
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {log.user.name}
                                       </td>
                                     </tr>
@@ -538,16 +586,17 @@ export default function UserItemHistoryPage() {
                                   
                                   {/* ItemHistory */}
                                   {historyData.itemHistory.map(history => (
-                                    <tr key={`history-${history.id}`} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={`history-${history.id}`} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(history.startDate)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
                                           {history.action}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {history.details || 'N/A'}
                                         {history.endDate && (
                                           <span className="ml-2 text-green-600">
@@ -555,16 +604,19 @@ export default function UserItemHistoryPage() {
                                           </span>
                                         )}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
                                           history.endDate 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-blue-100 text-blue-800'
+                                            ? 'bg-green-50 text-green-700 border-green-100' 
+                                            : 'bg-blue-50 text-blue-700 border-blue-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            history.endDate ? 'bg-green-500' : 'bg-blue-500'
+                                          }`}></span>
                                           {history.endDate ? 'COMPLETED' : 'ACTIVE'}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         System
                                       </td>
                                     </tr>
@@ -572,32 +624,42 @@ export default function UserItemHistoryPage() {
                                   
                                   {/* Calibrations */}
                                   {historyData.calibrations.map(cal => (
-                                    <tr key={`calibration-${cal.id}`} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={`calibration-${cal.id}`} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(cal.createdAt)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></span>
                                           CALIBRATION
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
                                           cal.status === 'COMPLETED' 
-                                            ? 'bg-green-100 text-green-800' 
+                                            ? 'bg-green-50 text-green-700 border-green-100' 
                                             : cal.status === 'CANCELLED'
-                                            ? 'bg-red-100 text-red-800'
+                                            ? 'bg-red-50 text-red-700 border-red-100'
                                             : cal.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-purple-100 text-purple-800'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                            : 'bg-purple-50 text-purple-700 border-purple-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            cal.status === 'COMPLETED' 
+                                              ? 'bg-green-500' 
+                                              : cal.status === 'CANCELLED'
+                                              ? 'bg-red-500'
+                                              : cal.status === 'IN_PROGRESS'
+                                              ? 'bg-blue-500'
+                                              : 'bg-purple-500'
+                                          }`}></span>
                                           {cal.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {cal.user.name}
                                       </td>
                                     </tr>
@@ -605,16 +667,17 @@ export default function UserItemHistoryPage() {
                                   
                                   {/* Maintenances */}
                                   {historyData.maintenances.map(maintenance => (
-                                    <tr key={`maintenance-${maintenance.id}`} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={`maintenance-${maintenance.id}`} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(maintenance.startDate)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-red-50 text-red-700 border border-red-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>
                                           MAINTENANCE
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {maintenance.issue}
                                         {maintenance.endDate && (
                                           <span className="ml-2 text-green-600">
@@ -623,19 +686,28 @@ export default function UserItemHistoryPage() {
                                         )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
                                           maintenance.status === 'COMPLETED' 
-                                            ? 'bg-green-100 text-green-800' 
+                                            ? 'bg-green-50 text-green-700 border-green-100' 
                                             : maintenance.status === 'CANCELLED'
-                                            ? 'bg-red-100 text-red-800'
+                                            ? 'bg-red-50 text-red-700 border-red-100'
                                             : maintenance.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-red-100 text-red-800'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                            : 'bg-red-50 text-red-700 border-red-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            maintenance.status === 'COMPLETED' 
+                                              ? 'bg-green-500' 
+                                              : maintenance.status === 'CANCELLED'
+                                              ? 'bg-red-500'
+                                              : maintenance.status === 'IN_PROGRESS'
+                                              ? 'bg-blue-500'
+                                              : 'bg-red-500'
+                                          }`}></span>
                                           {maintenance.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         System
                                       </td>
                                     </tr>
@@ -643,33 +715,42 @@ export default function UserItemHistoryPage() {
                                   
                                   {/* Rentals */}
                                   {historyData.rentals.map(rental => (
-                                    <tr key={`rental-${rental.id}`} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={`rental-${rental.id}`} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(rental.startDate)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                        <span className="px-3 py-1 inline-flex items-center text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
                                           RENTAL
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {rental.renterName ? `Renter: ${rental.renterName}` : ''}
                                         {rental.endDate && <span className="ml-2">End: {formatDate(rental.endDate)}</span>}
                                         {rental.returnDate && <span className="ml-2">Returned: {formatDate(rental.returnDate)}</span>}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                          rental.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-800' :
-                                          rental.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
-                                          rental.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                          rental.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                          rental.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                                          'bg-gray-100 text-gray-800'
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
+                                          rental.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-100' :
+                                          rental.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                          rental.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
+                                          rental.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-100' :
+                                          rental.status === 'CANCELLED' ? 'bg-gray-50 text-gray-700 border-gray-100' :
+                                          'bg-gray-50 text-gray-700 border-gray-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            rental.status === 'APPROVED' ? 'bg-green-500' :
+                                            rental.status === 'COMPLETED' ? 'bg-blue-500' :
+                                            rental.status === 'PENDING' ? 'bg-yellow-500' :
+                                            rental.status === 'REJECTED' ? 'bg-red-500' :
+                                            rental.status === 'CANCELLED' ? 'bg-gray-500' :
+                                            'bg-gray-500'
+                                          }`}></span>
                                           {rental.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {rental.user.name}
                                       </td>
                                     </tr>
@@ -684,57 +765,72 @@ export default function UserItemHistoryPage() {
                       {/* Calibrations */}
                       {activeTab === 'calibrations' && (
                         <div>
-                          <h3 className="text-lg font-medium mb-4">Calibrations</h3>
+                          <h3 className="text-lg font-medium mb-4 text-gray-800 flex items-center">
+                            <FiCalendar className="mr-2 text-green-500" />
+                            Calibrations
+                          </h3>
                           {historyData.calibrations.length === 0 ? (
-                            <p className="text-gray-500">No calibration records found for this product.</p>
+                            <div className="bg-gray-50 rounded-lg p-8 text-center">
+                              <FiInfo className="mx-auto text-gray-400 text-4xl mb-2" />
+                              <p className="text-gray-500">No calibration records found for this product.</p>
+                            </div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Vendor
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Requested By
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Notes
                                     </th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-gray-100">
                                   {historyData.calibrations.map(cal => (
-                                    <tr key={cal.id} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={cal.id} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(cal.createdAt)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
                                           cal.status === 'COMPLETED' 
-                                            ? 'bg-green-100 text-green-800' 
+                                            ? 'bg-green-50 text-green-700 border-green-100' 
                                             : cal.status === 'CANCELLED'
-                                            ? 'bg-red-100 text-red-800'
+                                            ? 'bg-red-50 text-red-700 border-red-100'
                                             : cal.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-purple-100 text-purple-800'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                            : 'bg-purple-50 text-purple-700 border-purple-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            cal.status === 'COMPLETED' 
+                                              ? 'bg-green-500' 
+                                              : cal.status === 'CANCELLED'
+                                              ? 'bg-red-500'
+                                              : cal.status === 'IN_PROGRESS'
+                                              ? 'bg-blue-500'
+                                              : 'bg-purple-500'
+                                          }`}></span>
                                           {cal.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {cal.vendor?.name || 'N/A'}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {cal.user.name}
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {cal.notes || 'N/A'}
                                       </td>
                                     </tr>
@@ -749,51 +845,69 @@ export default function UserItemHistoryPage() {
                       {/* Maintenances */}
                       {activeTab === 'maintenances' && (
                         <div>
-                          <h3 className="text-lg font-medium mb-4">Maintenances</h3>
+                          <h3 className="text-lg font-medium mb-4 text-gray-800 flex items-center">
+                            <FiTool className="mr-2 text-green-500" />
+                            Maintenances
+                          </h3>
                           {historyData.maintenances.length === 0 ? (
-                            <p className="text-gray-500">No maintenance records found for this product.</p>
+                            <div className="bg-gray-50 rounded-lg p-8 text-center">
+                              <FiInfo className="mx-auto text-gray-400 text-4xl mb-2" />
+                              <p className="text-gray-500">No maintenance records found for this product.</p>
+                            </div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Start Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       End Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Issue
                                     </th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-gray-100">
                                   {historyData.maintenances.map(maintenance => (
-                                    <tr key={maintenance.id} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={maintenance.id} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(maintenance.startDate)}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {maintenance.endDate ? formatDate(maintenance.endDate) : 'Ongoing'}
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                        {maintenance.endDate ? formatDate(maintenance.endDate) : 
+                                        <span className="inline-flex items-center text-blue-600">
+                                          <FiClock className="mr-1 text-blue-500" /> Ongoing
+                                        </span>}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
                                           maintenance.status === 'COMPLETED' 
-                                            ? 'bg-green-100 text-green-800' 
+                                            ? 'bg-green-50 text-green-700 border-green-100' 
                                             : maintenance.status === 'CANCELLED'
-                                            ? 'bg-red-100 text-red-800'
+                                            ? 'bg-red-50 text-red-700 border-red-100'
                                             : maintenance.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-red-100 text-red-800'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                            : 'bg-red-50 text-red-700 border-red-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            maintenance.status === 'COMPLETED' 
+                                              ? 'bg-green-500' 
+                                              : maintenance.status === 'CANCELLED'
+                                              ? 'bg-red-500'
+                                              : maintenance.status === 'IN_PROGRESS'
+                                              ? 'bg-blue-500'
+                                              : 'bg-red-500'
+                                          }`}></span>
                                           {maintenance.status}
                                         </span>
                                       </td>
-                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
                                         {maintenance.issue}
                                       </td>
                                     </tr>
@@ -808,51 +922,71 @@ export default function UserItemHistoryPage() {
                       {/* Rentals */}
                       {activeTab === 'rentals' && (
                         <div>
-                          <h3 className="text-lg font-medium mb-4">Rentals</h3>
+                          <h3 className="text-lg font-medium mb-4 text-gray-800 flex items-center">
+                            <FiShoppingBag className="mr-2 text-green-500" />
+                            Rentals
+                          </h3>
                           {historyData.rentals.length === 0 ? (
-                            <p className="text-gray-500">No rental records found for this item.</p>
+                            <div className="bg-gray-50 rounded-lg p-8 text-center">
+                              <FiInfo className="mx-auto text-gray-400 text-4xl mb-2" />
+                              <p className="text-gray-500">No rental records found for this item.</p>
+                            </div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Start Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       End Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Return Date
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Status
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                                      Renter
                                     </th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-gray-100">
                                   {historyData.rentals.map(rental => (
-                                    <tr key={rental.id} className="hover:bg-gray-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <tr key={rental.id} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {formatDate(rental.startDate)}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {rental.endDate ? formatDate(rental.endDate) : '-'}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {rental.returnDate ? formatDate(rental.returnDate) : '-'}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                          rental.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-800' :
-                                          rental.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
-                                          rental.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                          rental.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                          rental.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                                          'bg-gray-100 text-gray-800'
+                                        <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
+                                          rental.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-100' :
+                                          rental.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                          rental.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
+                                          rental.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-100' :
+                                          rental.status === 'CANCELLED' ? 'bg-gray-50 text-gray-700 border-gray-100' :
+                                          'bg-gray-50 text-gray-700 border-gray-100'
                                         }`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                            rental.status === 'APPROVED' ? 'bg-green-500' :
+                                            rental.status === 'COMPLETED' ? 'bg-blue-500' :
+                                            rental.status === 'PENDING' ? 'bg-yellow-500' :
+                                            rental.status === 'REJECTED' ? 'bg-red-500' :
+                                            rental.status === 'CANCELLED' ? 'bg-gray-500' :
+                                            'bg-gray-500'
+                                          }`}></span>
                                           {rental.status}
                                         </span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                        {rental.user.name} {rental.renterName ? `(${rental.renterName})` : ''}
                                       </td>
                                     </tr>
                                   ))}
@@ -865,19 +999,19 @@ export default function UserItemHistoryPage() {
                       
                       {/* Pagination Controls */}
                       {historyData.pagination && historyData.pagination.totalPages > 1 && (
-                        <div className="mt-6 flex justify-between items-center">
-                          <div className="text-sm text-gray-500">
-                            Showing {historyData.pagination.page} of {historyData.pagination.totalPages} pages
-                            ({historyData.pagination.totalItems} items total)
+                        <div className="mt-6 flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                          <div className="text-sm text-gray-600 mb-2 md:mb-0">
+                            Showing page <span className="font-medium text-green-600">{historyData.pagination.page}</span> of <span className="font-medium">{historyData.pagination.totalPages}</span> pages
+                            (<span className="font-medium">{historyData.pagination.totalItems}</span> items total)
                           </div>
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handlePageChange(currentPage - 1)}
                               disabled={currentPage === 1}
-                              className={`px-3 py-2 rounded-md ${
+                              className={`px-3 py-2 rounded-md flex items-center ${
                                 currentPage === 1
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                                  : 'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200'
                               }`}
                               aria-label="Previous page"
                               title="Previous page"
@@ -903,10 +1037,10 @@ export default function UserItemHistoryPage() {
                                 <button
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
-                                  className={`px-3 py-2 rounded-md ${
+                                  className={`px-3 py-2 rounded-md text-sm font-medium ${
                                     currentPage === pageNum
-                                      ? 'bg-indigo-500 text-white'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                                   }`}
                                   aria-label={`Page ${pageNum}`}
                                   title={`Page ${pageNum}`}
@@ -919,10 +1053,10 @@ export default function UserItemHistoryPage() {
                             <button
                               onClick={() => handlePageChange(currentPage + 1)}
                               disabled={currentPage === historyData.pagination.totalPages}
-                              className={`px-3 py-2 rounded-md ${
+                              className={`px-3 py-2 rounded-md flex items-center ${
                                 currentPage === historyData.pagination.totalPages
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                                  : 'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200'
                               }`}
                               aria-label="Next page"
                               title="Next page"
@@ -939,7 +1073,7 @@ export default function UserItemHistoryPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
             <p className="text-red-700">Failed to load product history data.</p>
           </div>
         )}

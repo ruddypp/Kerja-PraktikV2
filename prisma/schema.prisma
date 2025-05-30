@@ -190,7 +190,6 @@ model TechnicalReport {
   maintenanceId   String                @unique
   csrNumber       String?
   deliveryTo      String?
-  quoNumber       String?
   dateReport      DateTime?
   techSupport     String?
   dateIn          DateTime?
@@ -300,6 +299,10 @@ model InventoryCheck {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   name          String?
+  isRecurring   Boolean              @default(false)
+  frequency     ScheduleFrequency?
+  nextScheduleDate DateTime?
+  lastNotificationSent DateTime?
   createdBy     User                 @relation(fields: [userId], references: [id])
   items         InventoryCheckItem[]
 }
@@ -412,4 +415,9 @@ enum ActivityType {
   VENDOR_CREATED
   VENDOR_UPDATED
   VENDOR_DELETED
+}
+
+enum ScheduleFrequency {
+  MONTHLY
+  YEARLY
 }

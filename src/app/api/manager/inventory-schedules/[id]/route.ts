@@ -74,7 +74,7 @@ export async function PATCH(
     }
     
     const body = await request.json();
-    const { name, description, nextDate } = body;
+    const { name, description, nextDate, isRecurring, frequency } = body;
     
     // Check if schedule exists
     const existingSchedule = await prisma.inventoryCheck.findUnique({
@@ -88,13 +88,29 @@ export async function PATCH(
       );
     }
     
-    // Update schedule
+    // Calculate next schedule date if recurring
+    let nextScheduleDate = null;
+    if (isRecurring && frequency) {
+      const scheduledDate = new Date(nextDate);
+      nextScheduleDate = new Date(scheduledDate);
+      
+      if (frequency === 'MONTHLY') {
+        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
+      } else if (frequency === 'YEARLY') {
+        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
+      }
+    }
+    
+    // Update schedule with recurring information
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
         name,
         notes: description,
-        scheduledDate: new Date(nextDate)
+        scheduledDate: new Date(nextDate),
+        isRecurring: isRecurring || false,
+        frequency: isRecurring ? frequency : null,
+        nextScheduleDate
       }
     });
     

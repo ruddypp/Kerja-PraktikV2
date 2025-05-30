@@ -4,11 +4,12 @@ import { getUserFromRequest, isManager } from '@/lib/auth';
 import { z } from 'zod';
 import { ActivityType } from '@prisma/client';
 
-// Validation schema for inventory schedule
+// Updated validation schema for inventory schedule with recurring fields
 const inventoryCheckSchema = z.object({
   name: z.string().min(1, "Schedule name is required"),
   description: z.string().nullable(),
-  frequency: z.enum(['MONTHLY', 'QUARTERLY', 'YEARLY']),
+  isRecurring: z.boolean().default(false),
+  frequency: z.enum(['MONTHLY', 'YEARLY']).nullable(),
   nextDate: z.string().refine(val => !isNaN(Date.parse(val)), {
     message: "Next date must be a valid date"
   })
@@ -23,33 +24,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Select hanya kolom yang diperlukan untuk list view
+    console.log('Manager fetching inventory schedules');
+    
+    // Select fields including recurring schedule information - without filtering by completedDate
+    // to ensure all schedules are visible
     const schedules = await prisma.inventoryCheck.findMany({
-      where: {
-        completedDate: null // Only get scheduled checks that haven't been completed
-      },
       select: {
         id: true,
         name: true,
         notes: true,
         scheduledDate: true,
         completedDate: true,
-        // Tidak perlu user detail di list view
         userId: true,
         createdAt: true,
+        updatedAt: true,
+        isRecurring: true,
+        frequency: true,
+        nextScheduleDate: true,
+        lastNotificationSent: true
       },
       orderBy: {
         scheduledDate: 'asc'
       },
-      // Batasi hasil query untuk performa
+      // Limit results for performance
       take: 100
     });
     
-    // Buat response dengan header cache
+    // Create response with cache headers
     const response = NextResponse.json(schedules);
-    
-    // Set header Cache-Control untuk memungkinkan browser caching
-    // max-age=60 berarti cache akan valid selama 60 detik
     response.headers.set('Cache-Control', 'public, max-age=60');
     
     return response;
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
 // POST create a new inventory schedule
 export async function POST(request: Request) {
   try {
-    // Verify Manager authentication
+    // Verify manager authentication
     const user = await getUserFromRequest(request);
     if (!user || !isManager(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,32 +89,69 @@ export async function POST(request: Request) {
       );
     }
     
-    const { name, description, frequency, nextDate } = validationResult.data;
+    const { name, description, isRecurring, frequency, nextDate } = validationResult.data;
     
-    // Create schedule
+    // Calculate next schedule date if recurring
+    let nextScheduleDate = null;
+    if (isRecurring && frequency) {
+      const scheduledDate = new Date(nextDate);
+      nextScheduleDate = new Date(scheduledDate);
+      
+      if (frequency === 'MONTHLY') {
+        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
+      } else if (frequency === 'YEARLY') {
+        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
+      }
+    }
+    
+    // Create schedule with recurring information
     const schedule = await prisma.inventoryCheck.create({
       data: {
         name: name,
         notes: description,
         scheduledDate: new Date(nextDate),
-        userId: user.id
+        userId: user.id,
+        isRecurring: isRecurring,
+        frequency: frequency,
+        nextScheduleDate: nextScheduleDate
       }
     });
+    
+    // Create notification for the schedule
+    if (isRecurring) {
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          title: 'New Recurring Inventory Schedule',
+          message: `A new recurring ${frequency?.toLowerCase()} inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}`,
+          type: 'INVENTORY_SCHEDULE',
+          relatedId: schedule.id
+        }
+      });
+    } else {
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          title: 'New Inventory Schedule',
+          message: `A new inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}`,
+          type: 'INVENTORY_SCHEDULE',
+          relatedId: schedule.id
+        }
+      });
+    }
     
     // Log activity
     await prisma.activityLog.create({
       data: {
         userId: user.id,
         action: 'SCHEDULED_INVENTORY',
-        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}`,
+        details: `Scheduled new inventory check for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (${frequency} recurring)` : ''}`,
         type: ActivityType.ITEM_UPDATED
       }
     });
     
-    // Buat response dengan header no-cache
+    // Create response with no-cache header
     const response = NextResponse.json(schedule, { status: 201 });
-    
-    // Set header Cache-Control untuk memastikan data tidak di-cache
     response.headers.set('Cache-Control', 'no-store, must-revalidate');
     
     return response;
@@ -145,7 +184,7 @@ export async function PATCH(request: Request) {
       );
     }
     
-    // Verify schedule exists - gunakan select untuk mengoptimasi query
+    // Verify schedule exists
     const existingSchedule = await prisma.inventoryCheck.findUnique({
       where: { id },
       select: { id: true }
@@ -174,15 +213,31 @@ export async function PATCH(request: Request) {
       );
     }
     
-    const { name, description, nextDate } = validationResult.data;
+    const { name, description, isRecurring, frequency, nextDate } = validationResult.data;
     
-    // Update schedule
+    // Calculate next schedule date if recurring
+    let nextScheduleDate = null;
+    if (isRecurring && frequency) {
+      const scheduledDate = new Date(nextDate);
+      nextScheduleDate = new Date(scheduledDate);
+      
+      if (frequency === 'MONTHLY') {
+        nextScheduleDate.setMonth(nextScheduleDate.getMonth() + 1);
+      } else if (frequency === 'YEARLY') {
+        nextScheduleDate.setFullYear(nextScheduleDate.getFullYear() + 1);
+      }
+    }
+    
+    // Update schedule with recurring information
     const updatedSchedule = await prisma.inventoryCheck.update({
       where: { id },
       data: {
         name: name,
         notes: description,
-        scheduledDate: new Date(nextDate)
+        scheduledDate: new Date(nextDate),
+        isRecurring: isRecurring,
+        frequency: frequency,
+        nextScheduleDate: nextScheduleDate
       }
     });
     
@@ -191,15 +246,13 @@ export async function PATCH(request: Request) {
       data: {
         userId: user.id,
         action: 'UPDATED_SCHEDULE',
-        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}`,
+        details: `Updated inventory check schedule for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (${frequency} recurring)` : ''}`,
         type: ActivityType.ITEM_UPDATED
       }
     });
     
-    // Buat response dengan header no-cache
+    // Create response with no-cache header
     const response = NextResponse.json(updatedSchedule);
-    
-    // Set header Cache-Control untuk memastikan data tidak di-cache
     response.headers.set('Cache-Control', 'no-store, must-revalidate');
     
     return response;
@@ -232,7 +285,7 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Verify schedule exists - gunakan select untuk mengoptimasi query
+    // Verify schedule exists
     const existingSchedule = await prisma.inventoryCheck.findUnique({
       where: { id },
       select: { id: true }
@@ -255,18 +308,12 @@ export async function DELETE(request: Request) {
       data: {
         userId: user.id,
         action: 'DELETED_SCHEDULE',
-        details: `Deleted inventory check schedule with ID ${id}`,
-        type: ActivityType.ITEM_DELETED
+        details: `Deleted inventory check schedule`,
+        type: ActivityType.ITEM_UPDATED
       }
     });
     
-    // Buat response dengan header no-cache
-    const response = NextResponse.json({ success: true });
-    
-    // Set header Cache-Control untuk memastikan data tidak di-cache
-    response.headers.set('Cache-Control', 'no-store, must-revalidate');
-    
-    return response;
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting inventory schedule:', error);
     return NextResponse.json(

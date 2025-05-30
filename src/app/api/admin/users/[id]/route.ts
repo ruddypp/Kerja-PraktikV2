@@ -27,8 +27,10 @@ export async function PUT(
       );
     }
     
-    // Make sure to await params in Next.js 13+
-    const userId = params.id;
+    // Extract ID directly from URL instead of using params
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const userId = pathParts[pathParts.length - 1];
     
     const data = await request.json();
     
@@ -117,8 +119,10 @@ export async function DELETE(
       );
     }
     
-    // Get the user ID from params
-    const userId = params.id;
+    // Extract ID directly from URL instead of using params
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const userId = pathParts[pathParts.length - 1];
     
     // Check if user exists
     const targetUser = await prisma.user.findUnique({

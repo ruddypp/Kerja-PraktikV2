@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { FiSearch, FiRefreshCw } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
+import EquipmentActivityChart from '@/components/EquipmentActivityChart';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -282,9 +283,9 @@ export default function ManagerDashboard() {
   // Format status badge
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
-      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Available' },
-      'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'Calibration' },
-      'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Rented' },
+      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Tersedia' },
+      'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'Kalibrasi' },
+      'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Dipinjam' },
       'IN_MAINTENANCE': { color: 'bg-red-100 text-red-800', text: 'Maintenance' }
     };
     
@@ -342,7 +343,7 @@ export default function ManagerDashboard() {
     const inMaintenanceItems = typeof data.inMaintenanceItems === 'number' ? data.inMaintenanceItems : 0;
     
     return {
-      labels: ['Available', 'In Calibration', 'Rented', 'Maintenance'],
+      labels: ['Tersedia', 'Dalam Kalibrasi', 'Dipinjam', 'Maintenance'],
       datasets: [
         {
           label: 'Status Barang',
@@ -380,7 +381,7 @@ export default function ManagerDashboard() {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
           <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
-            <p className="text-gray-500 text-sm mt-1">Overview of inventory system status and activities</p>
+            <p className="text-gray-500 text-sm mt-1">Ikhtisar status dan aktivitas sistem inventaris</p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -390,7 +391,7 @@ export default function ManagerDashboard() {
             disabled={loading}
           >
             <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <span>Perbarui</span>
           </button>
             
             <Link 
@@ -400,7 +401,7 @@ export default function ManagerDashboard() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span>Reports</span>
+              <span>Laporan</span>
             </Link>
           </div>
         </div>
@@ -414,7 +415,7 @@ export default function ManagerDashboard() {
             <input
               type="text"
               className="block w-full bg-white border border-gray-300 rounded-md py-2.5 pl-10 pr-3 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm"
-              placeholder="Search for items by name, serial number..."
+              placeholder="Cari barang berdasarkan nama, nomor seri..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
@@ -427,7 +428,7 @@ export default function ManagerDashboard() {
               {isSearching ? (
                 <div className="p-4 text-center text-gray-500">
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-green-500 mx-auto mb-2"></div>
-                  Searching...
+                  Mencari...
                 </div>
               ) : searchResults.length > 0 ? (
                 <ul className="py-1">
@@ -449,7 +450,7 @@ export default function ManagerDashboard() {
                 </ul>
               ) : searchTerm.length >= 2 ? (
                 <div className="p-4 text-center text-gray-500">
-                  No matching items found
+                  Barang tidak ditemukan
                 </div>
               ) : null}
             </div>
@@ -459,11 +460,11 @@ export default function ManagerDashboard() {
         {loading && !stats ? (
           <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600 mr-3"></div>
-            <span className="text-gray-700">Loading dashboard data...</span>
+            <span className="text-gray-700">Memuat data dashboard...</span>
           </div>
         ) : error && !stats ? (
           <div className="bg-red-50 p-5 rounded-lg border border-red-200 text-red-700 shadow-sm">
-            <p className="font-medium mb-1">Error Loading Data</p>
+            <p className="font-medium mb-1">Error Memuat Data</p>
             <p className="text-sm">{error}</p>
           </div>
         ) : (
@@ -473,10 +474,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Total Items</p>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Barang</p>
                     <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalItems === 'number' ? formatNumber(stats.totalItems) : 0}</h2>
                     <Link href="/manager/inventory" className="text-sm text-green-600 hover:text-green-700 hover:underline inline-flex items-center mt-2 group">
-                      View inventory
+                      Lihat inventaris
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -493,10 +494,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Pending Requests</p>
-                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingRequests === 'number' ? formatNumber(stats.pendingRequests) : 0}</h2>
-                    <Link href="/manager/requests" className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2 group">
-                      View requests
+                    <p className="text-gray-500 text-sm font-medium mb-1">Maintenance Tertunda</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}</h2>
+                    <Link href="/manager/maintenance" className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat permintaan maintenance
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -513,10 +514,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Calibrations</p>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Kalibrasi</p>
                     <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingCalibrations === 'number' ? formatNumber(stats.pendingCalibrations) : 0}</h2>
                     <Link href="/manager/calibrations" className="text-sm text-purple-600 hover:text-purple-700 hover:underline inline-flex items-center mt-2 group">
-                      View calibrations
+                      Lihat kalibrasi
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -534,10 +535,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Rental Requests</p>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Permintaan Peminjaman</p>
                     <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.pendingRentals === 'number' ? formatNumber(stats.pendingRentals) : 0}</h2>
                     <Link href="/manager/rentals" className="text-sm text-amber-600 hover:text-amber-700 hover:underline inline-flex items-center mt-2 group">
-                      View rentals
+                      Lihat peminjaman
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -555,10 +556,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Total Vendors</p>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Vendor</p>
                     <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalVendors === 'number' ? formatNumber(stats.totalVendors) : 0}</h2>
                     <Link href="/manager/vendors" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center mt-2 group">
-                      View vendors
+                      Lihat vendor
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -576,10 +577,10 @@ export default function ManagerDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Total Users</p>
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Pengguna</p>
                     <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalUsers === 'number' ? formatNumber(stats.totalUsers) : 0}</h2>
                     <Link href="/manager/users" className="text-sm text-teal-600 hover:text-teal-700 hover:underline inline-flex items-center mt-2 group">
-                      View users
+                      Lihat pengguna
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -596,13 +597,13 @@ export default function ManagerDashboard() {
             
             {/* Item Status Overview */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">Item Status Overview</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-6">Ikhtisar Status Barang</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Available</span>
+                      <span className="text-gray-700 font-medium">Tersedia</span>
                     </div>
                     <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
@@ -619,7 +620,7 @@ export default function ManagerDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% of total inventory
+                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% dari total inventaris
                   </p>
                 </div>
                 
@@ -627,7 +628,7 @@ export default function ManagerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">In Calibration</span>
+                      <span className="text-gray-700 font-medium">Dalam Kalibrasi</span>
                     </div>
                     <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
@@ -644,7 +645,7 @@ export default function ManagerDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% of total inventory
+                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% dari total inventaris
                   </p>
                 </div>
                 
@@ -652,7 +653,7 @@ export default function ManagerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Rented</span>
+                      <span className="text-gray-700 font-medium">Dipinjam</span>
                     </div>
                     <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
@@ -669,7 +670,7 @@ export default function ManagerDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% of total inventory
+                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% dari total inventaris
                   </p>
                 </div>
                 
@@ -694,7 +695,7 @@ export default function ManagerDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% of total inventory
+                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% dari total inventaris
                   </p>
                 </div>
               </div>
@@ -702,81 +703,6 @@ export default function ManagerDashboard() {
             
             {/* Reminders and Chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Activity and Reminders */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Activity & Reminders</h2>
-                
-                <div className="space-y-4">
-                  <div className="relative pl-8 border-l-2 border-yellow-300 py-1">
-                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-yellow-400"></div>
-                    <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100">
-                      <p className="text-sm font-medium text-gray-800 mb-1">Upcoming Calibrations</p>
-                      <p className="text-sm text-gray-600">
-                        {stats && typeof stats.upcomingCalibrations === 'number' ? stats.upcomingCalibrations : 0} items 
-                        due for calibration in the next 7 days
-                      </p>
-                      <Link href="/manager/calibrations" className="text-xs text-yellow-600 hover:text-yellow-700 hover:underline inline-flex items-center mt-2">
-                        View calibration schedule
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                      </Link>
-                    </div>
-                  </div>
-                  
-                  <div className="relative pl-8 border-l-2 border-red-300 py-1">
-                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-red-400"></div>
-                    <div className="bg-red-50 p-4 rounded-md border border-red-100">
-                      <p className="text-sm font-medium text-gray-800 mb-1">Overdue Rentals</p>
-                      <p className="text-sm text-gray-600">
-                        {stats && typeof stats.overdueRentals === 'number' ? stats.overdueRentals : 0} items 
-                        have exceeded their rental return date
-                      </p>
-                      <Link href="/manager/rentals?filter=overdue" className="text-xs text-red-600 hover:text-red-700 hover:underline inline-flex items-center mt-2">
-                        View overdue rentals
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                  
-                  <div className="relative pl-8 border-l-2 border-blue-300 py-1">
-                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-400"></div>
-                    <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
-                      <p className="text-sm font-medium text-gray-800 mb-1">Pending Approvals</p>
-                      <p className="text-sm text-gray-600">
-                        {stats && typeof stats.pendingRentals === 'number' ? stats.pendingRentals : 0} rentals 
-                        waiting for your approval
-                      </p>
-                      <Link href="/manager/rentals" className="text-xs text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center mt-2">
-                        Review pending rentals
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                  
-                  <div className="relative pl-8 border-l-2 border-orange-300 py-1">
-                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-orange-400"></div>
-                    <div className="bg-orange-50 p-4 rounded-md border border-orange-100">
-                      <p className="text-sm font-medium text-gray-800 mb-1">Maintenance Items</p>
-                      <p className="text-sm text-gray-600">
-                        {stats && typeof stats.inMaintenanceItems === 'number' ? stats.inMaintenanceItems : 0} items 
-                        currently under maintenance
-                      </p>
-                      <Link href="/manager/inventory?filter=maintenance" className="text-xs text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center mt-2">
-                        View maintenance items
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               {/* Pie Chart - Item Status Distribution */}
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Item Status Distribution</h2>
@@ -825,6 +751,11 @@ export default function ManagerDashboard() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Equipment Activity Chart */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <EquipmentActivityChart title="Aktivitas Peralatan" />
               </div>
             </div>
           </div>

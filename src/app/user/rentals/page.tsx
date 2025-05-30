@@ -37,6 +37,16 @@ type Rental = {
     name: string;
     email: string;
   };
+  statusLogs?: {
+    id: string;
+    status: RequestStatus;
+    notes: string | null;
+    createdAt: string;
+    changedBy: {
+      id: string;
+      name: string;
+    };
+  }[];
 };
 
 type PaginatedResponse = {
@@ -70,9 +80,12 @@ export default function UserRentalPage() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
+  const [detailRental, setDetailRental] = useState<Rental | null>(null);
   const [returnCondition, setReturnCondition] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Build the API URL with query parameters
   const apiUrl = `/api/user/rentals?page=${currentPage}&limit=6${statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''}`;
@@ -119,6 +132,29 @@ export default function UserRentalPage() {
     setSelectedRental(rental);
     setReturnCondition('');
     setShowReturnModal(true);
+  };
+
+  const openDetailModal = async (rental: Rental) => {
+    try {
+      setIsLoadingDetails(true);
+      setDetailRental(rental); // Set initial data from the list
+      setShowDetailModal(true);
+      
+      // Fetch detailed rental data including status logs
+      const response = await fetch(`/api/user/rentals/${rental.id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch rental details');
+      }
+      
+      const detailedRental = await response.json();
+      setDetailRental(detailedRental);
+    } catch (error) {
+      setError('Failed to load rental details. Please try again.');
+      console.error('Error fetching rental details:', error);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const handleReturnRequest = async (rentalId: string) => {
@@ -195,6 +231,19 @@ export default function UserRentalPage() {
       default:
         return status;
     }
+  };
+
+  // Helper to determine if a rental is in return request state
+  const isReturnRequested = (rental: Rental) => {
+    return rental.status === RequestStatus.PENDING && rental.returnDate !== null;
+  };
+
+  // Helper to get appropriate status text based on rental state
+  const getRentalStatusText = (rental: Rental) => {
+    if (isReturnRequested(rental)) {
+      return 'Menunggu Persetujuan Pengembalian';
+    }
+    return getStatusText(rental.status);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -406,7 +455,7 @@ export default function UserRentalPage() {
                         <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium text-gray-900 truncate">{rental.item.name}</h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(rental.status)}`}>
-                            {getStatusText(rental.status)}
+                            {getRentalStatusText(rental)}
                           </span>
                         </div>
                         
@@ -453,25 +502,32 @@ export default function UserRentalPage() {
                         
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
                           {rental.status === RequestStatus.APPROVED && !rental.returnDate && (
-                                                          <button
-                      onClick={() => openReturnModal(rental)}
-                      className="w-full py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors"
+                            <button
+                              onClick={() => openReturnModal(rental)}
+                              className="w-full py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors"
                             >
-                      Request Return
+                              Request Return
                             </button>
                           )}
                           
-                  {(rental.status === RequestStatus.PENDING || 
+                          {rental.status === RequestStatus.COMPLETED && (
+                            <button
+                              onClick={() => openDetailModal(rental)}
+                              className="w-full py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+                            >
+                              View Details
+                            </button>
+                          )}
+                          
+                  {(rental.status === RequestStatus.PENDING && !rental.returnDate || 
                     rental.status === RequestStatus.REJECTED || 
-                    rental.status === RequestStatus.COMPLETED ||
                     rental.status === RequestStatus.CANCELLED ||
-                    (rental.status === RequestStatus.APPROVED && rental.returnDate)) && (
+                    isReturnRequested(rental)) && (
                     <div className="text-center text-sm text-gray-500">
-                      {rental.status === RequestStatus.PENDING && "Waiting for approval"}
+                      {rental.status === RequestStatus.PENDING && !rental.returnDate && "Waiting for approval"}
                       {rental.status === RequestStatus.REJECTED && "Rental request rejected"}
-                      {rental.status === RequestStatus.COMPLETED && "Rental completed"}
                       {rental.status === RequestStatus.CANCELLED && "Rental cancelled"}
-                      {rental.status === RequestStatus.APPROVED && rental.returnDate && "Return requested"}
+                      {isReturnRequested(rental) && "Return request pending approval"}
                             </div>
                           )}
                       </div>
@@ -651,6 +707,139 @@ export default function UserRentalPage() {
                 ) : (
                   'Ajukan Pengembalian'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Detail Modal */}
+      {showDetailModal && detailRental && (
+        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black opacity-50"></div>
+          <div className="relative bg-white rounded-lg max-w-3xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setShowDetailModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Detail Rental</h2>
+            
+            {isLoadingDetails ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-gray-600">Loading details...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Item and Rental Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-md font-medium text-gray-800 mb-2">Informasi Barang</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-600">Nama Barang:</span>
+                        <div className="text-sm text-gray-800">{detailRental.item.name}</div>
+                      </div>
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-600">Serial Number:</span>
+                        <div className="text-sm text-gray-800">{detailRental.item.serialNumber}</div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">Part Number:</span>
+                        <div className="text-sm text-gray-800">{detailRental.item.partNumber || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-md font-medium text-gray-800 mb-2">Periode Rental</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-600">Tanggal Mulai:</span>
+                        <div className="text-sm text-gray-800">{formatDate(detailRental.startDate)}</div>
+                      </div>
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-600">Tanggal Selesai:</span>
+                        <div className="text-sm text-gray-800">{formatDate(detailRental.endDate) || 'Tidak ditentukan'}</div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">Tanggal Pengembalian:</span>
+                        <div className="text-sm text-gray-800">{formatDate(detailRental.returnDate) || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Condition Information */}
+                <div>
+                  <h3 className="text-md font-medium text-gray-800 mb-2">Kondisi Barang</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {detailRental.initialCondition && (
+                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h4 className="text-sm font-medium text-yellow-800 mb-2">Kondisi Awal:</h4>
+                        <div className="p-3 bg-white rounded-md border border-yellow-100 text-sm text-gray-800 whitespace-pre-line">
+                          {detailRental.initialCondition}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {detailRental.returnCondition && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="text-sm font-medium text-blue-800 mb-2">Kondisi Saat Pengembalian:</h4>
+                        <div className="p-3 bg-white rounded-md border border-blue-100 text-sm text-gray-800 whitespace-pre-line">
+                          {detailRental.returnCondition}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Status History */}
+                {detailRental.statusLogs && detailRental.statusLogs.length > 0 && (
+                  <div>
+                    <h3 className="text-md font-medium text-gray-800 mb-2">Riwayat Status</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="space-y-4">
+                        {detailRental.statusLogs.map((log) => (
+                          <div key={log.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(log.status)}`}>
+                                {getStatusText(log.status)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(log.createdAt).toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                            {log.notes && (
+                              <div className="mt-1 text-sm text-gray-700">
+                                <span className="font-medium">Catatan: </span>
+                                {log.notes}
+                              </div>
+                            )}
+                            <div className="mt-1 text-xs text-gray-500">
+                              Oleh: {log.changedBy.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                Tutup
               </button>
             </div>
           </div>

@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const adminId = user.id;
-    const { id, status, notes } = await req.json();
+    const { id, status, notes, returnCondition } = await req.json();
 
     if (!id || !status) {
       return NextResponse.json(
@@ -149,7 +149,9 @@ export async function PATCH(req: NextRequest) {
           // If completing a rental, set the returnDate if not already set
           ...(status === RequestStatus.COMPLETED && !currentRental.returnDate
             ? { returnDate: new Date() }
-            : {})
+            : {}),
+          // Update return condition if provided (for return verification)
+          ...(returnCondition ? { returnCondition } : {})
         },
         include: {
           item: true,
@@ -173,7 +175,21 @@ export async function PATCH(req: NextRequest) {
       if (status === RequestStatus.APPROVED) {
         newItemStatus = ItemStatus.RENTED;
       } else if (status === RequestStatus.COMPLETED) {
+        // Item is returned and verified
         newItemStatus = ItemStatus.AVAILABLE;
+        
+        // Update item history to mark the end of the rental period
+        await tx.itemHistory.updateMany({
+          where: {
+            itemSerial: currentRental.itemSerial,
+            action: 'RENTED',
+            relatedId: id,
+            endDate: null
+          },
+          data: {
+            endDate: new Date()
+          }
+        });
       } else if (status === RequestStatus.REJECTED) {
         // If rejected, ensure item remains AVAILABLE
         newItemStatus = ItemStatus.AVAILABLE;
@@ -221,7 +237,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { itemSerial, startDate, endDate, poNumber, doNumber, targetUserId } = await req.json();
+    const { 
+      itemSerial, 
+      startDate, 
+      endDate, 
+      poNumber, 
+      doNumber, 
+      targetUserId,
+      renterName,
+      renterPhone,
+      renterAddress,
+      initialCondition
+    } = await req.json();
 
     if (!itemSerial || !startDate) {
       return NextResponse.json(
@@ -276,7 +303,11 @@ export async function POST(req: NextRequest) {
           startDate: new Date(startDate),
           endDate: endDate ? new Date(endDate) : null,
           poNumber,
-          doNumber
+          doNumber,
+          renterName: renterName || null,
+          renterPhone: renterPhone || null,
+          renterAddress: renterAddress || null,
+          initialCondition: initialCondition || null
         },
         include: {
           item: true,
