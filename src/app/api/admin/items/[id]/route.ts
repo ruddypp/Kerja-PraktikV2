@@ -8,10 +8,16 @@ interface Params {
 // GET a single item by ID
 export async function GET(
   request: Request,
+<<<<<<< HEAD
   context: { params: Params }
 ) {
   try {
     const params = await context.params;
+=======
+  { params }: { params: Params }
+) {
+  try {
+>>>>>>> 0989372 (add fitur inventory dan history)
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -49,10 +55,16 @@ export async function GET(
 // PATCH update an item
 export async function PATCH(
   request: Request,
+<<<<<<< HEAD
   context: { params: Params }
 ) {
   try {
     const params = await context.params;
+=======
+  { params }: { params: Params }
+) {
+  try {
+>>>>>>> 0989372 (add fitur inventory dan history)
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -63,7 +75,11 @@ export async function PATCH(
     }
     
     const body = await request.json();
+<<<<<<< HEAD
     const { name, categoryId, specification, serialNumber, statusId, lastVerifiedDate } = body;
+=======
+    const { name, categoryId, specification, serialNumber, statusId } = body;
+>>>>>>> 0989372 (add fitur inventory dan history)
     
     // Validation
     if (!name) {
@@ -124,8 +140,12 @@ export async function PATCH(
         categoryId: categoryId ? parseInt(categoryId) : undefined,
         specification,
         serialNumber,
+<<<<<<< HEAD
         statusId: statusId ? parseInt(statusId) : undefined,
         lastVerifiedDate: lastVerifiedDate !== undefined ? lastVerifiedDate : existingItem.lastVerifiedDate
+=======
+        statusId: statusId ? parseInt(statusId) : undefined
+>>>>>>> 0989372 (add fitur inventory dan history)
       },
       include: {
         category: true,
@@ -146,6 +166,7 @@ export async function PATCH(
 // DELETE an item
 export async function DELETE(
   request: Request,
+<<<<<<< HEAD
   context: { params: Params }
 ) {
   try {
@@ -178,12 +199,32 @@ export async function DELETE(
           }
         },
         itemHistory: true
+=======
+  { params }: { params: Params }
+) {
+  try {
+    const id = parseInt(params.id);
+    
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: 'Invalid item ID' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if item exists
+    const item = await prisma.item.findUnique({
+      where: { id },
+      include: {
+        requests: true
+>>>>>>> 0989372 (add fitur inventory dan history)
       }
     });
     
     if (!item) {
       return NextResponse.json(
         { error: 'Item not found' },
+<<<<<<< HEAD
         { 
           status: 404,
           headers: { 'Content-Type': 'application/json' }
@@ -326,14 +367,38 @@ export async function DELETE(
         }
       );
     }
+=======
+        { status: 404 }
+      );
+    }
+    
+    // Check if item has associated requests
+    if (item.requests.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete item with associated requests' },
+        { status: 400 }
+      );
+    }
+    
+    // Delete the item
+    await prisma.item.delete({
+      where: { id }
+    });
+    
+    return NextResponse.json({ success: true });
+>>>>>>> 0989372 (add fitur inventory dan history)
   } catch (error) {
     console.error('Error deleting item:', error);
     return NextResponse.json(
       { error: 'Failed to delete item' },
+<<<<<<< HEAD
       { 
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       }
+=======
+      { status: 500 }
+>>>>>>> 0989372 (add fitur inventory dan history)
     );
   }
 } 

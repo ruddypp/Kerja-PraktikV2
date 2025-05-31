@@ -8,13 +8,18 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "npx ts-node prisma/seed.ts",
+<<<<<<< HEAD
     "prisma:seed": "prisma db seed",
     "standardize-calibration-statuses": "node fix-calibration-statuses.js"
+=======
+    "prisma:seed": "prisma db seed"
+>>>>>>> 0989372 (add fitur inventory dan history)
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@auth/core": "^0.34.2",
     "@prisma/client": "^6.6.0",
     "@radix-ui/react-tabs": "^1.1.9",
@@ -56,13 +61,33 @@
     "@faker-js/faker": "^9.7.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^5.0.2",
+=======
+    "@prisma/client": "^6.6.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "bcryptjs": "^3.0.2",
+    "date-fns": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "next": "15.3.0",
+    "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+>>>>>>> 0989372 (add fitur inventory dan history)
     "@types/date-fns": "^2.5.3",
     "@types/jspdf": "^1.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+<<<<<<< HEAD
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^10.0.0",
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
     "prisma": "^6.6.0",

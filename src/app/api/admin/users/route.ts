@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
@@ -42,10 +43,20 @@ export async function GET(request: NextRequest) {
     // Find users with optimized select
     const users = await prisma.user.findMany({
       where: whereClause,
+=======
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+
+// GET all users (for admin dropdowns)
+export async function GET() {
+  try {
+    const users = await prisma.user.findMany({
+>>>>>>> 0989372 (add fitur inventory dan history)
       select: {
         id: true,
         name: true,
         email: true,
+<<<<<<< HEAD
         role: true,
         createdAt: true,
         updatedAt: true
@@ -73,6 +84,16 @@ export async function GET(request: NextRequest) {
     response.headers.set('Expires', new Date(Date.now() + 60000).toUTCString());
     
     return response;
+=======
+        role: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+    
+    return NextResponse.json(users);
+>>>>>>> 0989372 (add fitur inventory dan history)
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
@@ -80,6 +101,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+<<<<<<< HEAD
 }
 
 // Create a new user
@@ -160,4 +182,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
 } 

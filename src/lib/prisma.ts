@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { PrismaClient } from '@prisma/client'
+=======
+import { PrismaClient } from '../generated/prisma'
+>>>>>>> 0989372 (add fitur inventory dan history)
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 

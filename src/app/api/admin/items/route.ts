@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+<<<<<<< HEAD
 import { ItemStatus, ActivityType } from '@prisma/client';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
@@ -65,10 +66,21 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
     
     console.log('Query params:', { category, status, search, page, limit, skip });
+=======
+
+// GET all items with category and status
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get('categoryId');
+    const statusId = searchParams.get('statusId');
+    const search = searchParams.get('search');
+>>>>>>> 0989372 (add fitur inventory dan history)
     
     // Build where conditions with proper typing
     const where: Record<string, unknown> = {};
     
+<<<<<<< HEAD
     if (category && category !== 'all') {
       // Hapus kondisi category karena field sudah tidak ada
       // where.category = category; 
@@ -246,12 +258,56 @@ export async function GET(request: Request) {
         IN_MAINTENANCE: 0
       }
     });
+=======
+    if (categoryId) {
+      where.categoryId = parseInt(categoryId);
+    }
+    
+    if (statusId) {
+      where.statusId = parseInt(statusId);
+    }
+    
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { specification: { contains: search, mode: 'insensitive' } },
+        { serialNumber: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    // Create Promise that will reject after 10 seconds
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 10000);
+    });
+    
+    // Create the actual data fetch promise
+    const fetchData = prisma.item.findMany({
+      where: where as any, // Type assertion needed for Prisma
+      include: {
+        category: true,
+        status: true
+      },
+      orderBy: {
+        id: 'asc'
+      }
+    });
+    
+    // Race the promises - whichever finishes first wins
+    const items = await Promise.race([fetchData, timeout]);
+    
+    return NextResponse.json(items || []);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    // Return empty array instead of error to prevent UI crash
+    return NextResponse.json([]);
+>>>>>>> 0989372 (add fitur inventory dan history)
   }
 }
 
 // POST create a new item
 export async function POST(request: Request) {
   try {
+<<<<<<< HEAD
     // Verifikasi admin
     const user = await getUserFromRequest(request);
     if (!isAdmin(user)) {
@@ -328,6 +384,10 @@ export async function PATCH(request: Request) {
     console.log('PATCH - Received update request for item:', serialNumber);
     console.log('PATCH - Request body:', body);
     console.log('PATCH - Customer ID value:', customerId);
+=======
+    const body = await request.json();
+    const { name, categoryId, specification, serialNumber, statusId } = body;
+>>>>>>> 0989372 (add fitur inventory dan history)
     
     // Validation
     if (!name) {
@@ -337,13 +397,20 @@ export async function PATCH(request: Request) {
       );
     }
     
+<<<<<<< HEAD
     if (!partNumber) {
       return NextResponse.json(
         { error: 'Part number is required' },
+=======
+    if (!categoryId) {
+      return NextResponse.json(
+        { error: 'Category is required' },
+>>>>>>> 0989372 (add fitur inventory dan history)
         { status: 400 }
       );
     }
     
+<<<<<<< HEAD
     // Check if item exists
     const existingItem = await prisma.item.findUnique({
       where: { serialNumber }
@@ -582,6 +649,62 @@ export async function DELETE(request: Request) {
     console.error('Error deleting item:', error);
     return NextResponse.json(
       { error: 'Failed to delete item' },
+=======
+    if (!statusId) {
+      return NextResponse.json(
+        { error: 'Status is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if category exists
+    const category = await prisma.category.findUnique({
+      where: { id: parseInt(categoryId) }
+    });
+    
+    if (!category) {
+      return NextResponse.json(
+        { error: 'Category not found' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if status exists
+    const status = await prisma.status.findFirst({
+      where: { 
+        id: parseInt(statusId),
+        type: 'item'
+      }
+    });
+    
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Invalid status for item' },
+        { status: 400 }
+      );
+    }
+    
+    // Create item
+    const item = await prisma.item.create({
+      data: {
+        name,
+        categoryId: parseInt(categoryId),
+        specification,
+        serialNumber,
+        statusId: parseInt(statusId)
+      },
+      include: {
+        category: true,
+        status: true
+      }
+    });
+    
+    return NextResponse.json(item, { status: 201 });
+  } catch (error) {
+    console.error('Error creating item:', error);
+    return NextResponse.json(
+      { error: 'Failed to create item' },
+>>>>>>> 0989372 (add fitur inventory dan history)
       { status: 500 }
     );
   }

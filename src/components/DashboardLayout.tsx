@@ -3,8 +3,11 @@
 import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
+<<<<<<< HEAD
 import { useUser } from '../app/context/UserContext';
 import NotificationDropdown from './ui/NotificationDropdown';
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -14,7 +17,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+<<<<<<< HEAD
   const { user, loading } = useUser();
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
   const pathname = usePathname();
   const router = useRouter();
 
@@ -33,9 +39,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
+<<<<<<< HEAD
       if (window.innerWidth >= 768) {
         setIsMobileMenuOpen(false);
       }
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
     };
     
     handleResize();
@@ -51,23 +60,40 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // If there's an error in the layout, show a simple error UI
   if (error) {
     return (
+<<<<<<< HEAD
       <div className="min-h-screen flex items-center justify-center bg-white p-4">
         <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full border border-gray-100">
           <h2 className="text-green-600 text-xl font-semibold mb-4">Error Loading Dashboard</h2>
           <p className="text-gray-900 mb-4">Sorry, something went wrong when loading the dashboard.</p>
           <div className="bg-green-50 p-3 rounded-md border border-green-200 mb-4 overflow-hidden">
             <p className="text-sm text-gray-900 break-words">{error.message}</p>
+=======
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full">
+          <h2 className="text-red-600 text-xl font-semibold mb-4">Error Loading Dashboard</h2>
+          <p className="text-gray-700 mb-4">Sorry, something went wrong when loading the dashboard.</p>
+          <div className="bg-red-50 p-3 rounded-md border border-red-200 mb-4 overflow-hidden">
+            <p className="text-sm text-red-800 break-words">{error.message}</p>
+>>>>>>> 0989372 (add fitur inventory dan history)
           </div>
           <div className="flex space-x-2">
             <button 
               onClick={() => window.location.reload()}
+<<<<<<< HEAD
               className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md shadow-sm"
+=======
+              className="btn btn-primary"
+>>>>>>> 0989372 (add fitur inventory dan history)
             >
               Refresh Page
             </button>
             <button 
               onClick={() => router.push('/login')}
+<<<<<<< HEAD
               className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 py-2 px-4 rounded-md shadow-sm"
+=======
+              className="btn btn-secondary"
+>>>>>>> 0989372 (add fitur inventory dan history)
             >
               Back to Login
             </button>
@@ -78,7 +104,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
+<<<<<<< HEAD
     <div className="min-h-screen bg-white">
+=======
+    <div className="flex flex-col md:flex-row h-screen bg-gray-100">
+>>>>>>> 0989372 (add fitur inventory dan history)
       {/* Mobile menu toggle button */}
       {isMobile && (
         <button 
@@ -93,6 +123,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </button>
       )}
       
+<<<<<<< HEAD
       {/* Sidebar - different position based on mobile/desktop */}
       <div className={`
         ${isMobile 
@@ -145,8 +176,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 md:p-6 min-h-[calc(100vh-7rem)]">
             {children}
           </div>
+=======
+      {/* Sidebar - hidden on mobile by default unless toggled */}
+      <div className={`${isMobile ? (isMobileMenuOpen ? 'block' : 'hidden') : 'block'} z-40`}>
+        <Sidebar onCloseMobileMenu={() => setIsMobileMenuOpen(false)} />
+      </div>
+      
+      {/* Content area - full width on mobile, with margin on desktop */}
+      <div className={`flex-1 overflow-auto ${isMobile ? 'w-full' : 'ml-64'} p-4 md:p-6`}>
+        {/* Semi-transparent overlay for mobile menu when open */}
+        {isMobile && isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-30"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
+        
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 min-h-[calc(100vh-2rem)]">
+          {children}
+>>>>>>> 0989372 (add fitur inventory dan history)
         </div>
       </div>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+} 
+>>>>>>> 0989372 (add fitur inventory dan history)

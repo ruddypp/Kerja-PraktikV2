@@ -15,6 +15,12 @@ export async function POST(request: Request) {
     // Find the user
     const user = await prisma.user.findUnique({
       where: { email },
+<<<<<<< HEAD
+=======
+      include: {
+        role: true,
+      },
+>>>>>>> 0989372 (add fitur inventory dan history)
     });
 
     if (!user) {
@@ -25,7 +31,11 @@ export async function POST(request: Request) {
       );
     }
 
+<<<<<<< HEAD
     console.log(`User found: ${user.name}, Role: ${user.role}`);
+=======
+    console.log(`User found: ${user.name}, Role: ${user.role.name}`);
+>>>>>>> 0989372 (add fitur inventory dan history)
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -41,7 +51,11 @@ export async function POST(request: Request) {
     const tokenPayload = {
       id: user.id,
       email: user.email,
+<<<<<<< HEAD
       role: user.role,
+=======
+      role: user.role.name,
+>>>>>>> 0989372 (add fitur inventory dan history)
     };
 
     console.log('Token payload:', tokenPayload);
@@ -68,8 +82,13 @@ export async function POST(request: Request) {
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
+<<<<<<< HEAD
       sameSite: 'lax',
       secure: false, // Disable secure for IP access
+=======
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+>>>>>>> 0989372 (add fitur inventory dan history)
     });
 
     console.log('Login successful, token generated and cookie set');

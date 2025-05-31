@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { decodeToken } from './lib/auth';
+<<<<<<< HEAD
 import { Role } from '@prisma/client';
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
 
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -20,11 +23,17 @@ export async function middleware(request: NextRequest) {
         console.log(`Decoded token on login path:`, decoded);
         
         // Redirect already logged in users
+<<<<<<< HEAD
         if (decoded?.role === Role.ADMIN) {
           return NextResponse.redirect(new URL('/admin-dashboard', request.url));
         } else if (decoded?.role === Role.MANAGER) {
           return NextResponse.redirect(new URL('/manager-dashboard', request.url));
         } else if (decoded?.role === Role.USER) {
+=======
+        if (decoded?.role === 'Admin') {
+          return NextResponse.redirect(new URL('/admin-dashboard', request.url));
+        } else if (decoded?.role === 'User') {
+>>>>>>> 0989372 (add fitur inventory dan history)
           return NextResponse.redirect(new URL('/user/barang', request.url));
         }
       } catch (error) {
@@ -53,6 +62,7 @@ export async function middleware(request: NextRequest) {
     }
     
     // Role-based path restrictions
+<<<<<<< HEAD
     if ((path === '/admin-dashboard' || path.startsWith('/admin/')) && decoded.role !== Role.ADMIN) {
       console.log(`Non-admin accessing admin page, redirecting`);
       if (decoded.role === Role.MANAGER) {
@@ -78,16 +88,33 @@ export async function middleware(request: NextRequest) {
       } else if (decoded.role === Role.MANAGER) {
         return NextResponse.redirect(new URL('/manager-dashboard', request.url));
       }
+=======
+    if ((path === '/admin-dashboard' || path.startsWith('/admin/')) && decoded.role !== 'Admin') {
+      console.log(`Non-admin accessing admin page, redirecting`);
+      return NextResponse.redirect(new URL('/user/barang', request.url));
+    }
+    
+    if (path.startsWith('/user/') && decoded.role !== 'User') {
+      console.log(`Non-user accessing user page, redirecting`);
+      return NextResponse.redirect(new URL('/admin-dashboard', request.url));
+>>>>>>> 0989372 (add fitur inventory dan history)
     }
     
     // Special handling for root paths
     if (path === '/' || path === '') {
+<<<<<<< HEAD
       if (decoded.role === Role.ADMIN) {
         return NextResponse.redirect(new URL('/admin-dashboard', request.url));
       } else if (decoded.role === Role.USER) {
         return NextResponse.redirect(new URL('/user/barang', request.url));
       } else if (decoded.role === Role.MANAGER) {
         return NextResponse.redirect(new URL('/manager-dashboard', request.url));
+=======
+      if (decoded.role === 'Admin') {
+        return NextResponse.redirect(new URL('/admin-dashboard', request.url));
+      } else if (decoded.role === 'User') {
+        return NextResponse.redirect(new URL('/user/barang', request.url));
+>>>>>>> 0989372 (add fitur inventory dan history)
       }
     }
     

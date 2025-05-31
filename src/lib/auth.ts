@@ -1,4 +1,5 @@
 import { sign, verify } from 'jsonwebtoken';
+<<<<<<< HEAD
 import { Role } from '@prisma/client';
 import prisma from './prisma';
 
@@ -7,15 +8,26 @@ export interface UserData {
   email: string;
   name?: string;
   role: Role;
+=======
+
+export interface UserData {
+  id: number;
+  email: string;
+  name?: string;
+  role: string;
+>>>>>>> 0989372 (add fitur inventory dan history)
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+<<<<<<< HEAD
 // Simplified auth options for our custom auth solution
 export const authOptions = {
   secret: JWT_SECRET,
 };
 
+=======
+>>>>>>> 0989372 (add fitur inventory dan history)
 /**
  * Menghasilkan token JWT dengan payload pengguna
  */
@@ -47,6 +59,7 @@ export function decodeToken(token: string): UserData | null {
 }
 
 /**
+<<<<<<< HEAD
  * Fungsi untuk mendapatkan user dari token pada API request
  */
 export async function getUserFromRequest(req: Request): Promise<UserData | null> {
@@ -100,12 +113,19 @@ export async function getUserFromRequest(req: Request): Promise<UserData | null>
     console.error('Error getting user from request:', error);
     return null;
   }
+=======
+ * Fungsi untuk mendapatkan user dari token
+ */
+export function getUserFromToken(token: string): UserData | null {
+  return verifyToken(token);
+>>>>>>> 0989372 (add fitur inventory dan history)
 }
 
 /**
  * Mengecek apakah user adalah admin
  */
 export function isAdmin(user: UserData | null): boolean {
+<<<<<<< HEAD
   return user?.role === Role.ADMIN;
 }
 
@@ -114,11 +134,15 @@ export function isAdmin(user: UserData | null): boolean {
  */
 export function isManager(user: UserData | null): boolean {
   return user?.role === Role.MANAGER;
+=======
+  return user?.role === 'Admin';
+>>>>>>> 0989372 (add fitur inventory dan history)
 }
 
 /**
  * Fungsi untuk mendapatkan route berdasarkan role
  */
+<<<<<<< HEAD
 export function getRedirectPathByRole(role: Role): string {
   if (role === Role.ADMIN) {
     return '/admin-dashboard';
@@ -128,3 +152,11 @@ export function getRedirectPathByRole(role: Role): string {
   }
   return '/user/barang';
 }
+=======
+export function getRedirectPathByRole(role: string): string {
+  if (role === 'Admin') {
+    return '/admin-dashboard';
+  }
+  return '/user/barang';
+} 
+>>>>>>> 0989372 (add fitur inventory dan history)
