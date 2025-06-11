@@ -1,6 +1,6 @@
 // Service Worker for Push Notifications
 
-// Cache name
+// Cache nameee
 const CACHE_NAME = 'paramata-cache-v1';
 
 // Files to cache
