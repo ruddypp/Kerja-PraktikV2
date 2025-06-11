@@ -2,6 +2,7 @@
   "name": "paramata",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "node setup-assets.js && next dev",
     "build": "node setup-assets.js && next build",
