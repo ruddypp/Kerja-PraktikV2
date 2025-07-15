@@ -13,7 +13,7 @@ Aplikasi ini dikembangkan untuk meningkatkan efisiensi operasional dengan:
 
 ## 2. Nama Sistem
 
-**Paramata** berasal dari kata "parameter" dan "data", mencerminkan fokus sistem pada pengelolaan parameter dan data peralatan secara komprehensif. Nama ini mewakili kemampuan sistem untuk mengukur, memantau, dan mengelola berbagai parameter peralatan teknis dalam satu platform terpadu.
+**Paramata** adalah nama sistem yang menggabungkan nama perusahaan dengan sistem yang dibuat. Nama ini mencerminkan identitas perusahaan dan fungsi dari sistem manajemen inventaris yang dikembangkan secara khusus untuk kebutuhan operasional perusahaan.
 
 ## 3. Fitur Sistem
 
@@ -41,16 +41,9 @@ Aplikasi ini dikembangkan untuk meningkatkan efisiensi operasional dengan:
 - **Pengingat Pengembalian**: Notifikasi otomatis untuk penyewaan yang akan jatuh tempo
 - **Pencatatan Kondisi**: Dokumentasi kondisi peralatan saat dipinjam dan dikembalikan
 
-### 3.5 Sistem Notifikasi
-- **Real-time Notifications**: Polling otomatis setiap 30 detik menggunakan SWR
-- **Preferensi Notifikasi**: Pengaturan per pengguna untuk jenis notifikasi
-- **Panel Admin**: Halaman khusus untuk manajemen notifikasi
-- **Analitik Notifikasi**: Dashboard statistik penggunaan notifikasi
-- **Integrasi UI**: Badge counter di sidebar navigasi dan dropdown notifikasi di header
-
 ## 4. Role Sistem
 
-Paramata memiliki tiga peran utama dengan tingkat akses dan kemampuan yang berbeda:
+Paramata memiliki dua peran utama dengan tingkat akses dan kemampuan yang berbeda:
 
 ### 4.1 Admin
 - Akses penuh ke semua fitur sistem
@@ -61,15 +54,7 @@ Paramata memiliki tiga peran utama dengan tingkat akses dan kemampuan yang berbe
 - Menyetujui permintaan penyewaan dan pemeliharaan
 - Mengatur jadwal kalibrasi dan pemeriksaan inventaris
 
-### 4.2 Manager
-- Melihat dashboard dan laporan analitik
-- Menyetujui permintaan penyewaan dan pemeliharaan
-- Melihat status inventaris dan riwayat peralatan
-- Mengakses laporan kalibrasi dan pemeliharaan
-- Melihat notifikasi sistem dan mengatur preferensi
-- Mengelola jadwal pemeriksaan inventaris
-
-### 4.3 User
+### 4.2 User
 - Mengajukan permintaan penyewaan peralatan
 - Mengajukan permintaan pemeliharaan
 - Melihat status peralatan yang tersedia
@@ -174,28 +159,23 @@ npm start
 src/
 ├── app/
 │   ├── context/
-│   │   ├── NotificationContext.tsx    # Context provider notifikasi
 │   │   └── UserContext.tsx            # Context provider pengguna
 │   ├── api/
-│   │   ├── notifications/             # API routes pengguna
 │   │   ├── admin/                     # API routes admin
-│   │   ├── manager/                   # API routes manager
 │   │   ├── user/                      # API routes user biasa
 │   │   ├── auth/                      # API routes autentikasi
 │   │   └── cron/                      # API routes untuk cron job
 │   ├── admin/                         # Halaman admin
-│   ├── manager/                       # Halaman manager
 │   └── user/                          # Halaman user biasa
 ├── components/
-│   ├── DashboardLayout.tsx            # Layout dengan header notifikasi
-│   ├── DashboardNavigation.tsx        # Navigasi dengan badge
+│   ├── DashboardLayout.tsx            # Layout dashboard
+│   ├── DashboardNavigation.tsx        # Navigasi
 │   └── ui/                            # Komponen UI reusable
 ├── lib/
 │   ├── db.ts                          # Konfigurasi database
 │   ├── auth.ts                        # Konfigurasi autentikasi
 │   └── utils/                         # Utilitas dan helper
-└── docs/
-    └── notification-system.md         # Dokumentasi
+└── docs/                              # Dokumentasi
 ```
 
 ## 9. Deployment
