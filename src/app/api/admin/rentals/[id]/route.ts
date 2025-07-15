@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import { verifyAdmin } from '@/app/api/auth/authUtils';
 import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
-import { format } from 'date-fns';
-import { sendRentalStatusNotification } from '@/lib/notifications';
+import { logRentalActivity } from '@/lib/activity-logger';
 
 // GET - Get rental by ID
 export async function GET(
@@ -11,9 +10,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await verifyAdmin(req);
     
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -68,9 +67,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await verifyAdmin(req);
     
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -179,16 +178,6 @@ export async function PATCH(
 
       return updated;
     });
-    
-    // Send notifications if status was changed
-    if (status) {
-      await sendRentalStatusNotification(
-        updatedRental,
-        status as RequestStatus,
-        adminId,
-        notes
-      );
-    }
 
     return NextResponse.json(updatedRental);
   } catch (error) {
@@ -206,9 +195,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await verifyAdmin(req);
     
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { XIcon } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Role } from '@prisma/client';
@@ -186,15 +186,6 @@ export default function AdminUsersPage() {
     fetchData();
   }, [fetchData]);
   
-  // Refresh data - force fetch fresh data
-  const refreshData = () => {
-    invalidateCache();
-    setSearchInput('');
-    setSearch('');
-    setRoleFilter('');
-    fetchData('', '');
-  };
-  
   // Handle form change
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -356,8 +347,6 @@ export default function AdminUsersPage() {
     switch (role) {
       case Role.ADMIN:
         return 'bg-red-100 text-red-800';
-      case Role.MANAGER:
-        return 'bg-blue-100 text-blue-800';
       case Role.USER:
         return 'bg-green-100 text-green-800';
       default:
@@ -371,14 +360,6 @@ export default function AdminUsersPage() {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">User Management</h1>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={refreshData}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              disabled={loading}
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
-              {loading ? "Loading..." : "Refresh"}
-            </button>
             <button
               onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
@@ -440,7 +421,6 @@ export default function AdminUsersPage() {
               >
                 <option value="">All Roles</option>
                 <option value="ADMIN">Admin</option>
-                <option value="MANAGER">Manager</option>
                 <option value="USER">User</option>
               </select>
             </div>
@@ -668,7 +648,6 @@ export default function AdminUsersPage() {
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                   >
                     <option value={Role.USER}>User</option>
-                    <option value={Role.MANAGER}>Manager</option>
                     <option value={Role.ADMIN}>Admin</option>
                   </select>
                 </div>

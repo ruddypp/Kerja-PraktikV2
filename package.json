@@ -3,14 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node setup-assets.js && next dev",
-    "build": "node setup-assets.js && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "npx ts-node prisma/seed.ts",
     "prisma:seed": "prisma db seed",
-    "standardize-calibration-statuses": "node fix-calibration-statuses.js",
-    "setup-assets": "node setup-assets.js"
+    "standardize-calibration-statuses": "node fix-calibration-statuses.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

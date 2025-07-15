@@ -6,8 +6,7 @@ import { RecurrenceType } from '@prisma/client';
  * This API route is designed to be called by a cron job to process recurring inventory schedules.
  * It will:
  * 1. Find all recurring schedules that need to be processed
- * 2. Create notifications for upcoming schedules
- * 3. Update the nextDate for recurring schedules
+ * 2. Update the nextDate for recurring schedules
  */
 export async function GET(request: Request) {
   try {
@@ -51,16 +50,7 @@ export async function GET(request: Request) {
       // Calculate the next date based on recurrence type
       const nextDate = calculateNextDate(schedule.nextDate || today, schedule.recurrenceType as RecurrenceType);
       
-      // Create a notification for the schedule owner
-      await prisma.notification.create({
-        data: {
-          userId: schedule.userId,
-          title: 'Recurring Inventory Schedule',
-          message: `Reminder: Your inventory check "${schedule.name}" is due today.`,
-          type: 'INVENTORY_SCHEDULE',
-          relatedId: schedule.id
-        }
-      });
+      // Notification system has been removed
       
       // Update the schedule with the new nextDate
       await prisma.inventoryCheck.update({

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FiPlus, FiEdit, FiTrash2, FiSearch, FiRefreshCw, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiSearch, FiMail, FiPhone, FiUser, FiMapPin } from 'react-icons/fi';
 import { XIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import {useRef} from 'react';
 
@@ -378,14 +378,6 @@ export default function VendorsPage() {
           <h1 className="text-2xl font-bold">Vendor Management</h1>
           <div className="flex items-center gap-2">
             <button 
-              onClick={refreshData} 
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              disabled={loading}
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
-              {loading ? "Loading..." : "Refresh"}
-            </button>
-            <button 
               onClick={openAddModal} 
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
             >
@@ -481,90 +473,71 @@ export default function VendorsPage() {
           </div>
         ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vendors.map((vendor, index) => (
-                    <tr key={vendor.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(pagination.page - 1) * pagination.limit + index + 1}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
-                          {vendor.address && (
-                            <div className="text-xs text-gray-500 flex items-center mt-1">
-                              <FiMapPin size={12} className="text-gray-400 mr-1" />
-                              {vendor.address}
-                            </div>
-                          )}
-                      </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {vendor.contactName ? (
-                            <div className="text-sm text-gray-900 flex items-center">
-                              <FiUser size={14} className="text-gray-400 mr-2" />
-                              {vendor.contactName}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                          {vendor.contactEmail && (
-                            <div className="text-sm text-gray-900 flex items-center">
-                              <FiMail size={14} className="text-gray-400 mr-2" />
-                              {vendor.contactEmail}
-                            </div>
-                          )}
-                          {vendor.contactPhone && (
-                            <div className="text-sm text-gray-500 flex items-center mt-1">
-                              <FiPhone size={14} className="text-gray-400 mr-2" />
-                              {vendor.contactPhone}
-                            </div>
-                          )}
-                          {!vendor.contactEmail && !vendor.contactPhone && (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                      </td>
-                        <td className="px-6 py-4">
-                          {vendor.service ? (
-                            <div className="max-w-xs text-sm text-gray-500 line-clamp-2">{vendor.service}</div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => openEditModal(vendor)}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Edit vendor"
-                        >
-                              <FiEdit className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(vendor)}
-                          className="text-red-600 hover:text-red-900"
-                              title="Delete vendor"
-                        >
-                              <FiTrash2 className="h-5 w-5" />
-                        </button>
+              {/* Card Grid View */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {vendors.map((vendor) => (
+                  <div key={vendor.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+                    <div className="p-4">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-medium text-gray-900">{vendor.name}</h3>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => openEditModal(vendor)}
+                            className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                            title="Edit vendor"
+                          >
+                            <FiEdit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(vendor)}
+                            className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                            title="Delete vendor"
+                          >
+                            <FiTrash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 space-y-3">
+                        {vendor.address && (
+                          <div className="flex items-start text-sm">
+                            <FiMapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
+                            <span className="text-gray-600">{vendor.address}</span>
                           </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                        
+                        {vendor.contactName && (
+                          <div className="flex items-center text-sm">
+                            <FiUser className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                            <span className="text-gray-600">{vendor.contactName}</span>
+                          </div>
+                        )}
+                        
+                        {vendor.contactEmail && (
+                          <div className="flex items-center text-sm">
+                            <FiMail className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                            <span className="text-gray-600">{vendor.contactEmail}</span>
+                          </div>
+                        )}
+                        
+                        {vendor.contactPhone && (
+                          <div className="flex items-center text-sm">
+                            <FiPhone className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                            <span className="text-gray-600">{vendor.contactPhone}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {vendor.service && (
+                        <div className="mt-4 pt-3 border-t border-gray-100">
+                          <h4 className="text-xs font-medium text-gray-500 uppercase mb-1">Services</h4>
+                          <p className="text-sm text-gray-700">{vendor.service}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
               
               {/* Pagination */}
               <div className="flex justify-between items-center mt-4">

@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "./context/UserContext";
-import { NotificationProvider } from "./context/NotificationContext";
 import { Providers } from "./providers";
 import ToastContainer from "@/components/ui/ToastContainer";
 
@@ -34,10 +33,8 @@ export default function RootLayout({
       >
         <Providers>
           <UserProvider>
-            <NotificationProvider>
             {children}
-              <ToastContainer />
-            </NotificationProvider>
+            <ToastContainer />
           </UserProvider>
         </Providers>
         
@@ -55,22 +52,19 @@ export default function RootLayout({
             })();
           `}
         </Script>
-
-        {/* Script to register service worker for push notifications */}
-        <Script id="register-sw">
+        
+        {/* Script to ensure uploads directory exists */}
+        <Script id="setup-assets">
           {`
-            // Register service worker for push notifications
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                  .then(function(registration) {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                  })
-                  .catch(function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
-                  });
-              });
-            }
+            // Ensure uploads directory exists via API call
+            (async function setupAssets() {
+              try {
+                await fetch('/api/admin/setup-assets');
+                console.log('Asset setup completed');
+              } catch (e) {
+                console.error('Asset setup error:', e);
+              }
+            })();
           `}
         </Script>
       </body>

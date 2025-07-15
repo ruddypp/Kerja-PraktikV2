@@ -4,7 +4,14 @@ import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '../app/context/UserContext';
-import NotificationDropdown from './ui/NotificationDropdown';
+
+// Definisikan tipe User sesuai dengan UserContext
+interface User {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+}
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -14,6 +21,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
@@ -98,18 +106,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         ${isMobile 
           ? 'fixed top-0 left-0 h-full w-64 transform transition-transform duration-300 ease-in-out z-40 '
             + (isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')
-          : 'fixed top-0 left-0 h-full w-64'
+          : 'fixed top-0 left-0 h-full'
         }
       `}>
         <Sidebar 
           onCloseMobileMenu={() => setIsMobileMenuOpen(false)} 
           user={user}
           loading={loading}
+          onToggle={(isOpen) => setSidebarOpen(isOpen)}
         />
       </div>
       
       {/* Content area with header */}
-      <div className={`transition-all duration-300 ${isMobile ? 'ml-0' : 'ml-64'}`}>
+      <div className={`transition-all duration-300 ${isMobile ? 'ml-0' : sidebarOpen ? 'ml-64' : 'ml-20'}`}>
         {/* Header with user profile */}
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 sticky top-0 z-10 border-b border-gray-100">
           <div className="flex items-center space-x-2">
@@ -122,9 +131,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* Notification Dropdown */}
-            <NotificationDropdown />
-            
             <div className="flex items-center space-x-2">
               <span className="hidden md:inline text-sm font-medium text-gray-900">
                 {user?.name || (

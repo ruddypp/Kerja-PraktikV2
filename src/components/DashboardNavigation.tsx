@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/app/context/UserContext';
-import { useNotifications } from '@/app/context/NotificationContext';
 import { 
   MdDashboard, 
   MdInventory, 
@@ -24,12 +23,10 @@ import {
 
 export default function DashboardNavigation() {
   const { user } = useUser();
-  const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN';
-  const isManager = user?.role === 'MANAGER';
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: MdDashboard },
@@ -37,8 +34,8 @@ export default function DashboardNavigation() {
     { name: 'Kalibrasi', href: '/calibrations', icon: MdCalendarToday },
     { name: 'Maintenance', href: '/maintenance', icon: MdBuild },
     { name: 'Rental', href: '/rentals', icon: MdStore },
-    { name: 'Notifikasi', href: '/notifications', icon: MdNotifications, badge: unreadCount > 0 ? unreadCount : null },
-    ...(isAdmin || isManager ? [{ name: 'Reports', href: '/reports', icon: MdAssessment }] : []),
+    { name: 'Notifikasi', href: '/notifications', icon: MdNotifications },
+    ...(isAdmin ? [{ name: 'Reports', href: '/reports', icon: MdAssessment }] : []),
     ...(isAdmin ? [{ name: 'Users', href: '/users', icon: MdPerson }] : []),
     ...(isAdmin ? [{ name: 'Vendors', href: '/vendors', icon: MdStore }] : []),
     { name: 'Activity Log', href: '/activity', icon: MdHistory },
@@ -47,8 +44,8 @@ export default function DashboardNavigation() {
 
   // Admin-specific navigation items
   const adminNavigation = isAdmin ? [
-    { name: 'Kelola Notifikasi', href: '/admin/notifications', icon: MdAdminPanelSettings },
-    { name: 'Analitik Notifikasi', href: '/admin/notifications/analytics', icon: MdAnalytics },
+    { name: 'Admin Panel', href: '/admin', icon: MdAdminPanelSettings },
+    { name: 'Analytics', href: '/admin/analytics', icon: MdAnalytics },
   ] : [];
 
   return (
@@ -67,11 +64,6 @@ export default function DashboardNavigation() {
               >
                 <item.icon className="w-5 h-5 transition duration-75" />
                 <span className="ml-3">{item.name}</span>
-                {item.badge && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 ml-auto text-xs font-semibold text-white bg-red-600 rounded-full">
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
               </Link>
             </li>
           ))}
@@ -136,11 +128,6 @@ export default function DashboardNavigation() {
                   >
                     <item.icon className="w-5 h-5 transition duration-75" />
                     <span className="ml-3">{item.name}</span>
-                    {item.badge && (
-                      <span className="inline-flex items-center justify-center w-5 h-5 ml-auto text-xs font-semibold text-white bg-red-600 rounded-full">
-                        {item.badge > 99 ? '99+' : item.badge}
-                      </span>
-                    )}
                   </Link>
                 </li>
               ))}

@@ -42,7 +42,7 @@ export default function EquipmentActivityChart({ title = "Equipment Activity" }:
   // Determine API endpoint based on user role
   const apiEndpoint = user?.role === 'ADMIN' 
     ? '/api/admin/equipment-activity' 
-    : '/api/manager/equipment-activity';
+    : '/api/user/equipment-activity';
 
   // Cache keys
   const CACHE_KEY = `equipment_activity_data_${year}_${user?.role || ''}`;

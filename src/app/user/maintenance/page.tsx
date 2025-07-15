@@ -119,12 +119,6 @@ export default function MaintenancePage() {
     }
   };
 
-  // Fungsi untuk memuat ulang data (untuk penggunaan tombol refresh)
-  const refreshData = useCallback(() => {
-    invalidateCache();
-    fetchMaintenances();
-  }, [invalidateCache]);
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -171,16 +165,6 @@ export default function MaintenancePage() {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <h1 className="text-2xl font-bold">Maintenance Barang</h1>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={refreshData}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md flex items-center text-sm"
-              disabled={loading}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-              </svg>
-              {loading ? "Memuat..." : "Refresh"}
-            </button>
             <Link
               href="/user/maintenance/new"
               className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center text-sm"

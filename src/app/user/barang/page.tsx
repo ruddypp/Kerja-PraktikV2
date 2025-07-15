@@ -184,6 +184,17 @@ export default function UserItemsPage() {
     }
   };
   
+  // Refresh data
+  const refreshData = () => {
+    // Hapus cache setelah melakukan perubahan status item
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('items_')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    fetchItems(currentPage, searchQuery);
+  };
+  
   // Calculate total pages
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   

@@ -94,16 +94,7 @@ export async function POST(request: Request) {
       });
     }
     
-    // Create notification
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        title: 'Inventory Check Completed',
-        message: `Inventory check "${schedule.name}" has been completed successfully`,
-        type: 'INVENTORY_SCHEDULE',
-        relatedId: schedule.id
-      }
-    });
+    // Notification system has been removed
     
     // Log activity
     await prisma.activityLog.create({
@@ -141,15 +132,15 @@ export async function POST(request: Request) {
       });
       
       // Create notification for the next schedule
-      await prisma.notification.create({
-        data: {
-          userId: user.id,
-          title: 'New Recurring Inventory Schedule',
-          message: `Next ${schedule.frequency.toLowerCase()} inventory check "${schedule.name}" has been scheduled for ${nextDate.toLocaleDateString()}`,
-          type: 'INVENTORY_SCHEDULE',
-          relatedId: nextSchedule.id
-        }
-      });
+      // await prisma.notification.create({
+      //   data: {
+      //     userId: user.id,
+      //     title: 'New Recurring Inventory Schedule',
+      //     message: `Next ${schedule.frequency.toLowerCase()} inventory check "${schedule.name}" has been scheduled for ${nextDate.toLocaleDateString()}`,
+      //     type: 'INVENTORY_SCHEDULE',
+      //     relatedId: nextSchedule.id
+      //   }
+      // });
       
       // Log activity for the new schedule
       await prisma.activityLog.create({

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 import { logRentalActivity } from '@/lib/activity-logger';
-import { notifyAdminsAndManagersOfActivity, sendRentalRequestNotification } from '@/lib/notificationService';
-import { sendRentalStatusNotification } from '@/lib/notifications';
 
 // GET - Get user's rentals
 export async function GET(req: NextRequest) {
@@ -166,14 +164,6 @@ export async function POST(req: NextRequest) {
         rentalId: rental.id
       }
     });
-
-    // Send notifications using our new system
-    await sendRentalStatusNotification(
-      rental,
-      RequestStatus.PENDING,
-      userId,
-      'Rental request created'
-    );
 
     return NextResponse.json(rental, { status: 201 });
   } catch (error) {

@@ -3,13 +3,13 @@ import { getUserFromRequest } from '@/lib/auth';
 
 /**
  * Verify authentication for API routes
- * Returns the user data if authenticated, throws an error if not
+ * Returns the user data if authenticated, or null if not
  */
 export async function verifyAuth(req: NextRequest) {
   const user = await getUserFromRequest(req);
   
   if (!user) {
-    throw new Error('Unauthorized');
+    return null;
   }
   
   return {
@@ -26,21 +26,12 @@ export async function verifyAuth(req: NextRequest) {
 export async function verifyAdmin(req: NextRequest) {
   const user = await verifyAuth(req);
   
-  if (user.role !== 'ADMIN') {
-    throw new Error('Forbidden - Admin access required');
+  if (!user) {
+    throw new Error('Unauthorized');
   }
   
-  return user;
-}
-
-/**
- * Verify if the user has admin or manager role
- */
-export async function verifyAdminOrManager(req: NextRequest) {
-  const user = await verifyAuth(req);
-  
-  if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
-    throw new Error('Forbidden - Admin or Manager access required');
+  if (user.role !== 'ADMIN') {
+    throw new Error('Forbidden - Admin access required');
   }
   
   return user;

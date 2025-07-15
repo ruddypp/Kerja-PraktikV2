@@ -349,34 +349,6 @@ export async function PATCH(
       }
     });
 
-    // Buat notifikasi untuk user
-    await prisma.notification.create({
-      data: {
-        userId: calibration.userId,
-        type: 'CALIBRATION_STATUS_CHANGE',
-        title: 'Calibration Completed',
-        message: `Your calibration for ${calibration.item.name} has been completed`,
-        isRead: false
-      }
-    });
-
-    // Buat notifikasi pengingat untuk kalibrasi berikutnya (H-30)
-    const reminderDate = new Date(validUntil);
-    reminderDate.setDate(reminderDate.getDate() - 30); // H-30 sebelum tanggal kadaluarsa
-    
-    // Jika reminderDate masih di masa depan, buat notifikasi pengingat
-    if (reminderDate > new Date()) {
-      await prisma.notification.create({
-        data: {
-          userId: calibration.userId,
-          type: 'CALIBRATION_REMINDER',
-          title: 'Calibration Reminder',
-          message: `Calibration for ${calibration.item.name} will expire on ${new Date(validUntil).toLocaleDateString()}`,
-          isRead: false
-        }
-      });
-    }
-
     // Buat activity log
     await prisma.activityLog.create({
       data: {
@@ -397,4 +369,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-} ``
+}

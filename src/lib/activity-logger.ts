@@ -60,23 +60,38 @@ export async function logActivity(params: LogActivityParams) {
 }
 
 /**
+ * Logs a login activity
+ */
+export async function logLoginActivity(
+  userId: string,
+  details?: string
+) {
+  return logActivity({
+    userId,
+    type: 'LOGIN' as ActivityType,
+    action: 'User logged in',
+    details
+  });
+}
+
+/**
  * Logs an item-related activity
  */
 export async function logItemActivity(
   userId: string,
-  type: ActivityType.ITEM_CREATED | ActivityType.ITEM_UPDATED | ActivityType.ITEM_DELETED,
+  type: 'ITEM_CREATED' | 'ITEM_UPDATED' | 'ITEM_DELETED',
   itemSerial: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.ITEM_CREATED]: 'Item created',
-    [ActivityType.ITEM_UPDATED]: 'Item updated',
-    [ActivityType.ITEM_DELETED]: 'Item deleted'
+  const actionMap: Record<string, string> = {
+    'ITEM_CREATED': 'Item created',
+    'ITEM_UPDATED': 'Item updated',
+    'ITEM_DELETED': 'Item deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     itemSerial
@@ -88,20 +103,20 @@ export async function logItemActivity(
  */
 export async function logCalibrationActivity(
   userId: string,
-  type: ActivityType.CALIBRATION_CREATED | ActivityType.CALIBRATION_UPDATED | ActivityType.CALIBRATION_DELETED,
+  type: 'CALIBRATION_CREATED' | 'CALIBRATION_UPDATED' | 'CALIBRATION_DELETED',
   calibrationId: string,
   itemSerial: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.CALIBRATION_CREATED]: 'Calibration created',
-    [ActivityType.CALIBRATION_UPDATED]: 'Calibration updated',
-    [ActivityType.CALIBRATION_DELETED]: 'Calibration deleted'
+  const actionMap: Record<string, string> = {
+    'CALIBRATION_CREATED': 'Calibration created',
+    'CALIBRATION_UPDATED': 'Calibration updated',
+    'CALIBRATION_DELETED': 'Calibration deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     calibrationId,
@@ -114,20 +129,20 @@ export async function logCalibrationActivity(
  */
 export async function logMaintenanceActivity(
   userId: string,
-  type: ActivityType.MAINTENANCE_CREATED | ActivityType.MAINTENANCE_UPDATED | ActivityType.MAINTENANCE_DELETED,
+  type: 'MAINTENANCE_CREATED' | 'MAINTENANCE_UPDATED' | 'MAINTENANCE_DELETED',
   maintenanceId: string,
   itemSerial: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.MAINTENANCE_CREATED]: 'Maintenance created',
-    [ActivityType.MAINTENANCE_UPDATED]: 'Maintenance updated',
-    [ActivityType.MAINTENANCE_DELETED]: 'Maintenance deleted'
+  const actionMap: Record<string, string> = {
+    'MAINTENANCE_CREATED': 'Maintenance created',
+    'MAINTENANCE_UPDATED': 'Maintenance updated',
+    'MAINTENANCE_DELETED': 'Maintenance deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     maintenanceId,
@@ -140,20 +155,20 @@ export async function logMaintenanceActivity(
  */
 export async function logRentalActivity(
   userId: string,
-  type: ActivityType.RENTAL_CREATED | ActivityType.RENTAL_UPDATED | ActivityType.RENTAL_DELETED,
+  type: 'RENTAL_CREATED' | 'RENTAL_UPDATED' | 'RENTAL_DELETED',
   rentalId: string,
   itemSerial: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.RENTAL_CREATED]: 'Rental created',
-    [ActivityType.RENTAL_UPDATED]: 'Rental updated',
-    [ActivityType.RENTAL_DELETED]: 'Rental deleted'
+  const actionMap: Record<string, string> = {
+    'RENTAL_CREATED': 'Rental created',
+    'RENTAL_UPDATED': 'Rental updated',
+    'RENTAL_DELETED': 'Rental deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     rentalId,
@@ -166,43 +181,42 @@ export async function logRentalActivity(
  */
 export async function logUserActivity(
   userId: string,
-  type: ActivityType.USER_CREATED | ActivityType.USER_UPDATED | ActivityType.USER_DELETED,
+  type: 'USER_CREATED' | 'USER_UPDATED' | 'USER_DELETED',
   affectedUserId: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.USER_CREATED]: 'User created',
-    [ActivityType.USER_UPDATED]: 'User updated',
-    [ActivityType.USER_DELETED]: 'User deleted'
+  const actionMap: Record<string, string> = {
+    'USER_CREATED': 'User created',
+    'USER_UPDATED': 'User updated',
+    'USER_DELETED': 'User deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     affectedUserId
   });
 }
-
 /**
  * Logs a vendor-related activity
  */
 export async function logVendorActivity(
   userId: string,
-  type: ActivityType.VENDOR_CREATED | ActivityType.VENDOR_UPDATED | ActivityType.VENDOR_DELETED,
+  type: 'VENDOR_CREATED' | 'VENDOR_UPDATED' | 'VENDOR_DELETED',
   vendorId: string,
   details?: string
 ) {
-  const actionMap = {
-    [ActivityType.VENDOR_CREATED]: 'Vendor created',
-    [ActivityType.VENDOR_UPDATED]: 'Vendor updated',
-    [ActivityType.VENDOR_DELETED]: 'Vendor deleted'
+  const actionMap: Record<string, string> = {
+    'VENDOR_CREATED': 'Vendor created',
+    'VENDOR_UPDATED': 'Vendor updated',
+    'VENDOR_DELETED': 'Vendor deleted'
   };
 
   return logActivity({
     userId,
-    type,
+    type: type as ActivityType,
     action: actionMap[type],
     details,
     vendorId

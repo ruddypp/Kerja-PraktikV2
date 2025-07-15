@@ -38,12 +38,6 @@ async function main() {
         password: await bcrypt.hash('admin123', 10),
         name: 'Admin Paramata',
         role: Role.ADMIN
-      },
-      {
-        email: 'manager@paramata.com',
-        password: await bcrypt.hash('manager123', 10),
-        name: 'Manager Paramata',
-        role: Role.MANAGER
       }
     ];
 
@@ -54,7 +48,7 @@ async function main() {
       console.log(`User ${userData.email} berhasil dibuat`);
     }
 
-    console.log('3 users berhasil dibuat');
+    console.log('2 users berhasil dibuat');
 
     // Buat 100 vendor
     const vendors = [];

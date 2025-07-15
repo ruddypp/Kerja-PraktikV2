@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
-import { Search, Filter, ClipboardCheckIcon, RefreshCw, Trash2, PlusIcon } from "lucide-react";
+import { Search, Filter, ClipboardCheckIcon, Trash2, PlusIcon } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 interface MaintenanceItem {
@@ -197,12 +197,6 @@ export default function AdminMaintenancePage() {
     debouncedSearch(e.target.value);
   };
 
-  // Handle refresh button
-  const handleRefresh = () => {
-    invalidateCache();
-    fetchMaintenances();
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -248,14 +242,6 @@ export default function AdminMaintenancePage() {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <h1 className="text-2xl font-bold">Maintenance Barang</h1>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 text-sm"
-              disabled={loading}
-            >
-              <RefreshCw size={14} />
-              {loading ? "Memuat..." : "Refresh Data"}
-            </button>
             <Link
               href="/admin/maintenance/new"
               className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
 import { logMaintenanceActivity } from "@/lib/activity-logger";
-import { notifyAdminsAndManagersOfActivity } from "@/lib/notificationService";
 
 export async function GET(req: NextRequest) {
   try {
@@ -158,14 +157,6 @@ export async function POST(req: NextRequest) {
       maintenance.id,
       itemSerial,
       `Memulai maintenance untuk barang ${itemSerial}`
-    );
-    
-    // Notify admins and managers
-    await notifyAdminsAndManagersOfActivity(
-      'requested maintenance',
-      item.name || itemSerial,
-      user.name || 'User',
-      maintenance.id
     );
     
     // Hapus cache untuk memastikan data di halaman maintenance sudah diperbarui

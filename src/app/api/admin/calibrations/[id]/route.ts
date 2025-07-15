@@ -207,26 +207,6 @@ export async function PATCH(
           userId: user.id
         }
       });
-      
-      // Create notification for the user
-      const statusMap: Record<string, string> = {
-        'IN_PROGRESS': 'updated to in progress',
-        'COMPLETED': 'completed',
-        'CANCELLED': 'cancelled'
-      };
-      
-      // Don't create notification if the user is updating their own calibration
-      if (user.id !== calibration.userId) {
-      await prisma.notification.create({
-        data: {
-          userId: calibration.userId,
-          type: 'CALIBRATION_STATUS_CHANGE',
-          title: `Calibration ${statusMap[status] || 'Updated'}`,
-          message: `Your calibration for ${calibration.item.name} has been ${statusMap[status] || 'updated'}`,
-          isRead: false
-        }
-      });
-      }
     }
     
     return NextResponse.json(updatedCalibration);

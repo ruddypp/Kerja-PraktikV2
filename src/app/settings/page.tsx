@@ -25,21 +25,6 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Pengaturan</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Pengaturan Notifikasi */}
-          <Link 
-            href="/notifications/preferences" 
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center mb-4">
-              <div className="bg-green-100 p-3 rounded-lg mr-4">
-                <MdNotifications className="h-6 w-6 text-green-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900">Notifikasi</h2>
-            </div>
-            <p className="text-gray-600 text-sm">
-              Atur preferensi pemberitahuan, frekuensi, dan saluran pengiriman.
-            </p>
-          </Link>
           
           {/* Pengaturan Profil */}
           <Link 

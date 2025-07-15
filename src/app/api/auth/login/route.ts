@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import * as bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
+import { logLoginActivity } from '@/lib/activity-logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -48,6 +49,12 @@ export async function POST(request: Request) {
 
     // Create token
     const token = sign(tokenPayload, JWT_SECRET, { expiresIn: '1d' });
+
+    // Log login activity
+    await logLoginActivity(
+      user.id,
+      `User ${user.name} (${user.role}) logged in`
+    );
 
     // Create response with cookie
     const response = NextResponse.json({

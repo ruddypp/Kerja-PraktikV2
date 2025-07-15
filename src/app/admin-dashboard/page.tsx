@@ -5,12 +5,11 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { DashboardStats, formatDate, formatNumber, calculatePercentage } from '@/lib/utils/dashboard';
 import { useRouter } from 'next/navigation';
-import { FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiArrowRight, FiUser, FiPackage, FiCalendar, FiTool, FiAlertTriangle, FiTruck, FiLoader } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import EquipmentActivityChart from '@/components/EquipmentActivityChart';
 import UpcomingSchedulesCard from '@/components/UpcomingSchedulesCard';
-import { useNotifications } from '@/app/context/NotificationContext';
 import { MdNotifications, MdSettings } from 'react-icons/md';
 
 // Register Chart.js components
@@ -45,6 +44,9 @@ interface InventoryItem {
   name: string;
   partNumber: string;
   status: string;
+  customer?: {
+    name: string;
+  };
 }
 
 // Function to ensure numeric values
@@ -101,7 +103,6 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { unreadCount, notifications } = useNotifications();
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -240,13 +241,14 @@ export default function AdminDashboard() {
         return;
       }
       
-      const res = await fetch(`/api/admin/items?search=${encodeURIComponent(term)}&limit=5`, {
+      // Use the new search API endpoint
+      const res = await fetch(`/api/admin/items/search?q=${encodeURIComponent(term)}&limit=10`, {
         headers: { 'Cache-Control': 'max-age=30' }
       });
       
       if (res.ok) {
         const data = await res.json();
-        const items = data.items || [];
+        const items = data.results || [];
         
         // Cache search results (for 5 minutes)
         sessionStorage.setItem(searchCacheKey, JSON.stringify(items));
@@ -294,10 +296,11 @@ export default function AdminDashboard() {
   // Format status badge
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
-      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Tersedia' },
-      'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'Kalibrasi' },
-      'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Dipinjam' },
-      'IN_MAINTENANCE': { color: 'bg-red-100 text-red-800', text: 'Maintenance' }
+      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Available' },
+      'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'In Calibration' },
+      'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Rented' },
+      'IN_MAINTENANCE': { color: 'bg-red-100 text-red-800', text: 'In Maintenance' },
+      'IN_USE': { color: 'bg-blue-100 text-blue-800', text: 'In Use' }
     };
     
     const style = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status };
@@ -307,30 +310,6 @@ export default function AdminDashboard() {
         {style.text}
       </span>
     );
-  };
-  
-  // Function to clear the dashboard cache
-  const clearDashboardCache = () => {
-    console.log('Clearing dashboard cache...');
-    sessionStorage.removeItem(CACHE_KEY);
-    sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
-    
-    // Also clear any search related caches
-    Object.keys(sessionStorage).forEach(key => {
-      if (key.startsWith(SEARCH_CACHE_PREFIX)) {
-        sessionStorage.removeItem(key);
-      }
-    });
-  };
-  
-  // Handle refresh action
-  const handleRefresh = () => {
-    console.log('Refreshing admin dashboard data...');
-    // Clear all dashboard-related cache entries
-    clearDashboardCache();
-    
-    // Force a fresh data fetch with a unique timestamp to bypass all caching
-    fetchDashboardData(true);
   };
   
   // Pie chart configuration
@@ -358,10 +337,10 @@ export default function AdminDashboard() {
     const inMaintenanceItems = typeof data.inMaintenanceItems === 'number' ? data.inMaintenanceItems : 0;
     
     return {
-      labels: ['Tersedia', 'Dalam Kalibrasi', 'Dipinjam', 'Maintenance'],
+      labels: ['Available', 'In Calibration', 'Rented', 'In Maintenance'],
       datasets: [
         {
-          label: 'Status Barang',
+          label: 'Item Status',
           data: [
             availableItems,
             inCalibrationItems,
@@ -393,25 +372,77 @@ export default function AdminDashboard() {
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
         {/* Improved header with responsive flex layout */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Admin</h1>
-          
-          <div className="flex items-center space-x-2 self-end sm:self-auto">
-          <button
-            onClick={handleRefresh}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            disabled={loading}
-          >
-              <FiRefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Data
-          </button>
-            <button
-              onClick={clearDashboardCache}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Clear Cache
-            </button>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6">
+          <div className="relative" ref={searchRef}>
+            <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+              <div className="pl-4 pr-2 text-gray-400">
+                <FiSearch size={20} />
+              </div>
+              <input
+                type="text"
+                placeholder="Cari barang berdasarkan nama, serial number, atau part number..."
+                className="w-full py-3 px-2 bg-transparent border-none focus:outline-none text-gray-700"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+              />
+              {isSearching && (
+                <div className="px-4">
+                  <FiLoader className="animate-spin text-gray-400" size={18} />
+                </div>
+              )}
+            </div>
+            
+            {/* Search Results */}
+            {showSuggestions && searchTerm.length >= 2 && (
+              <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-80 overflow-y-auto">
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    {isSearching ? 'Mencari...' : 'Tidak ada hasil yang ditemukan'}
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {searchResults.map((item) => (
+                      <li key={item.serialNumber} className="hover:bg-gray-50">
+                        <div className="p-4 flex justify-between items-center">
+                          <div>
+                            <h4 className="font-medium text-gray-800">{item.name}</h4>
+                            <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500">
+                              <div className="flex items-center">
+                                <span className="mr-3">SN: {item.serialNumber}</span>
+                                <span>PN: {item.partNumber}</span>
+                              </div>
+                              {item.customer?.name && (
+                                <span className="sm:ml-3 mt-1 sm:mt-0">
+                                  Customer: {item.customer.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {getStatusBadge(item.status)}
+                            <button
+                              onClick={() => handleItemSelect(item)}
+                              className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 text-sm rounded-md border border-green-200 transition-colors flex items-center"
+                            >
+                              <FiArrowRight className="mr-1" size={14} />
+                              View History
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
+          <p className="mt-2 text-xs text-gray-500">Ketik minimal 2 karakter untuk mencari barang</p>
         </div>
         
         {error && (
@@ -557,7 +588,7 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-500">Notifikasi</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{unreadCount}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{0}</p>
               </div>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                 <MdNotifications className="h-4 w-4 mr-1" />
@@ -566,13 +597,7 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-4 flex justify-between items-center">
               <div className="text-sm text-gray-500">
-                {notifications && notifications.length > 0 ? (
-                  <span className="text-gray-600">
-                    {new Date(notifications[0].createdAt).toLocaleDateString()}
-                  </span>
-                ) : (
-                  <span>Tidak ada notifikasi baru</span>
-                )}
+                Tidak ada notifikasi baru
               </div>
               <Link href="/admin/notifications" className="text-sm font-medium text-green-600 hover:text-green-700 flex items-center gap-1">
                 Kelola
@@ -598,7 +623,7 @@ export default function AdminDashboard() {
 
           {/* Item Status Pie Chart - Improved styling */}
           <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Distribusi Status Barang</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Item Status Distribution</h3>
                 <div className="h-64 flex items-center justify-center">
                   {stats ? (
                     <Pie data={pieChartData} options={{
@@ -655,7 +680,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Tersedia</span>
+                      <span className="text-gray-700 font-medium">Available</span>
                     </div>
                     <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
@@ -672,7 +697,7 @@ export default function AdminDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% dari total inventaris
+                      Math.round(calculatePercentage(stats.availableItems, stats.totalItems)) : 0}% of total inventory
                   </p>
                 </div>
                 
@@ -680,7 +705,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Dalam Kalibrasi</span>
+                      <span className="text-gray-700 font-medium">In Calibration</span>
                     </div>
                     <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
@@ -697,7 +722,7 @@ export default function AdminDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inCalibrationItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% dari total inventaris
+                      Math.round(calculatePercentage(stats.inCalibrationItems, stats.totalItems)) : 0}% of total inventory
                   </p>
                 </div>
                 
@@ -705,7 +730,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Dipinjam</span>
+                      <span className="text-gray-700 font-medium">Rented</span>
                     </div>
                     <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
@@ -722,7 +747,7 @@ export default function AdminDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inRentalItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% dari total inventaris
+                      Math.round(calculatePercentage(stats.inRentalItems, stats.totalItems)) : 0}% of total inventory
                   </p>
                 </div>
                 
@@ -730,7 +755,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Maintenance</span>
+                      <span className="text-gray-700 font-medium">In Maintenance</span>
                     </div>
                     <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
@@ -747,7 +772,7 @@ export default function AdminDashboard() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {stats && typeof stats.inMaintenanceItems === 'number' && typeof stats.totalItems === 'number' ? 
-                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% dari total inventaris
+                      Math.round(calculatePercentage(stats.inMaintenanceItems, stats.totalItems)) : 0}% of total inventory
                   </p>
                 </div>
               </div>

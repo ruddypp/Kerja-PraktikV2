@@ -276,12 +276,14 @@ export default function CalibrationPage() {
       // The API returns {items: Vendor[], total: number, ...} 
       setVendors(Array.isArray(data) ? data : (data.items || []));
     },
-    revalidateOnFocus: false
+    revalidateOnFocus: false,
+    dedupingInterval: 600000 // 10 minutes
   });
   
   useSWR('/api/admin/statuses?type=calibration', fetcher, {
     onSuccess: (data: Status[]) => setStatuses(data),
-    revalidateOnFocus: false
+    revalidateOnFocus: false,
+    dedupingInterval: 600000 // 10 minutes
   });
   
   // Gunakan SWR untuk data kalibrasi dengan dependencies pada filter
@@ -298,7 +300,8 @@ export default function CalibrationPage() {
         setError('Failed to load calibration requests. Please try refreshing the page.');
         setLoading(false);
       },
-      revalidateOnFocus: false
+      revalidateOnFocus: false,
+      dedupingInterval: 300000 // 5 minutes
     });
   
   // Fungsi untuk ganti halaman

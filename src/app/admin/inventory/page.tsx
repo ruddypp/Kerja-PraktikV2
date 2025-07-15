@@ -868,151 +868,103 @@ export default function AdminInventoryPage() {
               </div>
             ) : (
               <>
-                {/* Table view for desktop - hidden on mobile */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial Number</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Part Number</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sensor</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">History</th>
-                        <th scope="col" className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {items.map((item) => (
-                        <tr key={item.serialNumber} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500 font-mono">{item.serialNumber}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{item.partNumber}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{item.sensor || '-'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{item.customer?.name || '-'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${getStatusBadgeClass(item.status)}`}>
+                {/* Card view for all screen sizes */}
+                <div className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {items.map((item) => (
+                      <div key={item.serialNumber} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
+                        <div className="p-4 flex-grow flex flex-col">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="text-md font-medium text-gray-900">{item.name}</h3>
+                              <p className="text-sm text-gray-500">SN: {item.serialNumber}</p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(item.status)}`}>
                               {getStatusDisplayName(item.status)}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3 mb-4 text-sm flex-grow">
+                            <div>
+                              <p className="text-gray-500 font-medium">Part Number</p>
+                              <p className="text-gray-800">{item.partNumber}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 font-medium">Sensor</p>
+                              <p className="text-gray-800">{item.sensor || '-'}</p>
+                            </div>
+                            
+                            <div className="col-span-2">
+                              <p className="text-gray-500 font-medium">Customer</p>
+                              <p className="text-gray-800">{item.customer?.name || '-'}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-3 border-t border-gray-100 mt-auto flex gap-2">
                             <Link 
                               href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
-                              className="text-green-600 hover:text-green-900 font-medium"
+                              className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                             >
                               View History
                             </Link>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end space-x-2">
                             <button
                               onClick={() => openEditModal(item)}
-                                className="inline-flex items-center p-1.5 border border-green-600 rounded-md text-xs font-medium text-green-600 bg-white hover:bg-green-50"
-                                aria-label="Edit item"
+                              className="inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                </svg>
+                              Edit
                             </button>
-                            <button
-                              onClick={() => openDeleteConfirm(item)}
-                                className="inline-flex items-center p-1.5 border border-red-600 rounded-md text-xs font-medium text-red-600 bg-white hover:bg-red-50"
-                                aria-label="Delete item"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Card view for mobile - visible only on mobile */}
-                <div className="md:hidden">
-                  <ul className="divide-y divide-gray-200">
-                  {items.map((item) => (
-                      <li key={item.serialNumber} className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
-                            <p className="text-xs text-gray-500 mt-1">SN: {item.serialNumber}</p>
-                            <p className="text-xs text-gray-500">PN: {item.partNumber}</p>
-                            {item.sensor && <p className="text-xs text-gray-500">Sensor: {item.sensor}</p>}
-                            {item.customer?.name && <p className="text-xs text-gray-500">Customer: {item.customer.name}</p>}
-                            <div className="mt-2">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${getStatusBadgeClass(item.status)}`}>
-                            {getStatusDisplayName(item.status)}
-                          </span>
-                        </div>
                           </div>
-                          <div className="flex flex-col space-y-2">
-                          <button
-                            onClick={() => openEditModal(item)}
-                              className="inline-flex items-center p-1.5 border border-green-600 rounded-md text-xs font-medium text-green-600 bg-white hover:bg-green-50"
-                              aria-label="Edit item"
-                          >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                              </svg>
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(item)}
-                              className="inline-flex items-center p-1.5 border border-red-600 rounded-md text-xs font-medium text-red-600 bg-white hover:bg-red-50"
-                              aria-label="Delete item"
-                          >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                          </button>
                         </div>
                       </div>
-                        <div className="mt-3 flex justify-between items-center">
-                          <Link 
-                            href={`/admin/inventory/history/${encodeURIComponent(item.serialNumber)}`}
-                            className="text-xs text-green-600 hover:text-green-900 font-medium"
-                          >
-                            View History
-                          </Link>
-                    </div>
-                      </li>
-                  ))}
-                  </ul>
+                    ))}
+                  </div>
                 </div>
                 
-                {/* Pagination controls - same for both layouts */}
-                <div className="px-5 py-5 border-t border-gray-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex-1 text-sm text-gray-500 mb-4 sm:mb-0">
-                      Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                      <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
-                      <span className="font-medium">{totalItems}</span> results
+                {/* Pagination controls */}
+                <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                        <span className="font-medium">
+                          {Math.min(currentPage * itemsPerPage, totalItems)}
+                        </span>{' '}
+                        of <span className="font-medium">{totalItems}</span> results
+                      </p>
                     </div>
-                    
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        {/* Previous button */}
                         <button
-                          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                          onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className={`relative inline-flex items-center px-3 py-2 rounded-l-md border ${
+                          className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
                             currentPage === 1
-                              ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'border-gray-300 bg-white text-gray-700 hover:bg-green-50 hover:text-green-600'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-500 hover:bg-gray-50'
                           }`}
                         >
                           <span className="sr-only">Previous</span>
@@ -1022,84 +974,41 @@ export default function AdminInventoryPage() {
                         </button>
                         
                         {/* Page numbers */}
-                        {(() => {
-                          const pages = [];
-                          const maxVisiblePages = 5;
-                          
-                          let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                          const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
-                          
-                          if (endPage - startPage + 1 < maxVisiblePages) {
-                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          // Show pages around current page
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
                           }
                           
-                          if (startPage > 1) {
-                            pages.push(
-                              <button
-                                key={1}
-                                onClick={() => handlePageChange(1)}
-                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-600"
-                              >
-                                1
-                              </button>
-                            );
-                            
-                            if (startPage > 2) {
-                              pages.push(
-                                <span key="ellipsis-1" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                  ...
-                                </span>
-                              );
-                            }
-                          }
-                          
-                          for (let i = startPage; i <= endPage; i++) {
-                            pages.push(
-                              <button
-                                key={i}
-                                onClick={() => handlePageChange(i)}
-                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                  i === currentPage
-                                    ? 'z-10 bg-green-600 border-green-600 text-white'
-                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-green-50 hover:text-green-600'
-                                }`}
-                              >
-                                {i}
-                              </button>
-                            );
-                          }
-                          
-                          if (endPage < totalPages) {
-                            if (endPage < totalPages - 1) {
-                              pages.push(
-                                <span key="ellipsis-2" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                  ...
-                                </span>
-                              );
-                            }
-                            
-                            pages.push(
-                              <button
-                                key={totalPages}
-                                onClick={() => handlePageChange(totalPages)}
-                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-600"
-                              >
-                                {totalPages}
-                              </button>
-                            );
-                          }
-                          
-                          return pages;
-                        })()}
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                currentPage === pageNum
+                                  ? 'z-10 bg-green-500 border-green-500 text-white'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
                         
-                        {/* Next button */}
                         <button
-                          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                          onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className={`relative inline-flex items-center px-3 py-2 rounded-r-md border ${
+                          className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
                             currentPage === totalPages
-                              ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'border-gray-300 bg-white text-gray-700 hover:bg-green-50 hover:text-green-600'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-500 hover:bg-gray-50'
                           }`}
                         >
                           <span className="sr-only">Next</span>

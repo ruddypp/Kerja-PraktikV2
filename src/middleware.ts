@@ -22,8 +22,6 @@ export async function middleware(request: NextRequest) {
         // Redirect already logged in users
         if (decoded?.role === Role.ADMIN) {
           return NextResponse.redirect(new URL('/admin-dashboard', request.url));
-        } else if (decoded?.role === Role.MANAGER) {
-          return NextResponse.redirect(new URL('/manager-dashboard', request.url));
         } else if (decoded?.role === Role.USER) {
           return NextResponse.redirect(new URL('/user/barang', request.url));
         }
@@ -55,29 +53,12 @@ export async function middleware(request: NextRequest) {
     // Role-based path restrictions
     if ((path === '/admin-dashboard' || path.startsWith('/admin/')) && decoded.role !== Role.ADMIN) {
       console.log(`Non-admin accessing admin page, redirecting`);
-      if (decoded.role === Role.MANAGER) {
-        return NextResponse.redirect(new URL('/manager-dashboard', request.url));
-      } else {
-        return NextResponse.redirect(new URL('/user/barang', request.url));
-      }
-    }
-    
-    if ((path === '/manager-dashboard' || path.startsWith('/manager/')) && decoded.role !== Role.MANAGER) {
-      console.log(`Non-manager accessing manager page, redirecting`);
-      if (decoded.role === Role.ADMIN) {
-        return NextResponse.redirect(new URL('/admin-dashboard', request.url));
-      } else {
-        return NextResponse.redirect(new URL('/user/barang', request.url));
-      }
+      return NextResponse.redirect(new URL('/user/barang', request.url));
     }
     
     if (path.startsWith('/user/') && decoded.role !== Role.USER) {
       console.log(`Non-user accessing user page, redirecting`);
-      if (decoded.role === Role.ADMIN) {
-        return NextResponse.redirect(new URL('/admin-dashboard', request.url));
-      } else if (decoded.role === Role.MANAGER) {
-        return NextResponse.redirect(new URL('/manager-dashboard', request.url));
-      }
+      return NextResponse.redirect(new URL('/admin-dashboard', request.url));
     }
     
     // Special handling for root paths
@@ -86,8 +67,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin-dashboard', request.url));
       } else if (decoded.role === Role.USER) {
         return NextResponse.redirect(new URL('/user/barang', request.url));
-      } else if (decoded.role === Role.MANAGER) {
-        return NextResponse.redirect(new URL('/manager-dashboard', request.url));
       }
     }
     

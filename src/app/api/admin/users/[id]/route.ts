@@ -173,16 +173,7 @@ export async function DELETE(
       }
     }
     
-    // Step 1: Handle notifications - delete them
-    try {
-      await prisma.notification.deleteMany({
-        where: { userId: userId }
-      });
-      console.log('Notifications deleted successfully');
-    } catch (err) {
-      console.error('Error deleting notifications:', err);
-      // Continue with other operations even if this fails
-    }
+    // Notifications have been removed from the system
     
     // Step 2: Handle activity logs - update affectedUserId to null
     try {

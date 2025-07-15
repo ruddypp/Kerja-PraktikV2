@@ -115,17 +115,6 @@ export async function POST(request: Request) {
       }
     });
     
-    // Create notification for the schedule
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        title: 'New Inventory Schedule',
-        message: `A new inventory check has been scheduled for ${new Date(nextDate).toLocaleDateString()}${isRecurring ? ` (Recurring ${recurrenceType})` : ''}`,
-        type: 'INVENTORY_SCHEDULE',
-        relatedId: schedule.id
-      }
-    });
-    
     // Log activity
     await prisma.activityLog.create({
       data: {

@@ -41,11 +41,6 @@ Paramata adalah aplikasi manajemen inventaris komprehensif yang dibangun menggun
    npm run seed
    ```
 
-6. Siapkan aset statis:
-   ```bash
-   npm run setup-assets
-   ```
-
 ### Menjalankan Aplikasi
 
 #### Mode Pengembangan

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiRefreshCw } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiLoader } from 'react-icons/fi';
 
 // Updated interface to match InventoryCheck model
 interface InventoryCheck {
@@ -121,7 +121,9 @@ export default function InventorySchedulesPage() {
         id: '', 
         name: '', 
         description: '', 
-        nextDate: new Date().toISOString().split('T')[0]
+        nextDate: new Date().toISOString().split('T')[0],
+        isRecurring: false,
+        recurrenceType: 'MONTHLY'
       });
       setIsEditing(false);
       setShowForm(false);
@@ -209,12 +211,25 @@ export default function InventorySchedulesPage() {
       id: '', 
       name: '', 
       description: '', 
-      nextDate: new Date().toISOString().split('T')[0]
+      nextDate: new Date().toISOString().split('T')[0],
+      isRecurring: false,
+      recurrenceType: 'MONTHLY'
     });
     setIsEditing(false);
     setShowForm(false);
     setError('');
   };
+
+  const clearForm = useCallback(() => {
+    setFormData({
+      id: '',
+      name: '',
+      description: '',
+      nextDate: new Date().toISOString().split('T')[0],
+      isRecurring: false,
+      recurrenceType: 'MONTHLY'
+    });
+  }, []);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -238,14 +253,6 @@ export default function InventorySchedulesPage() {
               <FiArrowLeft size={16} />
               Back to Inventory
             </Link>
-            <button
-              onClick={() => fetchSchedules()}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              disabled={loading}
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
-              {loading ? "Loading..." : "Refresh"}
-            </button>
             {!showForm && (
               <button
                 onClick={() => setShowForm(true)}
@@ -261,12 +268,6 @@ export default function InventorySchedulesPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
             {error}
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-            {successMessage}
           </div>
         )}
 
@@ -342,7 +343,7 @@ export default function InventorySchedulesPage() {
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Recurring schedules will automatically create a notification at the specified interval
+                  Recurring schedules will automatically be recreated at the specified interval
                 </p>
               </div>
 
@@ -381,7 +382,7 @@ export default function InventorySchedulesPage() {
                 >
                   {isSubmitting ? (
                     <>
-                      <FiRefreshCw className="animate-spin mr-2" /> Saving...
+                      <FiLoader className="animate-spin mr-2" /> Saving...
                     </>
                   ) : (
                     <>
@@ -415,7 +416,7 @@ export default function InventorySchedulesPage() {
                 >
                   {isSubmitting ? (
                     <>
-                      <FiRefreshCw className="animate-spin mr-2" /> Deleting...
+                      <FiLoader className="animate-spin mr-2" /> Deleting...
                     </>
                   ) : (
                     <>
@@ -432,7 +433,7 @@ export default function InventorySchedulesPage() {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {loading ? (
               <div className="p-6 text-center">
-                <FiRefreshCw className="animate-spin inline-block mr-2" /> Loading schedules...
+                <FiLoader className="animate-spin inline-block mr-2" /> Loading schedules...
               </div>
             ) : schedules.length === 0 ? (
               <div className="p-6 text-center">
@@ -533,4 +534,4 @@ export default function InventorySchedulesPage() {
       </div>
     </DashboardLayout>
   );
-} 
+} ``

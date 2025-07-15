@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Define ActivityType enum to match Prisma schema
 enum ActivityType {
+  LOGIN = 'LOGIN',
   ITEM_CREATED = 'ITEM_CREATED',
   ITEM_UPDATED = 'ITEM_UPDATED',
   ITEM_DELETED = 'ITEM_DELETED',
@@ -307,7 +308,9 @@ export default function AdminHistoryPage() {
   };
 
   const getActivityTypeDisplayClass = (type: ActivityType): string => {
-    if (type.includes('CREATED')) {
+    if (type === ActivityType.LOGIN) {
+      return 'bg-purple-100 text-purple-800';
+    } else if (type.includes('CREATED')) {
       return 'bg-green-100 text-green-800';
     } else if (type.includes('UPDATED')) {
       return 'bg-blue-100 text-blue-800';
@@ -330,15 +333,6 @@ export default function AdminHistoryPage() {
             >
               <FiFilter size={16} />
               {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
-            
-            <button
-              onClick={fetchActivityLogs}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              disabled={loading}
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
-              {loading ? "Loading..." : "Refresh"}
             </button>
             
             <button
@@ -420,6 +414,7 @@ export default function AdminHistoryPage() {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value="">All Activities</option>
+                  <option value={ActivityType.LOGIN}>Login</option>
                   <optgroup label="Item Activities">
                     <option value={ActivityType.ITEM_CREATED}>Item Created</option>
                     <option value={ActivityType.ITEM_UPDATED}>Item Updated</option>
@@ -456,7 +451,7 @@ export default function AdminHistoryPage() {
                 <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
                   <div className="flex items-center gap-1">
                     <FiUser size={16} className="text-gray-500" />
-                    User ID
+                    User
                   </div>
                 </label>
                 <input
@@ -465,7 +460,7 @@ export default function AdminHistoryPage() {
                   name="userId"
                   value={filters.userId}
                   onChange={handleFilterChange}
-                  placeholder="Filter by user ID"
+                  placeholder="Filter by user name or ID"
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>

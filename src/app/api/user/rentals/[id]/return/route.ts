@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { RequestStatus, ActivityType } from '@prisma/client';
+import prisma from '@/lib/prisma';
+import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 import { logRentalActivity } from '@/lib/activity-logger';
-import { sendRentalStatusNotification } from '@/lib/notifications';
 
 export async function POST(
   req: NextRequest,
@@ -88,14 +87,6 @@ export async function POST(
       rentalId,
       updatedRental.itemSerial,
       `User ${user.name} requested return for item ${updatedRental.item.name}`
-    );
-    
-    // Send notifications
-    await sendRentalStatusNotification(
-      updatedRental,
-      RequestStatus.PENDING,
-      userId,
-      notes || 'Return requested by user'
     );
     
     // Return the updated rental

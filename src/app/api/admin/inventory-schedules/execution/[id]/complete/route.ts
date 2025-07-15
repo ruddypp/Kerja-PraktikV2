@@ -151,16 +151,7 @@ export async function POST(
         }
       });
       
-      // Create notification for admin
-      await tx.notification.create({
-        data: {
-          userId: 1, // Assuming admin has ID 1
-          type: 'INVENTORY_SCHEDULE',
-          message: `Inventory check ${execution.name} completed with ${verifiedItems.length} verified items`,
-          isRead: false,
-          createdAt: new Date()
-        }
-      });
+      // Notification system has been removed
       
       return {
         message: 'Inventory check completed successfully',

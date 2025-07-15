@@ -360,24 +360,6 @@ export async function PATCH(
       }
     });
 
-    // Buat notifikasi untuk admin
-    const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN' },
-      select: { id: true }
-    });
-
-    for (const admin of admins) {
-      await prisma.notification.create({
-        data: {
-          userId: admin.id,
-          type: 'CALIBRATION_STATUS_CHANGE',
-          title: 'Calibration Completed by User',
-          message: `Calibration for ${calibration.item.name} has been completed by ${user.name}`,
-          isRead: false
-        }
-      });
-    }
-
     // Buat activity log
     await prisma.activityLog.create({
       data: {

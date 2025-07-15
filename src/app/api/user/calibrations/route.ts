@@ -4,7 +4,6 @@ import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { z } from 'zod';
 import { logCalibrationActivity } from '@/lib/activity-logger';
-import { notifyAdminsAndManagersOfActivity } from '@/lib/notificationService';
 import { format } from 'date-fns';
 import crypto from 'crypto';
 
@@ -276,16 +275,6 @@ export async function POST(request: Request) {
     );
     
     console.log('Activity logged');
-    
-    // Notify admins and managers
-    await notifyAdminsAndManagersOfActivity(
-      'requested a calibration',
-      item.name,
-      user.name || 'User',
-      calibration.id
-    );
-    
-    console.log('Notifications sent');
     
     return NextResponse.json({
       success: true,

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import { verifyAdmin } from '@/app/api/auth/authUtils';
 import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
-import { sendRentalStatusNotification } from '@/lib/notifications';
 
 // POST - Process a rental return request
 export async function POST(
@@ -10,9 +9,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await verifyAdmin(req);
     
-    if (!user || !isAdmin(user)) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -93,14 +92,6 @@ export async function POST(
         rentalId
       }
     });
-
-    // Send notifications
-    await sendRentalStatusNotification(
-      updatedRental,
-      RequestStatus.COMPLETED,
-      adminId,
-      verificationNotes || notes || 'Return verified by admin'
-    );
 
     return NextResponse.json(updatedRental);
   } catch (error) {
