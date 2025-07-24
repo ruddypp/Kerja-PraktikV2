@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { MdAccessTime } from 'react-icons/md';
+import { MdAccessTime, MdHandyman, MdNotificationsActive, MdAlarm, MdCalendarToday } from 'react-icons/md';
 
 // Updated User type to match the schema in UserContext
 type User = {
@@ -241,9 +241,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/maintenance') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/maintenance') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
+                  <MdHandyman className={`h-5 w-5 ${isActive('/admin/maintenance') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Maintenance'}
                 </Link>
               </li>
@@ -326,7 +324,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/reminders') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <MdAccessTime className={`h-5 w-5 ${isActive('/admin/reminders') ? 'text-white' : 'text-gray-500'} mr-3`} />
+                  <MdCalendarToday className={`h-5 w-5 ${isActive('/admin/reminders') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Reminders'}
                 </Link>
               </li>
@@ -338,15 +336,13 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/notifications') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/admin/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 01-6 0v-1" />
-                  </svg>
+                  <MdNotificationsActive className={`h-5 w-5 ${isActive('/admin/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Notifikasi'}
                 </Link>
               </li>
 
               {/* Settings - Moved to bottom above logout */}
-              <li className="mt-8">
+              <li>
                 <Link
                   href="/admin/settings"
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/admin/settings') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
@@ -384,9 +380,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/maintenance') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/user/maintenance') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
+                  <MdHandyman className={`h-5 w-5 ${isActive('/user/maintenance') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Maintenance'}
                 </Link>
               </li>
@@ -427,7 +421,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/reminders') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <MdAccessTime className={`h-5 w-5 ${isActive('/user/reminders') ? 'text-white' : 'text-gray-500'} mr-3`} />
+                  <MdCalendarToday className={`h-5 w-5 ${isActive('/user/reminders') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Reminders'}
                 </Link>
               </li>
@@ -439,17 +433,17 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                   className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/notifications') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
                   onClick={handleNavigation}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isActive('/user/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 01-6 0v-1" />
-                  </svg>
+                  <MdNotificationsActive className={`h-5 w-5 ${isActive('/user/notifications') ? 'text-white' : 'text-gray-500'} mr-3`} />
                   {(isOpen || isMobile) && 'Notifikasi'}
                 </Link>
               </li>
+              
+              {/* Remove incorrect settings link for users */}
             </>
           )}
           
           {/* Logout - Always at the bottom */}
-          <li className="mt-4">
+          <li>
             <button 
               onClick={handleLogout}
               className="flex w-full items-center p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
+import { MdPerson, MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import { XIcon } from 'lucide-react';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
@@ -341,28 +342,29 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="space-y-6 p-4 mt-4 bg-white border rounded-lg shadow-sm">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">User Management</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
-          >
-            <FiPlus size={16} />
-            Add User
-          </button>
-        </div>
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+          <MdPerson className="h-6 w-6 text-green-600" />
+          Manajemen Pengguna
+        </h2>
+        <button
+          onClick={openCreateModal}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+        >
+          <MdAdd size={18} />
+          Tambah Pengguna
+        </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6">
           {success}
         </div>
       )}
