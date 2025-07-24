@@ -148,7 +148,7 @@ export async function GET(request: Request) {
             validUntil: false,
             certificateNumber: false,
             certificateUrl: false,
-            vendor: {
+            customer: {
               select: {
                 id: true,
                 name: true

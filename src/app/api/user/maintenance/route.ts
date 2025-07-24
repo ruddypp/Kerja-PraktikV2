@@ -50,12 +50,13 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
     
-    // Buat response dengan header cache
+    // Buat response dengan header no-cache untuk memastikan data selalu fresh
     const response = NextResponse.json(maintenances);
     
-    // Set header Cache-Control untuk memungkinkan browser caching
-    // max-age=60 berarti cache akan valid selama 60 detik
-    response.headers.set('Cache-Control', 'public, max-age=60');
+    // Set header Cache-Control untuk mencegah caching
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     
     return response;
   } catch (error) {

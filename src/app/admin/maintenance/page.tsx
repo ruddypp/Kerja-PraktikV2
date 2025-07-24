@@ -73,24 +73,32 @@ export default function AdminMaintenancePage() {
     setFilteredMaintenances(result);
   }, [maintenances, searchTerm, statusFilter]);
 
-  const fetchMaintenances = useCallback(async () => {
+  const fetchMaintenances = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
 
-      // Cek apakah ada data di cache dan masih valid
-      const cachedData = sessionStorage.getItem(CACHE_KEY);
-      const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
-      const now = Date.now();
-      
-      if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
-        // Gunakan data dari cache jika masih valid
-        const data = JSON.parse(cachedData);
-        setMaintenances(data);
-        setLoading(false);
-        return;
+      // Skip cache if forceRefresh is true
+      if (!forceRefresh) {
+        // Cek apakah ada data di cache dan masih valid
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+        
+        if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+          // Gunakan data dari cache jika masih valid
+          const data = JSON.parse(cachedData);
+          setMaintenances(data);
+          setLoading(false);
+          return;
+        }
       }
 
-      const response = await fetch("/api/admin/maintenance");
+      const response = await fetch("/api/admin/maintenance", {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error("Failed to fetch maintenance data");
@@ -99,6 +107,7 @@ export default function AdminMaintenancePage() {
       const data = await response.json();
       
       // Simpan data ke cache
+      const now = Date.now();
       sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
       sessionStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
       
@@ -123,7 +132,24 @@ export default function AdminMaintenancePage() {
   }, [CACHE_KEY, CACHE_TIMESTAMP_KEY, CACHE_DURATION]);
 
   useEffect(() => {
-    fetchMaintenances();
+    // Check if we need to force refresh based on URL parameters
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const timestamp = urlParams.get('t');
+      
+      // If timestamp parameter exists, force a refresh
+      const forceRefresh = !!timestamp;
+      
+      fetchMaintenances(forceRefresh);
+      
+      // Clean up the URL if there's a timestamp parameter
+      if (timestamp && window.history && window.history.replaceState) {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    } else {
+      fetchMaintenances(false);
+    }
   }, [fetchMaintenances]);
 
   // Debounced search
@@ -240,7 +266,9 @@ export default function AdminMaintenancePage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <h1 className="text-2xl font-bold">Maintenance Barang</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Maintenance Barang</h1>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Link
               href="/admin/maintenance/new"

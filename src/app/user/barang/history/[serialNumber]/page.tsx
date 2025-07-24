@@ -54,11 +54,11 @@ interface Calibration {
   id: string;
   itemSerial: string;
   userId: string;
-  vendorId: string;
+  customerId: string;
   status: string;
   notes: string | null;
   createdAt: string;
-  vendor: {
+  customer: {
     id: string;
     name: string;
   };
@@ -635,7 +635,7 @@ export default function UserItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-600">
-                                        Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
+                                        customer: {cal.customer?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-3 py-1 inline-flex items-center text-xs font-medium rounded-full border ${
@@ -786,7 +786,7 @@ export default function UserItemHistoryPage() {
                                       Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                                      Vendor
+                                      customer
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                                       Requested By
@@ -825,7 +825,7 @@ export default function UserItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        {cal.vendor?.name || 'N/A'}
+                                        {cal.customer?.name || 'N/A'}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {cal.user.name}

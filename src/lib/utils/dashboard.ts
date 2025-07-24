@@ -11,7 +11,7 @@ export interface DashboardStats {
   pendingRentals: number;
   upcomingCalibrations: number;
   overdueRentals: number;
-  totalVendors: number;
+  totalcustomers: number;
   totalUsers: number;
 }
 

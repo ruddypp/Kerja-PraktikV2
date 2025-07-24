@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { verifyAdmin } from '@/app/api/auth/authUtils';
 import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
 import { logRentalActivity } from '@/lib/activity-logger';
+import { handleRentalStatusChange } from '@/lib/reminder-service';
 
 // GET - Get rental by ID
 export async function GET(
@@ -73,7 +74,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminId = user.id;
+    const adminId = user.userId;  // Use userId instead of id
     // Properly await params in Next.js 15
     const { id: rentalId } = await params;
     const { status, notes, poNumber, doNumber, startDate, endDate } = await req.json();
@@ -179,6 +180,25 @@ export async function PATCH(
       return updated;
     });
 
+    // Create activity log
+    await logRentalActivity(
+      adminId,
+      ActivityType.RENTAL_UPDATED,
+      rentalId,
+      currentRental.itemSerial,
+      `Admin ${user.name || 'Unknown'} updated rental status to ${status}`
+    );
+    
+    // Create rental reminder if status is APPROVED
+    if (status === RequestStatus.APPROVED) {
+      try {
+        await handleRentalStatusChange(rentalId, 'APPROVED');
+      } catch (error) {
+        console.error('Error creating rental reminder:', error);
+        // Don't fail the request if reminder creation fails
+      }
+    }
+
     return NextResponse.json(updatedRental);
   } catch (error) {
     console.error('Error updating rental:', error);
@@ -201,7 +221,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminId = user.id;
+    const adminId = user.userId;
     // Properly await params in Next.js 15
     const { id: rentalId } = await params;
 

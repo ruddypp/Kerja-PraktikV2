@@ -49,8 +49,8 @@ interface Item {
   }>;
 }
 
-// Interface for Vendor
-interface Vendor {
+// Interface for customer
+interface customer {
   id: string;
   name: string;
   address?: string | null;
@@ -62,8 +62,8 @@ interface Vendor {
 export default function AdminInventoryPage() {
   // States
   const [items, setItems] = useState<Item[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [vendorSearch, setVendorSearch] = useState('');
+  const [customers, setcustomers] = useState<customer[]>([]);
+  const [customersearch, setcustomersearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -129,8 +129,8 @@ export default function AdminInventoryPage() {
     setCurrentItem(null);
     setModalOpen(true);
     
-    // Fetch vendors when opening the modal
-    fetchVendors();
+    // Fetch customers when opening the modal
+    fetchcustomers();
   }, [clearForm]);
   
   // Open modal in edit mode
@@ -162,18 +162,24 @@ export default function AdminInventoryPage() {
     setIsEditMode(true);
     setModalOpen(true);
     
-    // Fetch vendors when opening the modal
-    fetchVendors().then(() => {
+    // Fetch customers when opening the modal
+    fetchcustomers().then(() => {
       // If item has a customer, set the selected customer name for the dropdown display
       if (item.customer) {
-        // Update vendor search with the customer name to show it's selected
-        setVendorSearch(item.customer.name);
+        // Update customer search with the customer name to show it's selected
+        setcustomersearch(item.customer.name);
       }
     });
   }, []);
   
   // Open delete confirmation
   const openDeleteConfirm = useCallback((item: Item) => {
+    // Check if item is currently in use
+    if (item.status !== 'AVAILABLE') {
+      toast.error(`Cannot delete item that is currently ${item.status.toLowerCase().replace('_', ' ')}`);
+      return;
+    }
+    
     setCurrentItem(item);
     setConfirmDeleteOpen(true);
   }, []);
@@ -273,8 +279,8 @@ export default function AdminInventoryPage() {
         setTotalItems(itemsData.length);
       }
       
-      // Fetch vendors for dropdown
-      await fetchVendors();
+      // Fetch customers for dropdown
+      await fetchcustomers();
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load inventory data');
@@ -296,38 +302,38 @@ export default function AdminInventoryPage() {
     fetchData(1, newFilters);
   }, [filters, fetchData]);
 
-  // Fetch vendors
-  const fetchVendors = async () => {
+  // Fetch customers
+  const fetchcustomers = async () => {
     try {
-      console.log('Fetching vendors for dropdown...');
+      console.log('Fetching customers for dropdown...');
       
       // Remove caching temporarily to ensure we get fresh data
-      const vendorsRes = await fetch('/api/admin/vendors?limit=100');
-      if (!vendorsRes.ok) {
-        throw new Error('Failed to fetch vendors');
+      const customersRes = await fetch('/api/customers?limit=100');
+      if (!customersRes.ok) {
+        throw new Error('Failed to fetch customers');
       }
       
-      const vendorsData = await vendorsRes.json();
-      console.log('Vendors fetched successfully:', vendorsData);
+      const customersData = await customersRes.json();
+      console.log('customers fetched successfully:', customersData);
       
-      if (vendorsData && vendorsData.items && Array.isArray(vendorsData.items)) {
-        setVendors(vendorsData.items);
-        console.log('Vendors set to:', vendorsData.items);
+      if (customersData && customersData.items && Array.isArray(customersData.items)) {
+        setcustomers(customersData.items);
+        console.log('customers set to:', customersData.items);
       } else {
-        console.error('Invalid vendors data format received:', vendorsData);
-        setVendors([]);
+        console.error('Invalid customers data format received:', customersData);
+        setcustomers([]);
       }
     } catch (err) {
-      console.error('Error fetching vendors:', err);
-      setVendors([]);
+      console.error('Error fetching customers:', err);
+      setcustomers([]);
     }
   };
 
   useEffect(() => {
     console.log('Halaman inventory dimuat, memanggil fetchData()');
     fetchData();
-    // Explicitly fetch vendors on page load
-    fetchVendors();
+    // Explicitly fetch customers on page load
+    fetchcustomers();
   }, [fetchData]);
 
   // Handle page change
@@ -348,19 +354,19 @@ export default function AdminInventoryPage() {
     }
   };
   
-  // Handle vendor search
-  const handleVendorSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVendorSearch(e.target.value);
+  // Handle customer search
+  const handlecustomersearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setcustomersearch(e.target.value);
   };
   
-  // Filter vendors based on search term
-  const filteredVendors = useMemo(() => {
-    if (!vendorSearch.trim()) return vendors;
-    return vendors.filter(vendor => 
-      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
-      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
+  // Filter customers based on search term
+  const filteredcustomers = useMemo(() => {
+    if (!customersearch.trim()) return customers;
+    return customers.filter(customer => 
+      customer.name.toLowerCase().includes(customersearch.toLowerCase()) ||
+      (customer.contactName && customer.contactName.toLowerCase().includes(customersearch.toLowerCase()))
     );
-  }, [vendors, vendorSearch]);
+  }, [customers, customersearch]);
   
   // Validate form
   const validateForm = (): boolean => {
@@ -558,76 +564,45 @@ export default function AdminInventoryPage() {
   // Handle delete
   const handleDelete = async () => {
     if (!currentItem) return;
-    
+
+    // Cek status
+    if (currentItem.status !== 'AVAILABLE') {
+      toast.error(`Tidak bisa hapus item yang sedang ${currentItem.status.toLowerCase().replace('_', ' ')}`);
+      setConfirmDeleteOpen(false);
+      return;
+    }
+
     try {
+      setFormSubmitting(true);
+
       const serialNumber = encodeURIComponent(currentItem.serialNumber);
       const response = await fetch(`/api/admin/items?serialNumber=${serialNumber}`, {
         method: 'DELETE',
         cache: 'no-store'
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete item');
+        throw new Error(errorData.error || 'Gagal menghapus item');
       }
-      
-      // Close confirm dialog
+
+      // Update state agar langsung hilang di UI
+      setItems(prevItems => prevItems.filter(item => item.serialNumber !== currentItem.serialNumber));
+      setTotalItems(prev => Math.max(0, prev - 1));
+      setStatusCounts(prev => ({
+        ...prev,
+        [currentItem.status]: Math.max(0, prev[currentItem.status] - 1)
+      }));
+
+      setCurrentItem(null);
       setConfirmDeleteOpen(false);
-      
-      // First invalidate all cached data
-      invalidateCache();
-      
-      // Force manual refresh without using cache
-      setLoading(true);
-      setTimeout(async () => {
-        try {
-          // Build query parameters
-          const queryParams = new URLSearchParams();
-          if (filters.search) queryParams.append('search', filters.search);
-          if (filters.status) queryParams.append('status', filters.status);
-          if (filters.category) queryParams.append('category', filters.category);
-          queryParams.append('page', currentPage.toString());
-          queryParams.append('limit', itemsPerPage.toString());
-          
-          const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-          
-          // Force a fresh fetch by adding a cache-busting parameter
-          const timestamp = new Date().getTime();
-          const cacheBustUrl = `/api/admin/items${queryString}${queryString ? '&' : '?'}t=${timestamp}`;
-          
-          const freshResponse = await fetch(cacheBustUrl, {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          if (!freshResponse.ok) {
-            throw new Error('Failed to refresh data after deletion');
-          }
-          
-          const freshData = await freshResponse.json();
-          
-          // Update state with fresh data
-          setItems(freshData.items || []);
-          setTotalItems(freshData.total || 0);
-          
-          if (freshData.countByStatus) {
-            setStatusCounts(freshData.countByStatus);
-          }
-          
-          toast.success('Item deleted successfully');
-        } catch (err) {
-          console.error('Error refreshing data after deletion:', err);
-          toast.error('Item was deleted but the display could not be refreshed. Please reload the page.');
-        } finally {
-          setLoading(false);
-        }
-      }, 300);
-    } catch (error: unknown) {
+      setModalOpen(false); // Tutup modal edit juga
+      toast.success('Item berhasil dihapus');
+    } catch (error) {
       console.error('Error deleting item:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete item');
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus item');
+    } finally {
+      setFormSubmitting(false);
     }
   };
   
@@ -673,21 +648,21 @@ export default function AdminInventoryPage() {
     };
   }, [statusCounts]);
 
-  // Get selected vendor name
-  const selectedVendorName = useMemo(() => {
+  // Get selected customer name
+  const selectedcustomerName = useMemo(() => {
     if (!formData.customerId) return '';
     
-    // First try to find the vendor in the loaded vendors list
-    const selectedVendor = vendors.find(v => v.id === formData.customerId);
-    if (selectedVendor) return selectedVendor.name;
+    // First try to find the customer in the loaded customers list
+    const selectedcustomer = customers.find(v => v.id === formData.customerId);
+    if (selectedcustomer) return selectedcustomer.name;
     
-    // If not found in vendors list but we're in edit mode, try to get from currentItem
+    // If not found in customers list but we're in edit mode, try to get from currentItem
     if (isEditMode && currentItem?.customer && currentItem.customerId === formData.customerId) {
       return currentItem.customer.name;
     }
     
     return '';
-  }, [formData.customerId, vendors, isEditMode, currentItem]);
+  }, [formData.customerId, customers, isEditMode, currentItem]);
 
   return (
     <DashboardLayout>
@@ -1210,10 +1185,10 @@ export default function AdminInventoryPage() {
                           Customer
                         </label>
                     <div className="mt-1 w-full border border-gray-300 rounded-lg shadow-sm focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500">
-                          {selectedVendorName && (
+                          {selectedcustomerName && (
                             <div className="px-3 pt-2 pb-1 flex items-center justify-between">
                               <div className="flex items-center">
-                                <span className="text-sm font-medium text-gray-900">{selectedVendorName}</span>
+                                <span className="text-sm font-medium text-gray-900">{selectedcustomerName}</span>
                                 <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                   Selected
                                 </span>
@@ -1223,7 +1198,7 @@ export default function AdminInventoryPage() {
                                 className="text-gray-400 hover:text-gray-500"
                                 onClick={() => {
                                   setFormData(prev => ({...prev, customerId: ''}));
-                                  setVendorSearch('');
+                                  setcustomersearch('');
                                 }}
                               >
                                 <span className="sr-only">Clear selection</span>
@@ -1237,14 +1212,14 @@ export default function AdminInventoryPage() {
                             <input
                               type="text"
                               placeholder="Search customers..."
-                              value={vendorSearch}
-                              onChange={handleVendorSearch}
-                          className={`w-full px-3 py-2.5 border-0 ${selectedVendorName ? 'border-t border-gray-200 rounded-b-lg' : 'rounded-t-lg'} focus:ring-0 focus:outline-none text-sm`}
+                              value={customersearch}
+                              onChange={handlecustomersearch}
+                          className={`w-full px-3 py-2.5 border-0 ${selectedcustomerName ? 'border-t border-gray-200 rounded-b-lg' : 'rounded-t-lg'} focus:ring-0 focus:outline-none text-sm`}
                               onFocus={() => {
-                                if (formData.customerId && !vendorSearch) {
-                                  const selectedVendor = vendors.find(v => v.id === formData.customerId);
-                                  if (selectedVendor) {
-                                    setVendorSearch(selectedVendor.name);
+                                if (formData.customerId && !customersearch) {
+                                  const selectedcustomer = customers.find(v => v.id === formData.customerId);
+                                  if (selectedcustomer) {
+                                    setcustomersearch(selectedcustomer.name);
                                   }
                                 }
                               }}
@@ -1260,32 +1235,32 @@ export default function AdminInventoryPage() {
                               className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === '' ? 'bg-green-50' : ''}`}
                               onClick={() => {
                                 setFormData(prev => ({...prev, customerId: ''}));
-                                setVendorSearch('');
+                                setcustomersearch('');
                               }}
                             >
                               None
                             </div>
-                            {filteredVendors.map(vendor => (
+                            {filteredcustomers.map(customer => (
                               <div
-                                key={vendor.id}
-                                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === vendor.id ? 'bg-green-50' : ''}`}
+                                key={customer.id}
+                                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.customerId === customer.id ? 'bg-green-50' : ''}`}
                                 onClick={() => {
-                                  setFormData(prev => ({...prev, customerId: vendor.id}));
-                                  setVendorSearch(vendor.name);
+                                  setFormData(prev => ({...prev, customerId: customer.id}));
+                                  setcustomersearch(customer.name);
                                 }}
                               >
-                                <div className="font-medium">{vendor.name}</div>
-                                {vendor.contactName && (
-                                  <div className="text-xs text-gray-600">{vendor.contactName}</div>
+                                <div className="font-medium">{customer.name}</div>
+                                {customer.contactName && (
+                                  <div className="text-xs text-gray-600">{customer.contactName}</div>
                                 )}
                               </div>
                             ))}
-                            {filteredVendors.length === 0 && (
+                            {filteredcustomers.length === 0 && (
                               <div className="px-3 py-2 text-gray-500 text-sm">No results found</div>
                             )}
-                            {vendorSearch.trim() !== '' && filteredVendors.length > 0 && (
+                            {customersearch.trim() !== '' && filteredcustomers.length > 0 && (
                               <div className="px-3 py-1 text-xs text-gray-500 border-t border-gray-200">
-                                Showing {filteredVendors.length} of {vendors.length} vendors
+                                Showing {filteredcustomers.length} of {customers.length} customers
                               </div>
                             )}
                           </div>
@@ -1330,7 +1305,13 @@ export default function AdminInventoryPage() {
                         <button
                           type="button"
                           onClick={() => openDeleteConfirm(currentItem!)}
-                          className="px-5 py-2.5 rounded-lg border border-transparent shadow-sm bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 font-medium text-sm flex items-center justify-center"
+                          disabled={currentItem?.status !== 'AVAILABLE'}
+                          className={`px-5 py-2.5 rounded-lg border border-transparent shadow-sm font-medium text-sm flex items-center justify-center ${
+                            currentItem?.status === 'AVAILABLE'
+                              ? 'bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                          title={currentItem?.status !== 'AVAILABLE' ? `Cannot delete item that is currently ${currentItem?.status.toLowerCase().replace('_', ' ')}` : 'Delete item'}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />

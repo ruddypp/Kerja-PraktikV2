@@ -77,7 +77,7 @@ export async function GET(request: Request) {
           calibrationId: true,
           maintenanceId: true,
           affectedUserId: true,
-          vendorId: true,
+          customerId: true,
           user: {
             select: {
               id: true,

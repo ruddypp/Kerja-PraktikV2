@@ -49,7 +49,7 @@ export default function AdminNewMaintenancePage() {
   // Pagination state
   const [pagination, setPagination] = useState<PaginationData>({
     page: 1,
-    limit: 10,
+    limit: 12, // Increased limit for card view
     total: 0,
     totalPages: 0
   });
@@ -261,6 +261,7 @@ export default function AdminNewMaintenancePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({ itemSerial: selectedItemSerial }),
       });
@@ -270,10 +271,16 @@ export default function AdminNewMaintenancePage() {
         throw new Error(errorData.error || "Gagal memulai maintenance");
       }
 
+      // Clear the maintenance list cache to force a fresh fetch
+      sessionStorage.removeItem('admin_maintenance_data');
+      
+      // Add timestamp to force cache invalidation
+      const timestamp = new Date().getTime();
+      
       toast.success("Maintenance berhasil dimulai");
       
-      // Redirect ke halaman maintenance admin
-      router.push('/admin/maintenance');
+      // Redirect ke halaman maintenance admin with cache-busting query parameter
+      router.push(`/admin/maintenance?t=${timestamp}`);
     } catch (error) {
       console.error('Error starting maintenance:', error);
       toast.error(error instanceof Error ? error.message : "Gagal memulai maintenance");
@@ -403,89 +410,52 @@ export default function AdminNewMaintenancePage() {
               </div>
             )}
             
-            {/* Item list */}
+            {/* Item list - Card View */}
             {items.length > 0 && !loading ? (
               <div className="mt-6">
-                <h3 className="text-md font-medium mb-2">Barang Tersedia untuk Maintenance:</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                <h3 className="text-md font-medium mb-4">Barang Tersedia untuk Maintenance:</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {items.map((item) => (
+                    <div 
+                      key={item.serialNumber}
+                      className={`bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow duration-200 ${
+                        selectedItemSerial === item.serialNumber ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="p-4 flex flex-col h-full">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium text-gray-900 mb-1 truncate">{item.name}</h4>
+                        </div>
+                        <div className="space-y-1 mb-4 flex-grow">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">SN:</span> {item.serialNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">PN:</span> {item.partNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Customer:</span> {item.customer ? item.customer.name : '-'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleItemSelect(item)}
+                          className={`w-full text-center py-2 rounded-md mt-auto ${
+                            selectedItemSerial === item.serialNumber 
+                              ? 'bg-green-600 text-white' 
+                              : 'border border-green-600 text-green-600 hover:bg-green-50'
+                          }`}
                         >
-                          Nama Barang
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Serial Number
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Part Number
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Customer
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {items.map((item) => (
-                        <tr
-                          key={item.serialNumber}
-                          className={`hover:bg-gray-50 ${selectedItemSerial === item.serialNumber ? 'bg-green-50' : ''}`}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.name}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {item.serialNumber}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {item.partNumber}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {item.customer ? item.customer.name : '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleItemSelect(item)}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              Pilih
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          {selectedItemSerial === item.serialNumber ? 'Terpilih' : 'Pilih'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 
                 {/* Pagination */}
                 {pagination.totalPages > 1 && (
-                  <div className="flex justify-between items-center mt-4">
+                  <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-gray-700">
                       Menampilkan {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} dari {pagination.total} barang
                     </div>

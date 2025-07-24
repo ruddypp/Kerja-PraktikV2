@@ -14,9 +14,9 @@ async function main() {
     // Hapus Calibration terlebih dahulu karena memiliki foreign key ke Item
     await prisma.$executeRaw`TRUNCATE TABLE "Calibration" CASCADE;`;
     
-    // Sekarang aman untuk menghapus Item dan Vendor
+    // Sekarang aman untuk menghapus Item dan customer
     await prisma.$executeRaw`TRUNCATE TABLE "Item" CASCADE;`;
-    await prisma.$executeRaw`TRUNCATE TABLE "Vendor" CASCADE;`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Customer" CASCADE;`;
     
     // Hapus User juga
     await prisma.$executeRaw`TRUNCATE TABLE "User" CASCADE;`;
@@ -50,12 +50,13 @@ async function main() {
 
     console.log('2 users berhasil dibuat');
 
-    // Buat 100 vendor
-    const vendors = [];
-    console.log('Membuat vendor...');
+    // Buat 100 customer
+    const customers = [];
+    console.log('Membuat customer...');
     for (let i = 0; i < 100; i++) {
-      const vendor = await prisma.vendor.create({
+      const customer = await prisma.customer.create({
         data: {
+          id: faker.string.uuid(),
           name: faker.company.name(),
           address: faker.location.streetAddress(),
           contactName: faker.person.fullName(),
@@ -63,21 +64,22 @@ async function main() {
           contactEmail: faker.internet.email(),
           service: faker.company.catchPhrase(),
           isDeleted: false,
+          updatedAt: new Date(),
         },
       });
-      vendors.push(vendor);
+      customers.push(customer);
       
       if (i % 10 === 0) {
-        console.log(`${i} vendor dibuat...`);
+        console.log(`${i} customer dibuat...`);
       }
     }
 
-    console.log('100 vendor berhasil dibuat');
+    console.log('100 customer berhasil dibuat');
 
     // Buat 1000 item
     console.log('Membuat item...');
     for (let i = 0; i < 1000; i++) {
-      const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
+      const randomcustomer = customers[Math.floor(Math.random() * customers.length)];
       
       await prisma.item.create({
         data: {
@@ -86,7 +88,7 @@ async function main() {
           partNumber: faker.string.alphanumeric(8).toUpperCase(),
           sensor: faker.helpers.arrayElement(['Temperature', 'Pressure', 'Humidity', 'Vibration', 'None']),
           description: faker.commerce.productDescription(),
-          customerId: randomVendor.id,
+          customerId: randomcustomer.id,
           status: "AVAILABLE", // Menggunakan status enum yang valid
         },
       });

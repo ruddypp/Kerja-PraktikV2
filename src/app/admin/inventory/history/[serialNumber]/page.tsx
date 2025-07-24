@@ -54,11 +54,11 @@ interface Calibration {
   id: string;
   itemSerial: string;
   userId: string;
-  vendorId: string;
+  customerId: string;
   status: string;
   notes: string | null;
   createdAt: string;
-  vendor: {
+  customer: {
     id: string;
     name: string;
   };
@@ -570,7 +570,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
-                                        Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
+                                        customer: {cal.customer?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -709,7 +709,7 @@ export default function ItemHistoryPage() {
                                         </span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
-                                        Vendor: {cal.vendor?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
+                                        customer: {cal.customer?.name || 'N/A'} {cal.notes ? `- ${cal.notes}` : ''}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${

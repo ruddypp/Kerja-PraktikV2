@@ -250,6 +250,7 @@ export default function NewMaintenancePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({ itemSerial: selectedItemSerial }),
       });
@@ -260,8 +261,14 @@ export default function NewMaintenancePage() {
         throw new Error(data.error || 'Gagal memulai maintenance');
       }
       
+      // Clear the maintenance list cache to force a fresh fetch
+      sessionStorage.removeItem('maintenanceData');
+      
+      // Add timestamp to force cache invalidation
+      const timestamp = new Date().getTime();
+      
       toast.success('Maintenance berhasil dimulai');
-      router.push(`/user/maintenance/${data.id}`);
+      router.push(`/user/maintenance?t=${timestamp}`);
     } catch (error: unknown) {
       console.error('Error starting maintenance:', error);
       let errorMessage = 'Gagal memulai maintenance';

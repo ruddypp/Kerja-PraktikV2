@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiLoader } from 'react-icons/fi';
+import { useNotifications } from '@/app/context/NotificationContext';
 
 // Updated interface to match InventoryCheck model
 interface InventoryCheck {
@@ -43,6 +44,7 @@ export default function InventorySchedulesPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const { triggerCronCheck } = useNotifications();
 
   const fetchSchedules = async () => {
     try {
@@ -127,7 +129,10 @@ export default function InventorySchedulesPage() {
       });
       setIsEditing(false);
       setShowForm(false);
-      fetchSchedules();
+      
+      // Fetch schedules and then trigger a notification check
+      await fetchSchedules();
+      triggerCronCheck(true); // Proactively check for new notifications
       
       const message = isEditing ? 'Schedule updated successfully' : 'Schedule created successfully';
       setSuccessMessage(message);
@@ -170,6 +175,7 @@ export default function InventorySchedulesPage() {
     try {
       setIsSubmitting(true);
       setError('');
+      setSuccessMessage('');
       
       const res = await fetch(`/api/admin/inventory-schedules/${scheduleToDelete}`, {
         method: 'DELETE'
@@ -184,26 +190,30 @@ export default function InventorySchedulesPage() {
       setSchedules(prevSchedules => prevSchedules.filter(schedule => schedule.id !== scheduleToDelete));
       
       const message = 'Schedule deleted successfully';
-      setSuccessMessage(message);
-      setTimeout(() => setSuccessMessage(''), 3000);
       toast.success(message);
+      
+      // Reset all states immediately
+      setShowDeleteConfirmation(false);
+      setScheduleToDelete(null);
+      setIsSubmitting(false);
+      
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete schedule. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
       
-      // If there was an error, refresh the schedules to ensure UI is in sync
-      fetchSchedules();
-    } finally {
-      setIsSubmitting(false);
+      // Reset states even on error
       setShowDeleteConfirmation(false);
       setScheduleToDelete(null);
+      setIsSubmitting(false);
     }
   };
 
   const cancelDelete = () => {
     setShowDeleteConfirmation(false);
     setScheduleToDelete(null);
+    setIsSubmitting(false);
+    setError('');
   };
 
   const cancelForm = () => {
@@ -397,8 +407,11 @@ export default function InventorySchedulesPage() {
 
         {showDeleteConfirmation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="fixed inset-0 backdrop-blur-sm"></div>
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div 
+              className="fixed inset-0 bg-transparent pointer-events-auto" 
+              onClick={cancelDelete}
+            ></div>
+            <div className="bg-white rounded-lg p-6 max-w-md w-full pointer-events-auto relative z-10 shadow-xl">
               <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
               <p className="mb-6">Are you sure you want to delete this schedule? This action cannot be undone.</p>
               <div className="flex justify-end">
@@ -534,4 +547,4 @@ export default function InventorySchedulesPage() {
       </div>
     </DashboardLayout>
   );
-} ``
+}

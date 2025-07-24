@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
-import { UserProvider } from "./context/UserContext";
 import { Providers } from "./providers";
 import ToastContainer from "@/components/ui/ToastContainer";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import ClientReminderWrapper from './ClientReminderWrapper';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,21 +23,22 @@ export const metadata: Metadata = {
   description: "Paramata Inventory Management System",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+  
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <UserProvider>
-            {children}
-            <ToastContainer />
-          </UserProvider>
+        <Providers session={session}>
+          {children}
+          <ToastContainer />
+          <ClientReminderWrapper />
         </Providers>
         
         {/* Script to set up required statuses */}

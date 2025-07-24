@@ -458,6 +458,7 @@ export default function RentalsPage() {
                       <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renter</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penanggung Jawab</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -475,8 +476,12 @@ export default function RentalsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{rental.renterName || rental.user.name}</div>
+                        <div className="text-sm text-gray-900">{rental.renterName || '-'}</div>
                         <div className="text-xs text-gray-500">{rental.renterPhone || ''}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{rental.user.name}</div>
+                        <div className="text-xs text-gray-500">{rental.user.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">Start: {formatDate(rental.startDate)}</div>
@@ -548,20 +553,28 @@ export default function RentalsPage() {
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <p className="text-gray-500">Renter:</p>
-                        <p className="font-medium">{rental.renterName || rental.user.name}</p>
+                        <p className="font-medium">{rental.renterName || '-'}</p>
                       </div>
                       <div>
                         <p className="text-gray-500">Phone:</p>
                         <p className="font-medium">{rental.renterPhone || '-'}</p>
-                        </div>
-                          <div>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Penanggung Jawab:</p>
+                        <p className="font-medium">{rental.user.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Email PJ:</p>
+                        <p className="font-medium">{rental.user.email}</p>
+                      </div>
+                      <div>
                         <p className="text-gray-500">Start Date:</p>
                         <p className="font-medium">{formatDate(rental.startDate)}</p>
-                          </div>
-                          <div>
+                      </div>
+                      <div>
                         <p className="text-gray-500">End Date:</p>
                         <p className="font-medium">{formatDate(rental.endDate)}</p>
-                          </div>
+                      </div>
                           {rental.returnDate && (
                             <div className="col-span-2">
                           <p className="text-gray-500">Return Date:</p>
@@ -683,14 +696,22 @@ export default function RentalsPage() {
                   
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-1">Renter Information</h4>
-                    <p className="text-base font-medium text-gray-900">{selectedRental.renterName || selectedRental.user.name}</p>
+                    <p className="text-base font-medium text-gray-900">{selectedRental.renterName || '-'}</p>
                     <p className="text-sm text-gray-600">
                       {selectedRental.renterPhone && `Phone: ${selectedRental.renterPhone}`}
                     </p>
                     <p className="text-sm text-gray-600">
                       {selectedRental.renterAddress && `Address: ${selectedRental.renterAddress}`}
                     </p>
-                    </div>
+                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-500 mb-1">Penanggung Jawab</h4>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <p className="text-base font-medium text-gray-900">{selectedRental.user.name}</p>
+                    <p className="text-sm text-gray-600">Email: {selectedRental.user.email}</p>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

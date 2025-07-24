@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 interface Item {
   id: number;
@@ -25,7 +26,7 @@ interface InventoryExecution {
   items: Item[];
 }
 
-export default function InventoryExecutionPage() {
+function InventoryExecutionComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const scheduleId = searchParams.get('scheduleId');
@@ -44,6 +45,13 @@ export default function InventoryExecutionPage() {
   // Fetch execution details or create a new one
   useEffect(() => {
     const fetchOrCreateExecution = async () => {
+      // If there's no scheduleId at all, we can't proceed.
+      if (!scheduleId && !executionId) {
+        setError('No schedule selected. Please go back and choose a schedule to execute.');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
@@ -80,12 +88,12 @@ export default function InventoryExecutionPage() {
           
           // Update URL with the new execution ID
           router.replace(`/admin/inventory/schedules/execution?scheduleId=${scheduleId}&executionId=${data.id}`);
-        } else {
-          throw new Error('Schedule ID is required');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+        setError(errorMessage);
+        toast.error(errorMessage);
+        // console.error('Error:', err);
       } finally {
         setLoading(false);
       }
@@ -136,15 +144,17 @@ export default function InventoryExecutionPage() {
         throw new Error(errorData.error || 'Failed to complete inventory check');
       }
       
-      setSuccessMessage('Inventory check completed successfully');
+      toast.success('Inventory check completed successfully');
       
       // Redirect back to schedules page after a short delay
       setTimeout(() => {
         router.push('/admin/inventory/schedules');
-      }, 3000);
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error completing inventory check:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      // console.error('Error completing inventory check:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -348,10 +358,15 @@ export default function InventoryExecutionPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <input
                             type="checkbox"
+                            id={`verify-${item.id}`}
                             checked={item.verified}
                             onChange={() => handleVerifyItem(item.id)}
                             className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            title={`Mark ${item.name} as verified`}
                           />
+                          <label htmlFor={`verify-${item.id}`} className="sr-only">
+                            Verify {item.name}
+                          </label>
                         </td>
                       </tr>
                     ))
@@ -381,5 +396,13 @@ export default function InventoryExecutionPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function InventoryExecutionPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InventoryExecutionComponent />
+    </Suspense>
   );
 } 

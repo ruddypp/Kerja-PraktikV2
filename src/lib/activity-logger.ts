@@ -13,7 +13,7 @@ interface LogActivityParams {
   calibrationId?: string;
   maintenanceId?: string;
   affectedUserId?: string;
-  vendorId?: string;
+  customerId?: string;
 }
 
 /**
@@ -33,7 +33,7 @@ export async function logActivity(params: LogActivityParams) {
       calibrationId,
       maintenanceId,
       affectedUserId,
-      vendorId
+      customerId
     } = params;
 
     // Create activity log
@@ -48,7 +48,7 @@ export async function logActivity(params: LogActivityParams) {
         ...(calibrationId && { calibration: { connect: { id: calibrationId } } }),
         ...(maintenanceId && { maintenance: { connect: { id: maintenanceId } } }),
         ...(affectedUserId && { affectedUser: { connect: { id: affectedUserId } } }),
-        ...(vendorId && { vendor: { connect: { id: vendorId } } })
+        ...(customerId && { customer: { connect: { id: customerId } } })
       }
     });
 
@@ -200,18 +200,18 @@ export async function logUserActivity(
   });
 }
 /**
- * Logs a vendor-related activity
+ * Logs a customer-related activity
  */
-export async function logVendorActivity(
+export async function logcustomerActivity(
   userId: string,
-  type: 'VENDOR_CREATED' | 'VENDOR_UPDATED' | 'VENDOR_DELETED',
-  vendorId: string,
+  type: 'customer_CREATED' | 'customer_UPDATED' | 'customer_DELETED',
+  customerId: string,
   details?: string
 ) {
   const actionMap: Record<string, string> = {
-    'VENDOR_CREATED': 'Vendor created',
-    'VENDOR_UPDATED': 'Vendor updated',
-    'VENDOR_DELETED': 'Vendor deleted'
+    'customer_CREATED': 'customer created',
+    'customer_UPDATED': 'customer updated',
+    'customer_DELETED': 'customer deleted'
   };
 
   return logActivity({
@@ -219,6 +219,6 @@ export async function logVendorActivity(
     type: type as ActivityType,
     action: actionMap[type],
     details,
-    vendorId
+    customerId
   });
 } 

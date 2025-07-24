@@ -22,6 +22,15 @@ type User = {
   email: string;
 };
 
+type Customer = {
+  id: string;
+  name: string;
+  address: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+};
+
 type PaginatedResponse = {
   data: Item[];
   pagination: {
@@ -34,6 +43,14 @@ type PaginatedResponse = {
 
 type UsersResponse = {
   data: User[];
+};
+
+type CustomersResponse = {
+  items: Customer[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 };
 
 // Fetcher function for SWR
@@ -61,7 +78,16 @@ export default function AdminNewRentalRequestPage() {
   const [endDate, setEndDate] = useState<string>('');
   const [poNumber, setPoNumber] = useState('');
   const [doNumber, setDoNumber] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Customer form data
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [debouncedCustomerSearchTerm, setDebouncedCustomerSearchTerm] = useState('');
+  const [renterName, setRenterName] = useState('');
+  const [renterPhone, setRenterPhone] = useState('');
+  const [renterAddress, setRenterAddress] = useState('');
+  const [initialCondition, setInitialCondition] = useState('');
 
   // Debounce search term to reduce API calls
   useEffect(() => {
@@ -72,6 +98,15 @@ export default function AdminNewRentalRequestPage() {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+  
+  // Debounce customer search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCustomerSearchTerm(customerSearchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerSearchTerm]);
 
   // Build API URL with search and pagination
   const apiUrl = `/api/admin/rentals/available?page=${currentPage}&limit=12${
@@ -97,6 +132,30 @@ export default function AdminNewRentalRequestPage() {
       dedupingInterval: 60000, // Dedupe requests within 60 seconds
     }
   );
+  
+  // Fetch current user
+  const { data: currentUserData, error: currentUserError } = useSWR<{user: User}>(
+    '/api/auth/me',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // Dedupe requests within 60 seconds
+    }
+  );
+  
+  // Fetch customers list
+  const customersApiUrl = `/api/customers?limit=100${
+    debouncedCustomerSearchTerm ? `&search=${encodeURIComponent(debouncedCustomerSearchTerm)}` : ''
+  }`;
+  
+  const { data: customersData, error: customersError } = useSWR<CustomersResponse>(
+    customersApiUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 30000, // Dedupe requests within 30 seconds
+    }
+  );
 
   // Handle SWR errors
   useEffect(() => {
@@ -106,17 +165,42 @@ export default function AdminNewRentalRequestPage() {
     } else if (usersError) {
       setError('Error loading users. Please try again later.');
       console.error('Error fetching users:', usersError);
+    } else if (customersError) {
+      setError('Error loading customers. Please try again later.');
+      console.error('Error fetching customers:', customersError);
+    } else if (currentUserError) {
+      setError('Error loading your user information. Please try again later.');
+      console.error('Error fetching current user:', currentUserError);
     } else {
       setError(null);
     }
-  }, [swrError, usersError]);
+  }, [swrError, usersError, customersError, currentUserError]);
+  
+  // Set current user when data is loaded
+  useEffect(() => {
+    if (currentUserData?.user) {
+      setCurrentUser(currentUserData.user);
+    }
+  }, [currentUserData]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
+  
+  const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomerSearchTerm(e.target.value);
+  };
 
   const selectItem = (itemSerial: string) => {
     setSelectedItemSerial(itemSerial);
+  };
+  
+  // Handle customer selection
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomerId(customer.id);
+    setRenterName(customer.name);
+    setRenterPhone(customer.contactPhone || '');
+    setRenterAddress(customer.address || '');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,6 +221,26 @@ export default function AdminNewRentalRequestPage() {
       return;
     }
     
+    if (!renterName) {
+      setError('Please enter the renter name');
+      return;
+    }
+    
+    if (!renterPhone) {
+      setError('Please enter the renter phone number');
+      return;
+    }
+    
+    if (!renterAddress) {
+      setError('Please enter the renter address');
+      return;
+    }
+    
+    if (!initialCondition) {
+      setError('Please describe the initial condition of the item');
+      return;
+    }
+    
     setSubmitting(true);
     setError(null);
     
@@ -152,7 +256,11 @@ export default function AdminNewRentalRequestPage() {
           endDate: endDate || null,
           poNumber: poNumber || null,
           doNumber: doNumber || null,
-          targetUserId: selectedUserId || null, // Add the selected user
+          customerId: selectedCustomerId || null, // Customer as renter
+          renterName,
+          renterPhone,
+          renterAddress,
+          initialCondition
         }),
       });
       
@@ -253,6 +361,7 @@ export default function AdminNewRentalRequestPage() {
   const items = data?.data || [];
   const noItemsFound = items.length === 0;
   const users = usersData?.data || [];
+  const customers = customersData?.items || [];
 
   return (
     <DashboardLayout>
@@ -373,94 +482,320 @@ export default function AdminNewRentalRequestPage() {
           
           <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
             <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
-              <h2 className="text-lg font-medium text-gray-800">2. Pilih Pengguna</h2>
+              <h2 className="text-lg font-medium text-gray-800">2. Penanggung Jawab</h2>
             </div>
             <div className="p-5">
-              <label htmlFor="user-select" className="block text-sm font-medium text-gray-700 mb-1">
-                Pilih Pengguna
-                <span className="ml-1 text-gray-500 text-xs">(Opsional, jika tidak dipilih maka admin yang mengajukan)</span>
-              </label>
-              <select
-                id="user-select"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
-              >
-                <option value="">-- Pilih Pengguna --</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                {users.length === 0 && !usersError
-                  ? 'Memuat daftar pengguna...'
-                  : usersError
-                  ? 'Gagal memuat daftar pengguna'
-                  : 'Pilih pengguna yang akan mengajukan rental ini'}
-              </p>
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Penanggung Jawab Rental
+                </h3>
+                
+                {currentUserError ? (
+                  <div className="p-4 text-center text-red-500 rounded-lg bg-red-50 border border-red-100">
+                    <p>Gagal memuat informasi pengguna. Silakan coba lagi nanti.</p>
+                  </div>
+                ) : !currentUserData ? (
+                  <div className="flex items-center justify-center h-20 bg-gray-50 rounded-lg">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-600"></div>
+                    <span className="ml-3 text-sm text-gray-700">Memuat informasi pengguna...</span>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <div className="flex items-start">
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-800">{currentUserData.user.name}</p>
+                        <p className="text-xs text-gray-500">{currentUserData.user.email}</p>
+                        <p className="text-xs text-green-600 mt-1">Anda akan tercatat sebagai penanggung jawab rental ini</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
           <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
             <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
-              <h2 className="text-lg font-medium text-gray-800">3. Detail Rental</h2>
+              <h2 className="text-lg font-medium text-gray-800">3. Pilih Customer</h2>
             </div>
             <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  Pilih Customer <span className="text-gray-500 text-xs ml-1">(Peminjam)</span>
+                </h3>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <div className="mb-4">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Cari customer..."
+                        value={customerSearchTerm}
+                        onChange={handleCustomerSearchChange}
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                      />
+                    </div>
+                  </div>
+                  
+                  {customersError ? (
+                    <div className="p-4 text-center text-red-500 rounded-lg bg-red-50 border border-red-100">
+                      <p>Gagal memuat daftar customer. Silakan coba lagi nanti.</p>
+                    </div>
+                  ) : !customersData ? (
+                    <div className="flex items-center justify-center h-20">
+                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-600"></div>
+                      <span className="ml-3 text-sm text-gray-700">Memuat daftar customer...</span>
+                    </div>
+                  ) : customers.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 rounded-lg bg-gray-50">
+                      <p>Tidak ada customer yang ditemukan</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md">
+                      <ul className="divide-y divide-gray-200">
+                        {customers.map((customer) => (
+                          <li 
+                            key={customer.id}
+                            onClick={() => handleCustomerSelect(customer)}
+                            className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                              selectedCustomerId === customer.id ? 'bg-green-50 border-l-4 border-green-500' : ''
+                            }`}
+                          >
+                            <div className="flex justify-between">
+                              <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                              {selectedCustomerId === customer.id && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            {customer.contactName && (
+                              <div className="text-xs text-gray-500">Contact: {customer.contactName}</div>
+                            )}
+                            {customer.contactPhone && (
+                              <div className="text-xs text-gray-500">Phone: {customer.contactPhone}</div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Informasi Peminjam
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <div>
+                    <label htmlFor="renter-name" className="block text-sm font-medium text-gray-700 mb-1">Nama Peminjam <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="renter-name"
+                        value={renterName}
+                        onChange={(e) => setRenterName(e.target.value)}
+                        placeholder="Masukkan nama peminjam"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="renter-phone" className="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="renter-phone"
+                        value={renterPhone}
+                        onChange={(e) => setRenterPhone(e.target.value)}
+                        placeholder="Masukkan nomor telepon"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Alamat Peminjam
+                </h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <div className="relative">
+                    <textarea
+                      id="renter-address"
+                      value={renterAddress}
+                      onChange={(e) => setRenterAddress(e.target.value)}
+                      placeholder="Masukkan alamat peminjam"
+                      rows={3}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Kondisi Barang
+                </h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <label htmlFor="initial-condition" className="block text-sm font-medium text-gray-700 mb-1">Kondisi Barang Sebelum Dipinjam <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <textarea
+                      id="initial-condition"
+                      value={initialCondition}
+                      onChange={(e) => setInitialCondition(e.target.value)}
+                      placeholder="Deskripsikan kondisi barang saat ini sebelum dipinjam"
+                      rows={4}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
+              <h2 className="text-lg font-medium text-gray-800">4. Detail Rental</h2>
+            </div>
+            <div className="p-5 space-y-5">
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Periode Rental
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-gray-50 p-4 rounded-lg border border-gray-100">
                 <div>
                   <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
                   <input
                     type="date"
                     id="start-date"
                     min={getToday()}
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                     required
                   />
+                    </div>
                 </div>
                 
                 <div>
                   <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
                   <input
                     type="date"
                     id="end-date"
                     min={startDate || getToday()}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                   />
+                    </div>
                   <p className="mt-1 text-xs text-gray-500">Opsional. Jika tidak diisi, maka rental tidak memiliki batas waktu.</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="border-t border-gray-200 pt-5">
-                <h3 className="text-sm font-medium text-gray-800 mb-3">Informasi Dokumen</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Informasi Dokumen
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-gray-50 p-4 rounded-lg border border-gray-100">
                   <div>
                     <label htmlFor="po-number" className="block text-sm font-medium text-gray-700 mb-1">Nomor PO</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                      </div>
                     <input
                       type="text"
                       id="po-number"
                       value={poNumber}
                       onChange={(e) => setPoNumber(e.target.value)}
                       placeholder="Masukkan nomor PO (opsional)"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                     />
+                    </div>
                   </div>
                   
                   <div>
                     <label htmlFor="do-number" className="block text-sm font-medium text-gray-700 mb-1">Nomor DO</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </div>
                     <input
                       type="text"
                       id="do-number"
                       value={doNumber}
                       onChange={(e) => setDoNumber(e.target.value)}
                       placeholder="Masukkan nomor DO (opsional)"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
+                        className="block w-full pl-10 pr-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 transition-shadow duration-200"
                     />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -495,4 +830,4 @@ export default function AdminNewRentalRequestPage() {
       </div>
     </DashboardLayout>
   );
-} 
+} ``

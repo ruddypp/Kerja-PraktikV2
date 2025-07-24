@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 import { RequestStatus, ItemStatus, ActivityType } from '@prisma/client';
+import { createInstantNotificationForReminder } from '@/lib/notification-service';
 
 // GET - Get all rentals with optional filters
 export async function GET(req: NextRequest) {
@@ -215,8 +216,23 @@ export async function PATCH(req: NextRequest) {
         }
       });
 
+      // Trigger instant notification if status is APPROVED
+      if (status === RequestStatus.APPROVED) {
+        // We run this outside the main transaction logic but before returning
+        // to ensure the main update is committed first.
+        console.log(`Rental ${id} was approved, triggering instant notification.`);
+      }
+
       return updated;
     });
+
+    // Fire and forget: create reminder and notification if approved
+    if (status === RequestStatus.APPROVED) {
+      createInstantNotificationForReminder(id, 'RENTAL').catch(error => {
+        // Log this error but don't let it fail the user's request
+        console.error(`Failed to create instant notification for approved rental ${id}:`, error);
+      });
+    }
 
     return NextResponse.json(updatedRental);
   } catch (error) {
@@ -243,7 +259,7 @@ export async function POST(req: NextRequest) {
       endDate, 
       poNumber, 
       doNumber, 
-      targetUserId,
+      customerId,
       renterName,
       renterPhone,
       renterAddress,
@@ -276,17 +292,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if the target user exists (if provided)
-    const userId = targetUserId || user.id;
+    // Use the logged-in admin as the responsible person
+    const userId = user.id;
     
-    if (targetUserId) {
-      const targetUser = await prisma.user.findUnique({
-        where: { id: targetUserId }
+    // Check if the customer exists (if provided)
+    if (customerId) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId }
       });
       
-      if (!targetUser) {
+      if (!customer) {
         return NextResponse.json(
-          { error: 'Target user not found' },
+          { error: 'Customer not found' },
           { status: 404 }
         );
       }
@@ -307,7 +324,8 @@ export async function POST(req: NextRequest) {
           renterName: renterName || null,
           renterPhone: renterPhone || null,
           renterAddress: renterAddress || null,
-          initialCondition: initialCondition || null
+          initialCondition: initialCondition || null,
+          customerId: customerId || null // Add the customer ID
         },
         include: {
           item: true,
@@ -335,16 +353,25 @@ export async function POST(req: NextRequest) {
       await tx.activityLog.create({
         data: {
           type: ActivityType.RENTAL_CREATED,
-          action: `Created new rental for ${item.name}${targetUserId ? ` on behalf of user` : ''}`,
+          action: `Created new rental for ${item.name}${customerId ? ` for customer` : ''}`,
           userId: user.id,
           itemSerial,
           rentalId: newRental.id,
-          affectedUserId: userId
+          affectedUserId: user.id,
+          customerId: customerId || null // Add the customer ID to the activity log
         }
       });
 
       return newRental;
     });
+
+    // Create rental reminder and notification instantly since it's auto-approved
+    try {
+      await createInstantNotificationForReminder(rental.id, 'RENTAL');
+    } catch (error) {
+      console.error('Error creating instant rental notification:', error);
+      // Don't fail the request if this process fails
+    }
 
     return NextResponse.json(rental);
   } catch (error) {

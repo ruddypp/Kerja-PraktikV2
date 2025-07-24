@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { format } from 'date-fns';
 import { FiPlus, FiFileText, FiDownload, FiX, FiTrash2 } from 'react-icons/fi';
 import useSWR from 'swr';
+import { toast } from 'react-hot-toast';
 
 // Define Types and Interfaces
 enum RequestStatus {
@@ -28,7 +29,7 @@ interface Item {
   sensor?: string;
 }
 
-interface Vendor {
+interface customer {
   id: string;
   name: string;
   contactName?: string;
@@ -82,7 +83,7 @@ interface Calibration {
   createdAt: string;
   updatedAt: string;
   item: Item;
-  vendor: Vendor;
+  customer: customer;
   statusLogs: StatusLog[];
   notes: string | null;
 }
@@ -90,7 +91,7 @@ interface Calibration {
 export default function UserCalibrationPage() {
   const [calibrations, setCalibrations] = useState<Calibration[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [customers, setcustomers] = useState<customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -102,14 +103,14 @@ export default function UserCalibrationPage() {
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [showItemSuggestions, setShowItemSuggestions] = useState(false);
   const itemSearchRef = useRef<HTMLDivElement>(null);
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
-  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
-  const vendorSearchRef = useRef<HTMLDivElement>(null);
+  const [customersearch, setcustomersearch] = useState('');
+  const [filteredcustomers, setFilteredcustomers] = useState<customer[]>([]);
+  const [showcustomersuggestions, setShowcustomersuggestions] = useState(false);
+  const customersearchRef = useRef<HTMLDivElement>(null);
   
-  // Add vendor loading state
-  const [vendorsLoading, setVendorsLoading] = useState(true);
-  const [vendorsError, setVendorsError] = useState('');
+  // Add customer loading state
+  const [customersLoading, setcustomersLoading] = useState(true);
+  const [customersError, setcustomersError] = useState('');
   
   // Add pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,7 +120,7 @@ export default function UserCalibrationPage() {
   // Simplified form for direct calibration
   const [calibrationForm, setCalibrationForm] = useState({
     itemSerial: '',
-    vendorId: '',
+    customerId: '',
     
     // Form fields tambahan sesuai alur - field address dan phone tetap ada
     // dalam state tetapi tidak ditampilkan di UI
@@ -224,8 +225,8 @@ export default function UserCalibrationPage() {
       if (itemSearchRef.current && !itemSearchRef.current.contains(event.target as Node)) {
         setShowItemSuggestions(false);
       }
-      if (vendorSearchRef.current && !vendorSearchRef.current.contains(event.target as Node)) {
-        setShowVendorSuggestions(false);
+      if (customersearchRef.current && !customersearchRef.current.contains(event.target as Node)) {
+        setShowcustomersuggestions(false);
       }
     };
     
@@ -235,43 +236,39 @@ export default function UserCalibrationPage() {
     };
   }, [currentPage]);
   
-  // Gunakan SWR untuk mendapatkan data vendors
-  useSWR('api-vendors', () => {
-    return fetch(`/api/vendors?limit=10000&timestamp=${Date.now()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      cache: 'no-store'
-    })
-    .then(res => {
-      if (!res.ok) throw new Error(`Failed to fetch vendors: ${res.status}`);
-      return res.json();
-    });
-  }, {
-    onSuccess: (data) => {
-      console.log('Vendors data received:', data); // Debug log
-      if (Array.isArray(data)) {
-        setVendors(data);
-      } else if (data && typeof data === 'object') {
-        setVendors(data.items || []);
-      } else {
-        setVendors([]);
-        console.error('Unexpected vendors data format:', data);
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setcustomersLoading(true);
+        const res = await fetch(`/api/customers?limit=10000&timestamp=${Date.now()}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch customers: ${res.status}`);
+        }
+        const data = await res.json();
+        console.log('customers data received:', data); // Debug log
+        if (data && Array.isArray(data.items)) {
+          setcustomers(data.items);
+        } else {
+          setcustomers([]);
+          console.error('Unexpected customers data format:', data);
+        }
+        setcustomersLoading(false);
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        setcustomers([]);
+        setcustomersLoading(false);
+        setcustomersError('Failed to load customers. Please try again later.');
+        toast.error('Failed to load customers. Please try again later.');
       }
-      setVendorsLoading(false);
-      setVendorsError('');
-    },
-    onError: (error) => {
-      console.error('Error fetching vendors:', error);
-      setVendors([]);
-      setVendorsLoading(false);
-      setVendorsError('Failed to load vendors. Please try again later.');
-    },
-    revalidateOnFocus: false,
-    revalidateOnMount: true,
-    revalidateIfStale: false,
-    dedupingInterval: 600000 // 10 minutes
-  });
+    };
+
+    fetchCustomers();
+  }, []);
   
   // Filter items based on search term
   useEffect(() => {
@@ -290,22 +287,22 @@ export default function UserCalibrationPage() {
     setShowItemSuggestions(true);
   }, [itemSearch, items]);
   
-  // Filter vendors based on search term
+  // Filter customers based on search term
   useEffect(() => {
-    if (vendorSearch.length < 2) {
-      setFilteredVendors([]);
-      setShowVendorSuggestions(false);
+    if (customersearch.length < 2) {
+      setFilteredcustomers([]);
+      setShowcustomersuggestions(false);
       return;
     }
     
-    const filtered = vendors.filter(vendor => 
-      vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
-      (vendor.contactName && vendor.contactName.toLowerCase().includes(vendorSearch.toLowerCase()))
+    const filtered = customers.filter(customer => 
+      customer.name.toLowerCase().includes(customersearch.toLowerCase()) ||
+      (customer.contactName && customer.contactName.toLowerCase().includes(customersearch.toLowerCase()))
     );
     
-    setFilteredVendors(filtered);
-    setShowVendorSuggestions(true);
-  }, [vendorSearch, vendors]);
+    setFilteredcustomers(filtered);
+    setShowcustomersuggestions(true);
+  }, [customersearch, customers]);
   
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -328,65 +325,42 @@ export default function UserCalibrationPage() {
   const fetchCalibrations = async () => {
     try {
       setLoading(true);
+      setError('');
       
-      // Prepare query parameters including filters
+      // Build query parameters
       const queryParams = new URLSearchParams();
-      queryParams.append('page', currentPage.toString());
-      queryParams.append('limit', PAGE_SIZE.toString());
-      
-      // Add any active filters
       if (filters.status) {
         queryParams.append('status', filters.status);
       }
+      if (filters.item) {
+        queryParams.append('itemSerial', filters.item);
+      }
+      if (currentPage > 1) {
+        queryParams.append('page', currentPage.toString());
+      }
+      queryParams.append('limit', PAGE_SIZE.toString());
       
-      // Note: Other filters like item name, dateFrom, dateTo are handled on the client side
-      // since the API doesn't directly support these filters
-      
-      const response = await fetch(`/api/user/calibrations?${queryParams.toString()}`, {
+      // Fetch calibrations from new API endpoint
+      const response = await fetch(`/api/calibrations?${queryParams.toString()}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-        cache: 'no-store'
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch calibrations: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+        throw new Error('Failed to fetch calibrations');
       }
       
       const data = await response.json();
       
-      // Handle both array response and paginated response object
-      if (Array.isArray(data)) {
-      setCalibrations(data);
-        setTotalItems(data.length);
-      } else if (data && typeof data === 'object') {
-        if (Array.isArray(data.items)) {
-          setCalibrations(data.items);
-          setTotalItems(data.total || data.items.length);
-        } else if (Array.isArray(data.calibrations)) {
-        setCalibrations(data.calibrations);
-          setTotalItems(data.total || data.calibrations.length);
-      } else {
-        console.error('Unexpected data format from calibrations API:', data);
-        setCalibrations([]);
-          setTotalItems(0);
-        }
-      } else {
-        console.error('Unexpected data format from calibrations API:', data);
-        setCalibrations([]);
-        setTotalItems(0);
-      }
+      // Update state with fetched data
+      setCalibrations(data.items || []);
+      setTotalItems(data.total || 0);
       
-      setError('');
+      setLoading(false);
     } catch (err) {
       console.error('Error fetching calibrations:', err);
-      setError('Failed to load calibration requests. Please try refreshing the page.');
-      setCalibrations([]); // Set empty array on error
-      setTotalItems(0);
-    } finally {
+      setError('Failed to load calibration data. Please try again later.');
       setLoading(false);
     }
   };
@@ -435,13 +409,13 @@ export default function UserCalibrationPage() {
     // Always fetch fresh items when opening the modal
       fetchAvailableItems();
     
-    // Set loading state for vendors, but don't refetch if we already have data
-    if (vendors.length === 0) {
-      setVendorsLoading(true);
-      setVendorsError('');
+    // Set loading state for customers, but don't refetch if we already have data
+    if (customers.length === 0) {
+      setcustomersLoading(true);
+      setcustomersError('');
       
-      // Only fetch vendors if we don't have any yet
-      fetch(`/api/vendors?limit=10000&timestamp=${Date.now()}`, {
+      // Only fetch customers if we don't have any yet
+      fetch(`/api/customers?limit=10000&timestamp=${Date.now()}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -449,31 +423,32 @@ export default function UserCalibrationPage() {
       })
       .then(res => {
         if (!res.ok) {
-          throw new Error(`Failed to fetch vendors: ${res.status}`);
+          throw new Error(`Failed to fetch customers: ${res.status}`);
         }
         return res.json();
       })
       .then(data => {
-        console.log('Vendors loaded on modal open:', data);
+        console.log('customers loaded on modal open:', data);
         if (Array.isArray(data)) {
-          setVendors(data);
+          setcustomers(data);
         } else if (data && typeof data === 'object') {
-          setVendors(data.items || []);
+          setcustomers(data.items || []);
         }
-        setVendorsLoading(false);
+        setcustomersLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching vendors for modal:', err);
-        setVendorsError('Failed to load vendors. Please try again.');
-        setVendorsLoading(false);
+        console.error('Error fetching customers for modal:', err);
+        setcustomersError('Failed to load customers. Please try again.');
+        setcustomersLoading(false);
+        toast.error('Failed to load customers. Please try again.');
       });
     } else {
-      setVendorsLoading(false);
+      setcustomersLoading(false);
     }
     
     setCalibrationForm({
       itemSerial: '',
-      vendorId: '',
+      customerId: '',
       address: '',
       phone: '',
       fax: '',
@@ -495,6 +470,11 @@ export default function UserCalibrationPage() {
   const openCertificateModal = (calibration: Calibration) => {
     setSelectedCalibration(calibration);
     setShowCertificateModal(true);
+    
+    // Buka sertifikat dalam tab baru
+    if (calibration.id) {
+      window.open(`/api/calibrations/${calibration.id}/certificate`, '_blank');
+    }
   };
   
   const closeCertificateModal = () => {
@@ -504,8 +484,21 @@ export default function UserCalibrationPage() {
   
   const handleCalibrationSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    
     try {
-      const response = await fetch('/api/user/calibrations', {
+      // Validasi form
+      if (!calibrationForm.itemSerial) {
+        toast.error('Please select an item');
+        return;
+      }
+      
+      if (!calibrationForm.customerId) {
+        toast.error('Please select a customer');
+        return;
+      }
+      
+      // Submit to new API endpoint
+      const response = await fetch('/api/calibrations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -514,52 +507,41 @@ export default function UserCalibrationPage() {
         credentials: 'include'
       });
       
-      // Get response text first to properly handle any error response
-      const responseText = await response.text();
-      let data;
-      
-      try {
-        // Try to parse as JSON
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response as JSON:', responseText);
-        throw new Error(`Invalid response format from server: ${responseText.substring(0, 100)}...`);
-      }
-      
       if (!response.ok) {
-        let errorMessage = 'Failed to create calibration';
-        
-        if (data && typeof data === 'object') {
-          if (data.error) {
-            if (typeof data.error === 'string') {
-              errorMessage = data.error;
-            } else if (typeof data.error === 'object') {
-              // Format the validation errors
-              const errors = [];
-              for (const field in data.error) {
-                if (data.error[field] && data.error[field]._errors) {
-                  errors.push(`${field}: ${data.error[field]._errors.join(', ')}`);
-      }
+        const errorData = await response.json();
+        // Handle validation errors
+        if (errorData.error && typeof errorData.error === 'object') {
+          // Format error object into readable message
+          const errorMessages = Object.entries(errorData.error)
+            .filter(([key, value]) => key !== '_errors' && value)
+            .map(([key, value]) => {
+              const errors = (value as {_errors?: string[]})._errors;
+              if (Array.isArray(errors) && errors.length > 0) {
+                return `${key}: ${errors.join(', ')}`;
               }
-              if (errors.length > 0) {
-                errorMessage = `Validation errors: ${errors.join('; ')}`;
-              }
-            }
+              return null;
+            })
+            .filter(Boolean)
+            .join('; ');
+          
+          if (errorMessages) {
+            throw new Error(errorMessages);
           }
         }
         
-        console.error('Calibration creation failed:', data);
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || 'Failed to create calibration request');
       }
       
-      setSuccess('Calibration request created successfully');
-      setCalibrations(prev => [data, ...prev]);
-      closeCalibrationModal();
+      const data = await response.json();
       
-      // Reset form
+      // Show success message
+      toast.success('Calibration request created successfully');
+      
+      // Close modal and reset form
+      setShowCalibrationModal(false);
       setCalibrationForm({
         itemSerial: '',
-        vendorId: '',
+        customerId: '',
         address: '',
         phone: '',
         fax: '',
@@ -571,13 +553,12 @@ export default function UserCalibrationPage() {
         notes: ''
       });
       
-      // Refresh data
+      // Refresh calibration list
       fetchCalibrations();
-      fetchAvailableItems();
-    } catch (error: unknown) {
-      console.error('Error creating calibration:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to create calibration';
-      setError(errorMsg);
+      
+    } catch (err) {
+      console.error('Error creating calibration request:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to create calibration request');
     }
   };
   
@@ -795,11 +776,13 @@ export default function UserCalibrationPage() {
   const handleCompleteSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     
-    console.log('Submitting calibration completion form:', completeForm);
+    if (!selectedCalibration) {
+      toast.error('No calibration selected');
+      return;
+    }
     
     try {
-      // Extract the first entries to maintain backward compatibility with the API
-      // In a real scenario, we'd update the API to handle arrays of entries
+      // Extract the first entries for the API
       const firstGasEntry = completeForm.gasEntries[0] || { 
         gasType: '', 
         gasConcentration: '', 
@@ -813,22 +796,16 @@ export default function UserCalibrationPage() {
         testResult: 'Pass' as 'Pass' | 'Fail'
       };
       
-      // Client-side validation before submitting
-      const validationErrors = [];
-      
-      // Check required fields
-      if (!completeForm.id) validationErrors.push('Calibration ID is missing');
-      if (!firstGasEntry.gasType) validationErrors.push('Gas Type is required');
-      if (!firstGasEntry.gasConcentration) validationErrors.push('Gas Concentration is required');
-      if (!firstGasEntry.gasBalance) validationErrors.push('Gas Balance is required');
-      if (!firstGasEntry.gasBatchNumber) validationErrors.push('Gas Batch Number is required');
-      if (!firstTestEntry.testSensor) validationErrors.push('Test Sensor is required');
-      if (!firstTestEntry.testSpan) validationErrors.push('Test Span is required');
-      if (!completeForm.instrumentName) validationErrors.push('Instrument Name is required');
-      if (!completeForm.modelNumber) validationErrors.push('Model Number is required');
-      if (!completeForm.configuration) validationErrors.push('Configuration is required');
-      if (!completeForm.approvedBy) validationErrors.push('Approver Name is required');
-      if (!completeForm.validUntil) validationErrors.push('Valid Until date is required');
+      // Validation for required fields
+      const validationErrors: string[] = [];
+      if (!firstGasEntry.gasType) validationErrors.push('Gas type is required');
+      if (!firstGasEntry.gasConcentration) validationErrors.push('Gas concentration is required');
+      if (!firstGasEntry.gasBalance) validationErrors.push('Gas balance is required');
+      if (!firstGasEntry.gasBatchNumber) validationErrors.push('Gas batch number is required');
+      if (!firstTestEntry.testSensor) validationErrors.push('Test sensor is required');
+      if (!firstTestEntry.testSpan) validationErrors.push('Test span is required');
+      if (!completeForm.instrumentName) validationErrors.push('Instrument name is required');
+      if (!completeForm.approvedBy) validationErrors.push('Approver name is required');
       
       // If there are validation errors, show them and don't submit
       if (validationErrors.length > 0) {
@@ -841,7 +818,6 @@ export default function UserCalibrationPage() {
         id: completeForm.id,
         
         // Certificate Information
-        // certificateNumber field removed as it's now auto-generated
         calibrationDate: completeForm.calibrationDate,
         validUntil: completeForm.validUntil,
         
@@ -864,12 +840,11 @@ export default function UserCalibrationPage() {
         notes: completeForm.notes,
         
         // Include all entries as JSON strings for future API updates
-        // This will not be used by the current API but prepares for future updates
         allGasEntries: JSON.stringify(completeForm.gasEntries),
         allTestEntries: JSON.stringify(completeForm.testEntries)
       };
       
-      const response = await fetch(`/api/user/calibrations`, {
+      const response = await fetch(`/api/calibrations/${selectedCalibration.id}/complete`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -878,56 +853,20 @@ export default function UserCalibrationPage() {
         credentials: 'include'
       });
       
-      // Get response details for debugging
-      console.log('Response status:', response.status);
-      
-      // Try to get text first to debug any issues
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-      
-      let data;
-      try {
-        // Parse the text response as JSON
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        // No variable needed
-        console.error('Failed to parse response as JSON:', responseText);
-        throw new Error('Server returned invalid response format');
-      }
-      
+      // Handle response
       if (!response.ok) {
-        let errorMessage = 'Failed to complete calibration';
-        
-        if (data && typeof data === 'object') {
-          if (data.error) {
-            if (typeof data.error === 'string') {
-              errorMessage = data.error;
-            } else if (typeof data.error === 'object') {
-              // Try to format the validation errors
-              errorMessage = 'Validation errors: ' + JSON.stringify(data.error);
-            }
-          }
-          
-          // Include any details provided in the error response
-          if (data.details) {
-            console.error('Error details:', data.details);
-          }
-        }
-        
-        console.error('Calibration completion failed:', data);
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to complete calibration');
       }
       
-      setSuccess('Calibration completed successfully. Certificate has been generated.');
-      setCalibrations(prev => prev.map(c => c.id === data.id ? data : c));
-      closeCompleteModal();
-      
-      // Refresh data
+      // Success
+      toast.success('Calibration completed successfully');
+      setShowCompleteModal(false);
       fetchCalibrations();
-    } catch (error: unknown) {
-      console.error('Error completing calibration:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to complete calibration';
-      setError(errorMsg);
+      
+    } catch (err) {
+      console.error('Error completing calibration:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to complete calibration');
     }
   };
   
@@ -946,34 +885,35 @@ export default function UserCalibrationPage() {
     }));
   };
   
-  const handleVendorSelect = (vendor: Vendor) => {
-    console.log('Vendor selected:', vendor);
+  const handlecustomerselect = (customer: customer) => {
+    console.log('customer selected:', customer);
     
-    if (!vendor || !vendor.id) {
-      console.error('Invalid vendor selected:', vendor);
-      setVendorsError('Invalid vendor selected. Please try again.');
+    if (!customer || !customer.id) {
+      console.error('Invalid customer selected:', customer);
+      setcustomersError('Invalid customer selected. Please try again.');
+      toast.error('Invalid customer selected. Please try again.');
       return;
     }
     
-    setVendorSearch(''); // Clear search
-    setShowVendorSuggestions(false);
+    setcustomersearch(''); // Clear search
+    setShowcustomersuggestions(false);
     
-    // Set the selected vendor in the form
+    // Set the selected customer in the form
     setCalibrationForm(prev => {
       const updated = {
       ...prev,
-      vendorId: vendor.id,
+      customerId: customer.id,
       // Only set address and phone to empty, leave fax field as is
       address: '',
       phone: ''
       // Fax is not set here so it will keep whatever the user has entered manually
       };
-      console.log('Updated calibration form with vendor:', updated);
+      console.log('Updated calibration form with customer:', updated);
       return updated;
     });
     
-    // Clear any vendor error
-    setVendorsError('');
+    // Clear any customer error
+    setcustomersError('');
   };
   
   // Function to handle page change
@@ -1007,11 +947,7 @@ export default function UserCalibrationPage() {
           </div>
         )}
         
-        {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-3 md:p-4 mb-6 rounded shadow-sm" role="alert">
-            <p className="font-medium text-sm md:text-base">{success}</p>
-          </div>
-        )}
+
         
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-3 md:p-6 mb-6">
@@ -1118,8 +1054,8 @@ export default function UserCalibrationPage() {
                       
                       <div className="grid grid-cols-2 gap-3 mb-4 text-sm flex-grow">
                         <div>
-                          <p className="text-gray-500 font-medium">Vendor</p>
-                          <p className="text-gray-800">{calibration.vendor.name}</p>
+                          <p className="text-gray-500 font-medium">customer</p>
+                          <p className="text-gray-800">{calibration.customer.name}</p>
                         </div>
                         <div>
                           <p className="text-gray-500 font-medium">Date</p>
@@ -1339,75 +1275,75 @@ export default function UserCalibrationPage() {
             </div>
           </div>
 
-          {/* Vendor Details */}
+          {/* customer Details */}
           <div>
-            <h3 className="font-medium text-gray-700 mb-3">Vendor Details</h3>
+            <h3 className="font-medium text-gray-700 mb-3">customer Details</h3>
 
-            {/* Vendor */}
-            <div className="mb-3" ref={vendorSearchRef}>
-              <label className="block mb-1 text-sm font-medium text-gray-700" id="vendor-label">Vendor</label>
+            {/* customer */}
+            <div className="mb-3" ref={customersearchRef}>
+              <label className="block mb-1 text-sm font-medium text-gray-700" id="customer-label">customer</label>
               <div className="relative">
                 <input
                   type="text"
-                  value={vendorSearch}
-                  onChange={(e) => setVendorSearch(e.target.value)}
-                  placeholder="Search for vendor by name"
+                  value={customersearch}
+                  onChange={(e) => setcustomersearch(e.target.value)}
+                  placeholder="Search for customer by name"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  aria-labelledby="vendor-label"
-                  onFocus={() => vendorSearch.length >= 2 && setShowVendorSuggestions(true)}
-                  disabled={vendorsLoading}
+                  aria-labelledby="customer-label"
+                  onFocus={() => customersearch.length >= 2 && setShowcustomersuggestions(true)}
+                  disabled={customersLoading}
                 />
                 
                 {/* Show loading indicator */}
-                {vendorsLoading && (
+                {customersLoading && (
                   <div className="mt-2 p-2 border border-blue-200 bg-blue-50 rounded-md">
                     <p className="font-medium text-sm text-blue-600">
-                      Loading vendors...
+                      Loading customers...
                     </p>
                   </div>
                 )}
                 
-                {/* Show error message if vendors failed to load */}
-                {vendorsError && (
+                {/* Show error message if customers failed to load */}
+                {customersError && (
                   <div className="mt-2 p-2 border border-red-200 bg-red-50 rounded-md">
                     <p className="font-medium text-sm text-red-600">
-                      {vendorsError}
+                      {customersError}
                     </p>
                   </div>
                 )}
                 
-                {/* Show selected vendor if any */}
-                {calibrationForm.vendorId && !vendorsLoading && !vendorsError && (
+                {/* Show selected customer if any */}
+                {calibrationForm.customerId && !customersLoading && !customersError && (
                   <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
                     <p className="font-medium text-sm">
-                      {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.name || "Selected Vendor"}
+                      {customers.find(customer => customer.id === calibrationForm.customerId)?.name || "Selected customer"}
                     </p>
-                    {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName && (
+                    {customers.find(customer => customer.id === calibrationForm.customerId)?.contactName && (
                       <p className="text-xs text-gray-600">
-                        Contact: {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName}
+                        Contact: {customers.find(customer => customer.id === calibrationForm.customerId)?.contactName}
                       </p>
                     )}
                   </div>
                 )}
                 
                 {/* Suggestions dropdown */}
-                {showVendorSuggestions && !vendorsLoading && !vendorsError && (
+                {showcustomersuggestions && !customersLoading && !customersError && (
                   <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredVendors.length > 0 ? (
+                    {filteredcustomers.length > 0 ? (
                       <ul className="py-1">
-                        {filteredVendors.map((vendor) => (
+                        {filteredcustomers.map((customer) => (
                           <li 
-                            key={vendor.id}
+                            key={customer.id}
                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleVendorSelect(vendor)}
+                            onClick={() => handlecustomerselect(customer)}
                           >
                             <div>
-                              <div className="font-medium">{vendor.name}</div>
-                              {vendor.contactName && (
-                                <div className="text-sm text-gray-600">Contact: {vendor.contactName}</div>
+                              <div className="font-medium">{customer.name}</div>
+                              {customer.contactName && (
+                                <div className="text-sm text-gray-600">Contact: {customer.contactName}</div>
                               )}
-                              {vendor.contactPhone && (
-                                <div className="text-xs text-gray-500">Phone: {vendor.contactPhone}</div>
+                              {customer.contactPhone && (
+                                <div className="text-xs text-gray-500">Phone: {customer.contactPhone}</div>
                               )}
                             </div>
                           </li>
@@ -1415,17 +1351,17 @@ export default function UserCalibrationPage() {
                       </ul>
                     ) : (
                       <div className="p-4 text-center text-gray-500">
-                        No matching vendors found
+                        No matching customers found
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              {!calibrationForm.vendorId && !vendorsLoading && !vendorsError && (
-                <p className="text-xs text-gray-500 mt-1">Search and select a vendor for calibration</p>
+              {!calibrationForm.customerId && !customersLoading && !customersError && (
+                <p className="text-xs text-gray-500 mt-1">Search and select a customer for calibration</p>
               )}
-              {!vendorsLoading && !vendorsError && vendors.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">No vendors available. Please contact an administrator.</p>
+              {!customersLoading && !customersError && customers.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">No customers available. Please contact an administrator.</p>
               )}
             </div>
 
@@ -1437,7 +1373,7 @@ export default function UserCalibrationPage() {
                 name="fax"
                 value={calibrationForm.fax}
                 onChange={handleCalibrationFormChange}
-                placeholder="Fax number"
+                placeholder="Fax number (optional)"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
               />
             </div>
@@ -1509,8 +1445,8 @@ export default function UserCalibrationPage() {
                       <p className="font-medium text-sm">{formatDate(selectedCalibration.validUntil)}</p>
                 </div>
                   <div>
-                      <p className="text-xs text-gray-500">Vendor</p>
-                      <p className="font-medium text-sm">{selectedCalibration.vendor.name}</p>
+                      <p className="text-xs text-gray-500">customer</p>
+                      <p className="font-medium text-sm">{selectedCalibration.customer.name}</p>
                   </div>
                   {selectedCalibration.certificateNumber && (
                     <div>

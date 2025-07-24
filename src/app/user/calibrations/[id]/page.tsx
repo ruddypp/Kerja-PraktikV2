@@ -13,7 +13,7 @@ interface Calibration {
   completedDate: string | null;
   result: string | null;
   certificateUrl: string | null;
-  vendorId: number;
+  customerId: number;
   statusId: number;
   createdAt: string;
   updatedAt: string;
@@ -50,7 +50,7 @@ interface Calibration {
     name: string;
     type: string;
   };
-  vendor: {
+  customer: {
     id: number;
     name: string;
     email: string | null;
@@ -253,8 +253,8 @@ export default function CalibrationDetailPage() {
               <h4 className="text-lg font-medium text-gray-900 mb-3">Calibration Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                  <span className="text-sm font-medium text-gray-500">Vendor:</span>
-                  <p className="mt-1 text-sm text-gray-900">{calibration.vendor.name}</p>
+                  <span className="text-sm font-medium text-gray-500">customer:</span>
+                  <p className="mt-1 text-sm text-gray-900">{calibration.customer.name}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-500">Certificate Number:</span>

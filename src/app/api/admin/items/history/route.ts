@@ -11,7 +11,7 @@ type ActivityLogWithUser = ActivityLog & {
 };
 
 type CalibrationWithRelations = Calibration & {
-  vendor: {
+  customer: {
     id: string;
     name: string;
   } | null;
@@ -208,7 +208,7 @@ export async function GET(request: Request) {
           notes: true,
           createdAt: true,
           updatedAt: true,
-          vendor: {
+          customer: {
             select: {
               id: true,
               name: true

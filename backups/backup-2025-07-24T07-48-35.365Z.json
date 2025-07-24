@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-07-24T07-48-35.365Z",
+  "created_at": "2025-07-24T07:48:35.365Z",
+  "database_version": "1.0.0",
+  "info": "Database backup created successfully",
+  "tables": [
+    {
+      "name": "users",
+      "count": 10
+    },
+    {
+      "name": "items",
+      "count": 50
+    },
+    {
+      "name": "calibrations",
+      "count": 25
+    },
+    {
+      "name": "rentals",
+      "count": 15
+    },
+    {
+      "name": "maintenance",
+      "count": 30
+    }
+  ]
+}

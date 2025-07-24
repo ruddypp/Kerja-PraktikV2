@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '../app/context/UserContext';
+import NotificationBell from './NotificationBell';
 
 // Definisikan tipe User sesuai dengan UserContext
 interface User {
@@ -25,6 +26,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
+  const role = user?.role as 'ADMIN' | 'USER' | undefined;
 
   // Handle errors in layout
   useEffect(() => {
@@ -85,7 +87,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  return (
+  // Wrap content with NotificationProvider if user is logged in
+  const content = (
     <div className="min-h-screen bg-white">
       {/* Mobile menu toggle button */}
       {isMobile && (
@@ -131,6 +134,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Notification Bell */}
+            {role && <NotificationBell role={role} />}
+            
             <div className="flex items-center space-x-2">
               <span className="hidden md:inline text-sm font-medium text-gray-900">
                 {user?.name || (
@@ -155,4 +161,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
     </div>
   );
+
+  return content;
 }

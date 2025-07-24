@@ -70,7 +70,7 @@ enum ItemStatus {
 // RequestStatus bisa berupa enum atau string status
 type RequestStatusType = 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
-interface Vendor {
+interface customer {
   id: string;
   name: string;
   contactName?: string | null;
@@ -82,7 +82,7 @@ interface Calibration {
   id: string;
   itemSerial: string;
   userId: string;
-  vendorId: string;
+  customerId: string;
   status: RequestStatusType | { name: string };
   statusId?: string;  // Untuk backward compatibility dengan form
   calibrationDate: string;
@@ -93,7 +93,7 @@ interface Calibration {
   updatedAt: string;
   item: Item;
   user: User;
-  vendor: Vendor | null;
+  customer: customer | null;
   statusLogs?: Array<{
     id: string;
     status: string;
@@ -108,7 +108,7 @@ interface Calibration {
 
 export default function CalibrationPage() {
   const [calibrations, setCalibrations] = useState<Calibration[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [customers, setcustomers] = useState<customer[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -142,9 +142,9 @@ export default function CalibrationPage() {
     modelNumber: string;
     configuration: string;
     approvedBy: string;
-    vendorName: string;
-    vendorAddress: string;
-    vendorPhone: string;
+    customerName: string;
+    customerAddress: string;
+    customerPhone: string;
     // Add missing certificate fields
     certificateNumber: string;
     calibrationDate: string;
@@ -174,9 +174,9 @@ export default function CalibrationPage() {
     modelNumber: '',
     configuration: '',
     approvedBy: '',
-    vendorName: '',
-    vendorAddress: '',
-    vendorPhone: '',
+    customerName: '',
+    customerAddress: '',
+    customerPhone: '',
     // Initialize new fields
     certificateNumber: '',
     calibrationDate: '',
@@ -188,7 +188,7 @@ export default function CalibrationPage() {
   
   // Form states
   const [editForm, setEditForm] = useState({
-    vendorId: '',
+    customerId: '',
     calibrationDate: '',
     result: '',
     certificateUrl: '',
@@ -239,7 +239,7 @@ export default function CalibrationPage() {
   // Filter state
   const [filter, setFilter] = useState({
     statusId: '',
-    vendorId: '',
+    customerId: '',
     page: 1
   });
   
@@ -269,12 +269,12 @@ export default function CalibrationPage() {
     });
   };
   
-  // Mengganti useEffect dengan SWR untuk data vendors dan statuses
-  useSWR('/api/admin/vendors?limit=10000', fetcher, {
+  // Mengganti useEffect dengan SWR untuk data customers dan statuses
+  useSWR('/api/customers?limit=10000', fetcher, {
     onSuccess: (data) => {
-      // Extract vendors array from the response object
-      // The API returns {items: Vendor[], total: number, ...} 
-      setVendors(Array.isArray(data) ? data : (data.items || []));
+      // Extract customers array from the response object
+      // The API returns {items: customer[], total: number, ...} 
+      setcustomers(Array.isArray(data) ? data : (data.items || []));
     },
     revalidateOnFocus: false,
     dedupingInterval: 600000 // 10 minutes
@@ -288,7 +288,7 @@ export default function CalibrationPage() {
   
   // Gunakan SWR untuk data kalibrasi dengan dependencies pada filter
   const { mutate } = 
-    useSWR(() => `/api/admin/calibrations?statusId=${filter.statusId}&vendorId=${filter.vendorId}&page=${filter.page}&limit=${PAGE_SIZE}`, 
+    useSWR(() => `/api/calibrations?statusId=${filter.statusId}&customerId=${filter.customerId}&page=${filter.page}&limit=${PAGE_SIZE}`, 
     fetcher, {
       onSuccess: (data: {items: Calibration[], total: number}) => {
         setCalibrations(data.items || []);
@@ -328,7 +328,7 @@ export default function CalibrationPage() {
   const resetFilters = () => {
     setFilter({
       statusId: '',
-      vendorId: '',
+      customerId: '',
       page: 1
     });
   };
@@ -345,7 +345,7 @@ export default function CalibrationPage() {
     });
     
     setEditForm({
-      vendorId: calibration.vendorId?.toString() || '',
+      customerId: calibration.customerId?.toString() || '',
       calibrationDate: calibration.calibrationDate.split('T')[0],
       result: calibration.result || '',
       certificateUrl: calibration.certificateUrl || '',
@@ -429,7 +429,7 @@ export default function CalibrationPage() {
     try {
       // Memperbaiki tipe data dengan interface
       interface UpdateCalibrationBody {
-        vendorId: number | null;
+        customerId: number | null;
         calibrationDate: string;
         result: string | null;
         statusId?: string | number;
@@ -437,7 +437,7 @@ export default function CalibrationPage() {
       }
       
       const body: UpdateCalibrationBody = {
-        vendorId: editForm.vendorId ? parseInt(editForm.vendorId) : null,
+        customerId: editForm.customerId ? parseInt(editForm.customerId) : null,
         calibrationDate: editForm.calibrationDate,
         result: editForm.result.trim() || null
       };
@@ -458,7 +458,7 @@ export default function CalibrationPage() {
         body.certificateUrl = editForm.certificateUrl.trim();
       }
       
-      const res = await fetch(`/api/admin/calibrations/${selectedCalibration.id}`, {
+      const res = await fetch(`/api/calibrations/${selectedCalibration.id}`, {
         method: 'PATCH',
             headers: {
           'Content-Type': 'application/json',
@@ -635,7 +635,7 @@ export default function CalibrationPage() {
         testResult: 'Pass' as 'Pass' | 'Fail'
       };
       
-      const response = await fetch(`/api/admin/calibrations/${id}/complete`, {
+      const response = await fetch(`/api/calibrations/${id}/complete`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -710,7 +710,7 @@ export default function CalibrationPage() {
     try {
       setActionInProgress(true);
       
-      const response = await fetch(`/api/admin/calibrations/${selectedCalibration.id}`, {
+      const response = await fetch(`/api/calibrations/${selectedCalibration.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -781,7 +781,7 @@ export default function CalibrationPage() {
       }
       
       // Ambil data sertifikat dari API
-      const response = await fetch(`/api/admin/calibrations/${calibration.id}`, {
+      const response = await fetch(`/api/calibrations/${calibration.id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -827,9 +827,9 @@ export default function CalibrationPage() {
         modelNumber: data.certificate.modelNumber || '',
         configuration: data.certificate.configuration || '',
         approvedBy: data.certificate.approvedBy || '',
-        vendorName: data.certificate.vendorName || '',
-        vendorAddress: data.certificate.vendorAddress || '',
-        vendorPhone: data.certificate.vendorPhone || '',
+        customerName: data.certificate.customerName || '',
+        customerAddress: data.certificate.customerAddress || '',
+        customerPhone: data.certificate.customerPhone || '',
         
         // Add certificate information fields from calibration record
         certificateNumber: data.certificateNumber || '',
@@ -981,7 +981,7 @@ export default function CalibrationPage() {
         allTestEntries: JSON.stringify(certificateData.testEntries)
       };
       
-      const response = await fetch(`/api/admin/calibrations/${selectedCalibration.id}/certificate`, {
+      const response = await fetch(`/api/calibrations/${selectedCalibration.id}/certificate`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1024,13 +1024,13 @@ export default function CalibrationPage() {
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [showItemSuggestions, setShowItemSuggestions] = useState(false);
   const itemSearchRef = useRef<HTMLDivElement>(null);
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
-  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
-  const vendorSearchRef = useRef<HTMLDivElement>(null);
+  const [customersearch, setcustomersearch] = useState('');
+  const [filteredcustomers, setFilteredcustomers] = useState<customer[]>([]);
+  const [showcustomersuggestions, setShowcustomersuggestions] = useState(false);
+  const customersearchRef = useRef<HTMLDivElement>(null);
   const [calibrationForm, setCalibrationForm] = useState({
     itemSerial: '',
-    vendorId: '',
+    customerId: '',
     address: '',
     phone: '',
     fax: '',
@@ -1083,7 +1083,7 @@ export default function CalibrationPage() {
     
     setCalibrationForm({
       itemSerial: '',
-      vendorId: '',
+      customerId: '',
       address: '',
       phone: '',
       fax: '',
@@ -1125,17 +1125,17 @@ export default function CalibrationPage() {
     }));
   };
   
-  // Handle vendor selection in the search dropdown
-  const handleVendorSelect = (vendor: Vendor) => {
-    setVendorSearch(''); // Clear search
-    setShowVendorSuggestions(false);
+  // Handle customer selection in the search dropdown
+  const handlecustomerselect = (customer: customer) => {
+    setcustomersearch(''); // Clear search
+    setShowcustomersuggestions(false);
     
-    // Set the selected vendor in the form
+    // Set the selected customer in the form
     setCalibrationForm(prev => ({
       ...prev,
-      vendorId: vendor.id,
+      customerId: customer.id,
       // Field address dan phone tetap ada tapi diisi kosong
-      // karena data ini sudah ada di data vendor yang dipilih
+      // karena data ini sudah ada di data customer yang dipilih
       address: '',
       phone: ''
       // Fax is not set here so it will keep whatever the user has entered manually
@@ -1147,7 +1147,7 @@ export default function CalibrationPage() {
     e.preventDefault();
     try {
       // Change to the user API endpoint which has the proper implementation for creating new calibrations
-      const response = await fetch('/api/user/calibrations', {
+      const response = await fetch('/api/calibrations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1190,14 +1190,14 @@ export default function CalibrationPage() {
       }
       
       const data = await response.json();
-      setSuccess('Calibration request created successfully');
+      toast.success('Calibration request created successfully');
       setCalibrations(prev => [data, ...prev]);
       closeCalibrationModal();
       
       // Reset form
       setCalibrationForm({
         itemSerial: '',
-        vendorId: '',
+        customerId: '',
         address: '',
         phone: '',
         fax: '',
@@ -1218,15 +1218,15 @@ export default function CalibrationPage() {
     }
   };
 
-  // Add additional useEffect hooks for item and vendor search functionality
+  // Add additional useEffect hooks for item and customer search functionality
   useEffect(() => {
     // Handler for clicking outside the suggestions to close them
     const handleClickOutside = (event: MouseEvent) => {
       if (itemSearchRef.current && !itemSearchRef.current.contains(event.target as Node)) {
         setShowItemSuggestions(false);
       }
-      if (vendorSearchRef.current && !vendorSearchRef.current.contains(event.target as Node)) {
-        setShowVendorSuggestions(false);
+      if (customersearchRef.current && !customersearchRef.current.contains(event.target as Node)) {
+        setShowcustomersuggestions(false);
       }
     };
     
@@ -1257,26 +1257,26 @@ export default function CalibrationPage() {
     setShowItemSuggestions(true);
   }, [itemSearch, items]);
   
-  // Filter vendors based on search term
+  // Filter customers based on search term
   useEffect(() => {
-    if (vendorSearch.length < 2) {
-      setFilteredVendors([]);
-      setShowVendorSuggestions(false);
+    if (customersearch.length < 2) {
+      setFilteredcustomers([]);
+      setShowcustomersuggestions(false);
       return;
     }
     
-    const searchLower = vendorSearch.toLowerCase();
+    const searchLower = customersearch.toLowerCase();
     // Optimize filtering by limiting to first 50 matches
-    const filtered = vendors
-      .filter(vendor => 
-        vendor.name.toLowerCase().includes(searchLower) ||
-        (vendor.contactName && vendor.contactName.toLowerCase().includes(searchLower))
+    const filtered = customers
+      .filter(customer => 
+        customer.name.toLowerCase().includes(searchLower) ||
+        (customer.contactName && customer.contactName.toLowerCase().includes(searchLower))
       )
       .slice(0, 50); // Only show first 50 matches to avoid overwhelming the UI
     
-    setFilteredVendors(filtered);
-    setShowVendorSuggestions(true);
-  }, [vendorSearch, vendors]);
+    setFilteredcustomers(filtered);
+    setShowcustomersuggestions(true);
+  }, [customersearch, customers]);
   
   return (
     <DashboardLayout>
@@ -1291,8 +1291,8 @@ export default function CalibrationPage() {
             >
               <FiPlus className="mr-1 h-4 w-4" /> New Calibration
             </button>
-            <Link href="/admin/vendors" className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md flex items-center justify-center text-sm">
-            Manage Vendors
+            <Link href="/admin/customers" className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md flex items-center justify-center text-sm">
+            Manage customers
           </Link>
           </div>
         </div>
@@ -1339,19 +1339,19 @@ export default function CalibrationPage() {
                 </select>
               </div>
 
-            {/* Vendor */}
+            {/* customer */}
               <div>
-              <label htmlFor="vendorId" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Vendor</label>
+              <label htmlFor="customerId" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">customer</label>
                 <select
-                  id="vendorId"
-                  name="vendorId"
-                  value={filter.vendorId}
+                  id="customerId"
+                  name="customerId"
+                  value={filter.customerId}
                   onChange={handleFilterChange}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition"
                 >
-                  <option value="">All Vendors</option>
-                  {vendors.map(vendor => (
-                    <option key={`filter-vendor-${vendor.id}`} value={vendor.id}>{vendor.name}</option>
+                  <option value="">All customers</option>
+                  {customers.map(customer => (
+                    <option key={`filter-customer-${customer.id}`} value={customer.id}>{customer.name}</option>
                   ))}
                 </select>
               </div>
@@ -1392,7 +1392,7 @@ export default function CalibrationPage() {
                     User
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vendor
+                    customer
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -1410,7 +1410,7 @@ export default function CalibrationPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {calibrations.map((calibration) => (
-                      <tr key={calibration.id} className="hover:bg-gray-50">
+                      <tr key={`table-row-${calibration.id}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
@@ -1428,7 +1428,7 @@ export default function CalibrationPage() {
                           {calibration.user ? calibration.user.name : 'Unknown'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {calibration.vendor?.name || 'Not assigned'}
+                          {calibration.customer?.name || 'Not assigned'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(typeof calibration.status === 'object' ? calibration.status.name : calibration.status)}`}>
@@ -1447,7 +1447,7 @@ export default function CalibrationPage() {
                             <>
                           {/* Download certificate */}
                               <a 
-                                href={`/api/admin/calibrations/${calibration.id}/certificate`} 
+                                href={`/api/calibrations/${calibration.id}/certificate`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-900 mr-3 inline-flex items-center"
@@ -1516,7 +1516,7 @@ export default function CalibrationPage() {
             {/* Card view for small screens */}
             <div className="md:hidden space-y-4">
               {calibrations.map((calibration) => (
-                <div key={calibration.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div key={`mobile-card-${calibration.id}`} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-base font-medium text-gray-900">
@@ -1540,8 +1540,8 @@ export default function CalibrationPage() {
                       <p className="font-medium">{calibration.user ? calibration.user.name : 'Unknown'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Vendor:</p>
-                      <p className="font-medium">{calibration.vendor?.name || 'Not assigned'}</p>
+                      <p className="text-gray-500">customer:</p>
+                      <p className="font-medium">{calibration.customer?.name || 'Not assigned'}</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Date:</p>
@@ -1559,7 +1559,7 @@ export default function CalibrationPage() {
                       <>
                         {/* Download certificate */}
                         <a 
-                          href={`/api/admin/calibrations/${calibration.id}/certificate`} 
+                          href={`/api/calibrations/${calibration.id}/certificate`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm font-medium text-blue-600 hover:text-blue-900 inline-flex items-center"
@@ -1678,17 +1678,17 @@ export default function CalibrationPage() {
                 </div>
                 
                   <div>
-                    <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                    <label htmlFor="customerId" className="block text-sm font-medium text-gray-700 mb-1">customer</label>
                   <select
-                    id="vendorId"
-                    name="vendorId"
-                    value={editForm.vendorId}
+                    id="customerId"
+                    name="customerId"
+                    value={editForm.customerId}
                     onChange={handleEditFormChange}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   >
-                    <option value="">Select a vendor</option>
-                    {vendors.map(vendor => (
-                      <option key={`edit-vendor-${vendor.id}`} value={vendor.id}>{vendor.name}</option>
+                    <option value="">Select a customer</option>
+                    {customers.map(customer => (
+                      <option key={`edit-customer-${customer.id}`} value={customer.id}>{customer.name}</option>
                     ))}
                   </select>
                 </div>
@@ -2312,20 +2312,20 @@ export default function CalibrationPage() {
                     </div>
                   </div>
                   
-                  {/* Vendor Information */}
+                  {/* customer Information */}
                   <div>
-                    <h3 className="font-medium text-gray-700 mb-2">Vendor Information</h3>
+                    <h3 className="font-medium text-gray-700 mb-2">customer Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg">
                       <div>
-                        <label className="block mb-1 text-sm font-medium text-gray-700">Vendor</label>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">customer</label>
                         <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
-                          {certificateData.vendorName || 'Not specified'}
+                          {certificateData.customerName || 'Not specified'}
                         </div>
                       </div>
                       <div>
                         <label className="block mb-1 text-sm font-medium text-gray-700">Address</label>
                         <div className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-md p-2">
-                          {certificateData.vendorAddress || 'Not specified'}
+                          {certificateData.customerAddress || 'Not specified'}
                         </div>
                       </div>
                     </div>
@@ -2739,56 +2739,56 @@ export default function CalibrationPage() {
                     </div>
                   </div>
 
-                  {/* Vendor Details */}
+                  {/* customer Details */}
                   <div>
-                    <h3 className="font-medium text-gray-700 mb-3">Vendor Details</h3>
+                    <h3 className="font-medium text-gray-700 mb-3">customer Details</h3>
 
-                    {/* Vendor */}
-                    <div className="mb-3" ref={vendorSearchRef}>
-                      <label className="block mb-1 text-sm font-medium text-gray-700" id="vendor-label">Vendor</label>
+                    {/* customer */}
+                    <div className="mb-3" ref={customersearchRef}>
+                      <label className="block mb-1 text-sm font-medium text-gray-700" id="customer-label">customer</label>
                       <div className="relative">
                         <input
                           type="text"
-                          value={vendorSearch}
-                          onChange={(e) => setVendorSearch(e.target.value)}
-                          placeholder="Search for vendor by name"
+                          value={customersearch}
+                          onChange={(e) => setcustomersearch(e.target.value)}
+                          placeholder="Search for customer by name"
                           className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                          aria-labelledby="vendor-label"
-                          onFocus={() => vendorSearch.length >= 2 && setShowVendorSuggestions(true)}
+                          aria-labelledby="customer-label"
+                          onFocus={() => customersearch.length >= 2 && setShowcustomersuggestions(true)}
                         />
                         
-                        {/* Show selected vendor if any */}
-                        {calibrationForm.vendorId && (
+                        {/* Show selected customer if any */}
+                        {calibrationForm.customerId && (
                           <div className="mt-2 p-2 border border-green-200 bg-green-50 rounded-md">
                             <p className="font-medium text-sm">
-                              {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.name || "Selected Vendor"}
+                              {customers.find(customer => customer.id === calibrationForm.customerId)?.name || "Selected customer"}
                             </p>
-                            {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName && (
+                            {customers.find(customer => customer.id === calibrationForm.customerId)?.contactName && (
                               <p className="text-xs text-gray-600">
-                                Contact: {vendors.find(vendor => vendor.id === calibrationForm.vendorId)?.contactName}
+                                Contact: {customers.find(customer => customer.id === calibrationForm.customerId)?.contactName}
                               </p>
                             )}
                           </div>
                         )}
                         
                         {/* Suggestions dropdown */}
-                        {showVendorSuggestions && (
+                        {showcustomersuggestions && (
                           <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
-                            {filteredVendors.length > 0 ? (
+                            {filteredcustomers.length > 0 ? (
                               <ul className="py-1">
-                                {filteredVendors.map((vendor) => (
+                                {filteredcustomers.map((customer) => (
                                   <li 
-                                    key={vendor.id}
+                                    key={customer.id}
                                     className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                    onClick={() => handleVendorSelect(vendor)}
+                                    onClick={() => handlecustomerselect(customer)}
                                   >
                                     <div>
-                                      <div className="font-medium">{vendor.name}</div>
-                                      {vendor.contactName && (
-                                        <div className="text-sm text-gray-600">Contact: {vendor.contactName}</div>
+                                      <div className="font-medium">{customer.name}</div>
+                                      {customer.contactName && (
+                                        <div className="text-sm text-gray-600">Contact: {customer.contactName}</div>
                                       )}
-                                      {vendor.contactPhone && (
-                                        <div className="text-xs text-gray-500">Phone: {vendor.contactPhone}</div>
+                                      {customer.contactPhone && (
+                                        <div className="text-xs text-gray-500">Phone: {customer.contactPhone}</div>
                                       )}
                                     </div>
                                   </li>
@@ -2796,14 +2796,14 @@ export default function CalibrationPage() {
                               </ul>
                             ) : (
                               <div className="p-4 text-center text-gray-500">
-                                No matching vendors found
+                                No matching customers found
                               </div>
                             )}
                           </div>
                         )}
                       </div>
-                      {!calibrationForm.vendorId && (
-                        <p className="text-xs text-gray-500 mt-1">Search and select a vendor for calibration</p>
+                      {!calibrationForm.customerId && (
+                        <p className="text-xs text-gray-500 mt-1">Search and select a customer for calibration</p>
                       )}
                     </div>
 

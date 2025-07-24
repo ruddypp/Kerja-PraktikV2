@@ -37,7 +37,7 @@ export default function DashboardNavigation() {
     { name: 'Notifikasi', href: '/notifications', icon: MdNotifications },
     ...(isAdmin ? [{ name: 'Reports', href: '/reports', icon: MdAssessment }] : []),
     ...(isAdmin ? [{ name: 'Users', href: '/users', icon: MdPerson }] : []),
-    ...(isAdmin ? [{ name: 'Vendors', href: '/vendors', icon: MdStore }] : []),
+    ...(isAdmin ? [{ name: 'customers', href: '/admin/customers', icon: MdStore }] : []),
     { name: 'Activity Log', href: '/activity', icon: MdHistory },
     { name: 'Settings', href: '/settings', icon: MdSettings },
   ];

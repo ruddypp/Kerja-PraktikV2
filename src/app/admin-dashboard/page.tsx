@@ -34,7 +34,7 @@ type DashboardData = {
   pendingRentals: number;
   upcomingCalibrations: number;
   overdueRentals: number;
-  totalVendors: number;
+  totalcustomers: number;
   totalUsers: number;
 };
 
@@ -65,7 +65,7 @@ function ensureNumericValues(data: any): DashboardData {
       pendingRentals: 0,
       upcomingCalibrations: 0,
       overdueRentals: 0,
-      totalVendors: 0,
+      totalcustomers: 0,
       totalUsers: 0,
     };
   }
@@ -93,7 +93,7 @@ function ensureNumericValues(data: any): DashboardData {
     pendingRentals: toNumber(data.pendingRentals),
     upcomingCalibrations: toNumber(data.upcomingCalibrations),
     overdueRentals: toNumber(data.overdueRentals),
-    totalVendors: toNumber(data.totalVendors),
+    totalcustomers: toNumber(data.totalcustomers),
     totalUsers: toNumber(data.totalUsers),
   };
 }
@@ -207,12 +207,12 @@ export default function AdminDashboard() {
         inCalibrationItems: stats.inCalibrationItems,
         inRentalItems: stats.inRentalItems,
         inMaintenanceItems: stats.inMaintenanceItems,
-        totalVendors: stats.totalVendors,
+        totalcustomers: stats.totalcustomers,
         totalUsers: stats.totalUsers,
         types: {
           totalItems: typeof stats.totalItems,
           availableItems: typeof stats.availableItems,
-          totalVendors: typeof stats.totalVendors,
+          totalcustomers: typeof stats.totalcustomers,
           totalUsers: typeof stats.totalUsers
         }
       });
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
   // Format status badge
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
-      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Available' },
+      'AVAILABLE': { color: 'bg-green-100 text-green-800', text: 'Tersedia' },
       'IN_CALIBRATION': { color: 'bg-purple-100 text-purple-800', text: 'In Calibration' },
       'RENTED': { color: 'bg-yellow-100 text-yellow-800', text: 'Rented' },
       'IN_MAINTENANCE': { color: 'bg-red-100 text-red-800', text: 'In Maintenance' },
@@ -337,7 +337,7 @@ export default function AdminDashboard() {
     const inMaintenanceItems = typeof data.inMaintenanceItems === 'number' ? data.inMaintenanceItems : 0;
     
     return {
-      labels: ['Available', 'In Calibration', 'Rented', 'In Maintenance'],
+      labels: ['Tersedia', 'Kalibrasi', 'Rental', 'Maintenance'],
       datasets: [
         {
           label: 'Item Status',
@@ -546,10 +546,10 @@ export default function AdminDashboard() {
               <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium mb-1">Total Vendor</p>
-                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalVendors === 'number' ? formatNumber(stats.totalVendors) : 0}</h2>
-                    <Link href="/admin/vendors" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center mt-2 group">
-                      Lihat vendor
+                    <p className="text-gray-500 text-sm font-medium mb-1">Total Customer</p>
+                    <h2 className="text-3xl font-bold text-gray-800">{stats && typeof stats.totalcustomers === 'number' ? formatNumber(stats.totalcustomers) : 0}</h2>
+                    <Link href="/admin/customers" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center mt-2 group">
+                      Lihat customer
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -582,31 +582,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-          
-          {/* Notification Card */}
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Notifikasi</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{0}</p>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                <MdNotifications className="h-4 w-4 mr-1" />
-                Belum Dibaca
-              </span>
-            </div>
-            <div className="mt-4 flex justify-between items-center">
-              <div className="text-sm text-gray-500">
-                Tidak ada notifikasi baru
-              </div>
-              <Link href="/admin/notifications" className="text-sm font-medium text-green-600 hover:text-green-700 flex items-center gap-1">
-                Kelola
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </div>
             </div>
             
         {/* Second Row with Upcoming Schedules and Pie Chart - Improved layout */}
@@ -623,7 +598,7 @@ export default function AdminDashboard() {
 
           {/* Item Status Pie Chart - Improved styling */}
           <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Item Status Distribution</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Chart Distribusi Barang</h3>
                 <div className="h-64 flex items-center justify-center">
                   {stats ? (
                     <Pie data={pieChartData} options={{
@@ -674,13 +649,13 @@ export default function AdminDashboard() {
             
         {/* Item Status Overview - Improved layout and styling */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">Ikhtisar Status Barang</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-6">Status Barang</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
             <div className="flex flex-col p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Available</span>
+                      <span className="text-gray-700 font-medium">Tersedia</span>
                     </div>
                     <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.availableItems === 'number' ? formatNumber(stats.availableItems) : 0}
@@ -688,7 +663,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div 
-                      className="bg-green-500 h-2 rounded-full" 
+                       className="bg-green-500 h-2 rounded-full" 
                       style={{ 
                         width: `${stats && typeof stats.availableItems === 'number' && typeof stats.totalItems === 'number' ? 
                           calculatePercentage(stats.availableItems, stats.totalItems) : 0}%` 
@@ -705,7 +680,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">In Calibration</span>
+                      <span className="text-gray-700 font-medium">Kalibrasi</span>
                     </div>
                     <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inCalibrationItems === 'number' ? formatNumber(stats.inCalibrationItems) : 0}
@@ -730,7 +705,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-amber-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">Rented</span>
+                      <span className="text-gray-700 font-medium">Rental</span>
                     </div>
                     <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inRentalItems === 'number' ? formatNumber(stats.inRentalItems) : 0}
@@ -755,7 +730,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                      <span className="text-gray-700 font-medium">In Maintenance</span>
+                      <span className="text-gray-700 font-medium">Maintance</span>
                     </div>
                     <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-xs font-semibold">
                       {stats && typeof stats.inMaintenanceItems === 'number' ? formatNumber(stats.inMaintenanceItems) : 0}
@@ -780,7 +755,7 @@ export default function AdminDashboard() {
             
         {/* Activity and Reminders - Improved design */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-5">Aktivitas & Pengingat</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-5">Pengingat</h2>
             
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="relative pl-8 border-l-2 border-yellow-300 py-1">
@@ -838,7 +813,7 @@ export default function AdminDashboard() {
             
               {/* Equipment Activity Chart */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all mb-8">
-                <EquipmentActivityChart title="Aktivitas Peralatan" />
+                <EquipmentActivityChart title="Grafik Peralatan" />
               </div>
       </div>
     </DashboardLayout>

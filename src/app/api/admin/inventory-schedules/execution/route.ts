@@ -1,107 +1,103 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import { prisma } from '@/lib/prisma';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
+import { ActivityType, Item } from '@prisma/client';
 
-// POST - Create a new inventory execution
+// POST - Create or get an ongoing inventory execution for a schedule
 export async function POST(request: Request) {
   try {
-    // Get the schedule ID from the request body
+    const user = await getUserFromRequest(request);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { scheduleId } = body;
-    
+
     if (!scheduleId) {
-      return NextResponse.json(
-        { error: 'Schedule ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Schedule ID is required' }, { status: 400 });
     }
-    
-    // Get the current user from session
-    const session = await getServerSession();
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
-    // Find the user by email
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email as string }
-    });
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Check if the schedule exists
-    const schedule = await prisma.inventorySchedule.findUnique({
-      where: { id: scheduleId }
-    });
-    
-    if (!schedule) {
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Get all items for inventory check
-    const items = await prisma.item.findMany({
+
+    const schedule = await prisma.inventoryCheck.findUnique({
+      where: { id: scheduleId },
       include: {
-        category: true
+        items: {
+          include: {
+            item: true,
+          },
+        },
       },
-      orderBy: {
-        id: 'asc'
-      }
     });
-    
-    // Create an inventory execution record
-    const execution = await prisma.inventoryExecution.create({
-      data: {
-        name: `Inventory Check: ${schedule.name}`,
-        scheduleId,
-        performedById: user.id,
+
+    if (!schedule) {
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
+    }
+
+
+    let execution = await prisma.inventoryCheckExecution.findFirst({
+      where: {
+        scheduleId: scheduleId,
         status: 'IN_PROGRESS',
-        date: new Date()
-      }
+      },
     });
-    
-    // Log the activity
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        activity: `Started inventory check for schedule: ${schedule.name}`
-      }
+
+    if (!execution) {
+
+      execution = await prisma.inventoryCheckExecution.create({
+        data: {
+          name: `Execution for: ${schedule.name || 'Unnamed Schedule'}`,
+          scheduleId: scheduleId,
+          userId: user.id,
+          status: 'IN_PROGRESS',
+          date: new Date(),
+        },
+      });
+
+      // We don't have a specific activity type for this, so we'll use a generic one.
+      // Consider adding INVENTORY_EXECUTION_STARTED to the enum in schema.prisma later.
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          type: ActivityType.ITEM_UPDATED, // Using a generic type for now
+          action: 'Inventory Execution Started',
+          details: `Started execution for schedule: ${schedule.name || 'Unnamed Schedule'}`,
+        },
+      });
+    }
+
+    // Get items already verified in this specific execution
+    const verifiedExecutionItems = await prisma.inventoryCheckExecutionItem.findMany({
+      where: { executionId: execution.id },
+      select: { itemSerial: true, verified: true },
     });
-    
-    // Format the response
+    const verifiedItemMap = new Map(
+      verifiedExecutionItems.map((i: { itemSerial: string; verified: boolean }) => [i.itemSerial, i.verified])
+    );
+
+    // Use the items from the schedule itself, not all items from the database
+    const responseItems = schedule.items.map(({ item }: { item: Item }) => ({
+      serialNumber: item.serialNumber,
+      name: item.name,
+      status: item.status,
+      lastVerifiedAt: item.lastVerifiedAt?.toISOString() || null,
+      verified: verifiedItemMap.get(item.serialNumber) || false,
+    }));
+
     const response = {
-      id: execution.id,
+      executionId: execution.id,
       name: execution.name,
       scheduleId: execution.scheduleId,
-      scheduleName: schedule.name,
+      scheduleName: schedule.name || 'Unnamed Schedule',
       date: execution.date.toISOString(),
       status: execution.status,
-      items: items.map(item => ({
-        id: item.id,
-        name: item.name,
-        serialNumber: item.serialNumber,
-        categoryName: item.category.name,
-        status: item.status,
-        lastVerifiedDate: item.lastVerifiedDate ? item.lastVerifiedDate.toISOString() : null,
-        verified: false
-      }))
+      items: responseItems,
     };
-    
-    return NextResponse.json(response, { status: 201 });
+
+    return NextResponse.json(response, { status: 200 }); // Use 200 for 'OK' since we might be fetching an existing one
   } catch (error) {
-    console.error('Error creating inventory execution:', error);
+    console.error('[API] Error creating/fetching inventory execution:', error);
     return NextResponse.json(
-      { error: 'Failed to create inventory execution' },
+      { error: 'Failed to create or fetch inventory execution' },
       { status: 500 }
     );
   }

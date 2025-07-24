@@ -26,9 +26,9 @@ enum ActivityType {
   USER_CREATED = 'USER_CREATED',
   USER_UPDATED = 'USER_UPDATED',
   USER_DELETED = 'USER_DELETED',
-  VENDOR_CREATED = 'VENDOR_CREATED',
-  VENDOR_UPDATED = 'VENDOR_UPDATED',
-  VENDOR_DELETED = 'VENDOR_DELETED'
+  customer_CREATED = 'customer_CREATED',
+  customer_UPDATED = 'customer_UPDATED',
+  customer_DELETED = 'customer_DELETED'
 }
 
 interface User {
@@ -47,7 +47,7 @@ interface ActivityLog {
   calibrationId?: string;
   maintenanceId?: string;
   affectedUserId?: string;
-  vendorId?: string;
+  customerId?: string;
   createdAt: string;
   user: User;
   affectedUser?: User;
@@ -440,10 +440,10 @@ export default function AdminHistoryPage() {
                     <option value={ActivityType.USER_UPDATED}>User Updated</option>
                     <option value={ActivityType.USER_DELETED}>User Deleted</option>
                   </optgroup>
-                  <optgroup label="Vendor Activities">
-                    <option value={ActivityType.VENDOR_CREATED}>Vendor Created</option>
-                    <option value={ActivityType.VENDOR_UPDATED}>Vendor Updated</option>
-                    <option value={ActivityType.VENDOR_DELETED}>Vendor Deleted</option>
+                  <optgroup label="customer Activities">
+                    <option value={ActivityType.customer_CREATED}>customer Created</option>
+                    <option value={ActivityType.customer_UPDATED}>customer Updated</option>
+                    <option value={ActivityType.customer_DELETED}>customer Deleted</option>
                   </optgroup>
                 </select>
               </div>
@@ -568,7 +568,7 @@ export default function AdminHistoryPage() {
                         log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
                         log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
                         log.affectedUserId ? `User: ${log.affectedUserId.substring(0, 8)}...` :
-                        log.vendorId ? `Vendor: ${log.vendorId.substring(0, 8)}...` : '-'}
+                        log.customerId ? `customer: ${log.customerId.substring(0, 8)}...` : '-'}
                       </td>
                     </tr>
                   ))}

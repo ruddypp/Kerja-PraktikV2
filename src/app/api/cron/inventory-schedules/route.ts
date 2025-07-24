@@ -1,99 +1,112 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { RecurrenceType } from '@prisma/client';
+import { addMonths, addYears, isAfter, startOfDay, isSameDay } from 'date-fns';
+import { checkForDueReminders, handleScheduleStatusChange } from '@/lib/reminder-service';
 
-/**
- * This API route is designed to be called by a cron job to process recurring inventory schedules.
- * It will:
- * 1. Find all recurring schedules that need to be processed
- * 2. Update the nextDate for recurring schedules
- */
+// Endpoint untuk cron job yang memeriksa jadwal inventaris dan reminder
 export async function GET(request: Request) {
   try {
-    // For security, validate API key if it's set in environment variables
-    const { searchParams } = new URL(request.url);
-    const apiKey = searchParams.get('key');
-    
-    if (process.env.CRON_API_KEY && apiKey !== process.env.CRON_API_KEY) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const today = new Date();
-    
-    // Find all recurring schedules that are due today or in the past
-    const dueSchedules = await prisma.inventoryCheck.findMany({
+    // Proses jadwal inventaris
+    const recurringSchedules = await prisma.inventoryCheck.findMany({
       where: {
         isRecurring: true,
         nextDate: {
-          lte: today
-        }
+          not: null,
+        },
       },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
     });
-    
-    console.log(`Found ${dueSchedules.length} recurring schedules to process`);
-    
+
     const results = [];
-    
-    // Process each due schedule
-    for (const schedule of dueSchedules) {
-      // Calculate the next date based on recurrence type
-      const nextDate = calculateNextDate(schedule.nextDate || today, schedule.recurrenceType as RecurrenceType);
-      
-      // Notification system has been removed
-      
-      // Update the schedule with the new nextDate
-      await prisma.inventoryCheck.update({
-        where: { id: schedule.id },
-        data: {
-          nextDate
+    const today = startOfDay(new Date());
+
+    for (const schedule of recurringSchedules) {
+      if (schedule.nextDate && isAfter(today, schedule.nextDate)) {
+        // Buat jadwal baru berdasarkan tipe pengulangan
+        const newDate = schedule.recurrenceType === 'MONTHLY'
+          ? addMonths(schedule.nextDate, 1)
+          : addYears(schedule.nextDate, 1);
+
+        // Buat jadwal baru
+        const newSchedule = await prisma.inventoryCheck.create({
+          data: {
+            name: schedule.name,
+            scheduledDate: newDate,
+            userId: schedule.userId,
+            isRecurring: true,
+            recurrenceType: schedule.recurrenceType,
+            nextDate: schedule.recurrenceType === 'MONTHLY'
+              ? addMonths(newDate, 1)
+              : addYears(newDate, 1),
+          },
+        });
+
+        // Update jadwal yang sekarang
+        await prisma.inventoryCheck.update({
+          where: { id: schedule.id },
+          data: {
+            nextDate: null,
+          },
+        });
+
+        // Create reminder for the new schedule
+        try {
+          await handleScheduleStatusChange(newSchedule.id);
+          console.log(`Created reminder for new recurring schedule ${newSchedule.id}`);
+        } catch (error) {
+          console.error(`Failed to create reminder for new recurring schedule ${newSchedule.id}:`, error);
+          // Don't fail the cron job if reminder creation fails
         }
-      });
-      
-      results.push({
-        id: schedule.id,
-        name: schedule.name,
-        owner: schedule.createdBy.name,
-        previousDate: schedule.nextDate,
-        newNextDate: nextDate
-      });
+
+        results.push({
+          originalSchedule: schedule.id,
+          newSchedule: newSchedule.id,
+        });
+      }
     }
-    
+
+    // Find all schedules due today that don't have reminders yet
+    const schedulesForToday = await prisma.inventoryCheck.findMany({
+      where: {
+        scheduledDate: {
+          gte: startOfDay(today),
+          lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+        },
+      },
+    });
+
+    const todayResults = [];
+    for (const schedule of schedulesForToday) {
+      try {
+        // Create or update reminder for this schedule
+        const reminder = await handleScheduleStatusChange(schedule.id);
+        todayResults.push({
+          scheduleId: schedule.id,
+          reminderCreated: !!reminder,
+        });
+      } catch (error) {
+        console.error(`Failed to create/update reminder for schedule ${schedule.id}:`, error);
+        todayResults.push({
+          scheduleId: schedule.id,
+          error: 'Failed to create/update reminder',
+        });
+      }
+    }
+
+    // Proses reminder yang jatuh tempo
+    const reminderResults = await checkForDueReminders();
+
     return NextResponse.json({
-      processedAt: today.toISOString(),
-      schedulesProcessed: dueSchedules.length,
-      results
+      success: true,
+      message: `Processed ${results.length} recurring schedules, ${todayResults.length} schedules for today, and ${reminderResults.length} reminders`,
+      scheduleResults: results,
+      todayResults,
+      reminderResults,
     });
   } catch (error) {
-    console.error('Error processing recurring schedules:', error);
+    console.error('Error in cron job:', error);
     return NextResponse.json(
-      { error: 'Failed to process recurring schedules' },
+      { success: false, error: 'Failed to process cron job' },
       { status: 500 }
     );
   }
-}
-
-/**
- * Calculate the next date based on recurrence type
- */
-function calculateNextDate(currentDate: Date, recurrenceType: RecurrenceType): Date {
-  const nextDate = new Date(currentDate);
-  
-  if (recurrenceType === RecurrenceType.MONTHLY) {
-    nextDate.setMonth(nextDate.getMonth() + 1);
-  } else if (recurrenceType === RecurrenceType.YEARLY) {
-    nextDate.setFullYear(nextDate.getFullYear() + 1);
-  }
-  
-  return nextDate;
 } 

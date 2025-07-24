@@ -138,7 +138,13 @@ export default function MaintenanceForm({
       console.log("Submit response:", data);
       
       if (!response.ok) {
-        throw new Error(data.error || "Gagal menyelesaikan maintenance");
+        // Check if the response contains an error message
+        const errorMessage = data && data.error 
+          ? data.error 
+          : "Gagal menyelesaikan maintenance. Silakan coba lagi.";
+        
+        toast.error(errorMessage);
+        return; // Return early instead of throwing
       }
       
       toast.success("Maintenance berhasil diselesaikan");

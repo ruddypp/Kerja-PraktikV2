@@ -1,12 +1,32 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { UserProvider } from './context/UserContext';
+import { SessionProvider } from 'next-auth/react';
+import { UserProvider, useUser } from './context/UserContext';
+import { NotificationProvider } from './context/NotificationContext';
 
-export function Providers({ children }: { children: ReactNode }) {
+function NotificationWrapper({ children }: { children: React.ReactNode }) {
+  const { user } = useUser();
+  const role = user?.role as 'ADMIN' | 'USER' | undefined;
+
+  if (role) {
+    return (
+      <NotificationProvider role={role}>
+        {children}
+      </NotificationProvider>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+export function Providers({ children, session }: { children: React.ReactNode, session: any }) {
   return (
-    <UserProvider>
-      {children}
-    </UserProvider>
+    <SessionProvider session={session}>
+      <UserProvider>
+        <NotificationWrapper>
+          {children}
+        </NotificationWrapper>
+      </UserProvider>
+    </SessionProvider>
   );
 } 

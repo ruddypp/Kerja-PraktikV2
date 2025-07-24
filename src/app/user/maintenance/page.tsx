@@ -22,7 +22,7 @@ interface Maintenance {
   userId: string;
   status: string;
   description: string;
-  vendorId: string | null;
+  customerId: string | null;
   completedDate: string | null;
   startDate: string;
   endDate: string | null;
@@ -35,7 +35,7 @@ interface Maintenance {
     name: string;
     partNumber: string;
   };
-  vendor: {
+  customer: {
     id: string;
     name: string;
   } | null;
@@ -60,31 +60,55 @@ export default function MaintenancePage() {
   }, []);
 
   useEffect(() => {
-    const cachedData = sessionStorage.getItem(CACHE_KEY);
-    const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
-    const now = Date.now();
-    
-    // Cek apakah cache masih valid (tidak lebih dari durasi yang ditentukan)
-    if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
-      try {
-        setMaintenances(JSON.parse(cachedData));
-        setLoading(false);
-      } catch (e) {
-        console.error("Error parsing cached data:", e);
-        // Jika terjadi kesalahan parsing, hapus cache dan muat ulang data
-        invalidateCache();
-        fetchMaintenances();
+    // Check if we need to force refresh based on URL parameters
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const timestamp = urlParams.get('t');
+      
+      // If timestamp parameter exists, force a refresh
+      const forceRefresh = !!timestamp;
+      
+      if (forceRefresh) {
+        // Clean up the URL if there's a timestamp parameter
+        if (window.history && window.history.replaceState) {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+        fetchMaintenances(true);
+      } else {
+        const cachedData = sessionStorage.getItem(CACHE_KEY);
+        const lastFetch = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+        
+        // Cek apakah cache masih valid (tidak lebih dari durasi yang ditentukan)
+        if (cachedData && lastFetch && now - parseInt(lastFetch) < CACHE_DURATION) {
+          try {
+            setMaintenances(JSON.parse(cachedData));
+            setLoading(false);
+          } catch (e) {
+            console.error("Error parsing cached data:", e);
+            // Jika terjadi kesalahan parsing, hapus cache dan muat ulang data
+            invalidateCache();
+            fetchMaintenances(false);
+          }
+        } else {
+          fetchMaintenances(false);
+        }
       }
-    } else {
-      fetchMaintenances();
     }
   }, [invalidateCache]);
 
-  const fetchMaintenances = async () => {
+  const fetchMaintenances = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/user/maintenance");
+      
+      const response = await fetch("/api/user/maintenance", {
+        headers: forceRefresh ? {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        } : {}
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -163,7 +187,9 @@ export default function MaintenancePage() {
       <div className="space-y-6">
         {/* Responsive header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <h1 className="text-2xl font-bold">Maintenance Barang</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Maintenance Barang</h1>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Link
               href="/user/maintenance/new"

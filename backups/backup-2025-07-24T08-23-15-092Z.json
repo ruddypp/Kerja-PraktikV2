@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-07-24T08-23-15-092Z",
+  "tables": {
+    "users": {
+      "count": 2
+    },
+    "items": {
+      "count": 1000
+    },
+    "calibrations": {
+      "count": 3
+    },
+    "rentals": {
+      "count": 1
+    },
+    "maintenance": {
+      "count": 2
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
 import { logMaintenanceActivity } from "@/lib/activity-logger";
 import { generateCSRNumber, generateTCRNumber } from "@/lib/report-number-generator";
+import { createInstantNotificationForReminder } from "@/lib/notification-service";
 
 interface ServiceReportPartData {
   itemNumber: number;
@@ -265,9 +266,22 @@ export async function POST(
         maintenance.itemSerial,
         `Maintenance selesai untuk ${maintenance.item.name} (${maintenance.itemSerial}) oleh admin. CSR No: ${csrNumber}, TCR No: ${tcrNumber}`
       );
-      
+
       return updatedMaintenance;
+    }, {
+      timeout: 15000 // Increase timeout to 15 seconds
     });
+    
+    // 8. Buat reminder untuk maintenance yang selesai
+    if (updatedMaintenance) {
+      try {
+        await createInstantNotificationForReminder(updatedMaintenance.id, 'MAINTENANCE');
+        console.log('Successfully triggered instant notification for maintenance');
+      } catch (error) {
+        console.error('Error creating maintenance reminder:', error);
+        // Don't fail the request if reminder creation fails
+      }
+    }
     
     return NextResponse.json({
       ...updatedMaintenance,

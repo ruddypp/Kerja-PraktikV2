@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       pendingRentalsResult,
       upcomingCalibrationsResult,
       overdueRentalsResult,
-      totalVendorsResult,
+      totalcustomersResult,
       totalUsersResult
     ] = await Promise.allSettled([
       // Query the database for items count
@@ -101,11 +101,11 @@ export async function GET(request: Request) {
         }
       }),
 
-      // Get total vendors count
-      prisma.vendor.count({
+      // Get total customers count
+      prisma.customer.count({
         where: { isDeleted: false }
       }).then(count => {
-        console.log('Total vendors count:', count);
+        console.log('Total customers count:', count);
         return count;
       }),
 
@@ -144,7 +144,7 @@ export async function GET(request: Request) {
       pendingRentals: ensureNumber(getValue(pendingRentalsResult, 0)),
       upcomingCalibrations: ensureNumber(getValue(upcomingCalibrationsResult, 0)),
       overdueRentals: ensureNumber(getValue(overdueRentalsResult, 0)),
-      totalVendors: ensureNumber(getValue(totalVendorsResult, 0)),
+      totalcustomers: ensureNumber(getValue(totalcustomersResult, 0)),
       totalUsers: ensureNumber(getValue(totalUsersResult, 0))
     };
     
@@ -166,7 +166,7 @@ export async function GET(request: Request) {
       pendingRentals: 0,
       upcomingCalibrations: 0,
       overdueRentals: 0,
-      totalVendors: 0,
+      totalcustomers: 0,
       totalUsers: 0
     };
     

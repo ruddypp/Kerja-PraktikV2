@@ -4,6 +4,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { ItemStatus, RequestStatus, ActivityType } from "@prisma/client";
 import { logMaintenanceActivity } from "@/lib/activity-logger";
 import { generateCSRNumber, generateTCRNumber } from "@/lib/report-number-generator";
+import { handleMaintenanceStatusChange } from "@/lib/reminder-service";
 
 interface ServiceReportPartData {
   itemNumber: number;
@@ -275,7 +276,18 @@ export async function POST(
       );
       
       return updatedMaintenance;
+    }, {
+      timeout: 15000 // Increase timeout to 15 seconds
     });
+    
+    // Create maintenance reminder (moved outside transaction)
+    try {
+      await handleMaintenanceStatusChange(maintenanceId, 'COMPLETED');
+      console.log('Successfully created maintenance reminder');
+    } catch (error) {
+      console.error('Error creating maintenance reminder:', error);
+      // Don't fail the request if reminder creation fails
+    }
     
     return NextResponse.json({
       ...updatedMaintenance,
