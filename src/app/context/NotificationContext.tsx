@@ -29,6 +29,8 @@ export function NotificationProvider({ children, role }: { children: React.React
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSoundPlayedTime = useRef<number>(0);
   const isFetching = useRef(false); // The "lock"
+  const processedNotifications = useRef(new Set<string>()); // Track notifications that have been processed
+  const toastShownCount = useRef<number>(0); // Track number of toasts shown in current session
 
   const baseUrl = role === 'ADMIN' ? '/api/admin/notifications' : '/api/user/notifications';
 
@@ -53,20 +55,54 @@ export function NotificationProvider({ children, role }: { children: React.React
     };
   }, []);
 
+  // Reset toast count after 1 minute of inactivity
+  useEffect(() => {
+    let resetTimer: NodeJS.Timeout;
+    
+    const resetToastCount = () => {
+      toastShownCount.current = 0;
+    };
+    
+    // Reset the counter after 1 minute
+    const scheduleReset = () => {
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(resetToastCount, 60000); // 1 minute
+    };
+    
+    // Initialize the reset timer
+    scheduleReset();
+    
+    return () => clearTimeout(resetTimer);
+  }, []);
+
   const playSoundAndShowToast = (notification: Notification) => {
+    // Skip if notification doesn't have required data
     if (!notification.reminder?.dueDate || !notification.reminder?.type) return;
 
+    // Skip if we've already processed this notification in the current session
+    if (processedNotifications.current.has(notification.id)) return;
+    
+    // Only process new unread notifications
+    if (notification.isRead) return;
+    
+    // Check if we should show this notification based on tracking
     if (!canShowNotification(notification.id, notification.reminder.dueDate, notification.reminder.type)) return;
+    
+    // Limit the number of toasts shown at once (max 3 per session)
+    if (toastShownCount.current >= 3) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dueDate = new Date(notification.reminder.dueDate);
     const daysDiff = differenceInDays(dueDate, today);
 
-    console.log("TOAST MUNCUL UNTUK", notification.reminder.id, "COUNTDOWN:", daysDiff, "TANGGAL:", new Date().toLocaleDateString());
-
+    // Rate limit sound playback (at most once every 5 seconds)
     const now = Date.now();
     if (now - lastSoundPlayedTime.current < 5000) return;
+    
+    // Mark this notification as processed to prevent showing it again
+    processedNotifications.current.add(notification.id);
+    toastShownCount.current += 1;
     
     if (audioRef.current) {
       const playPromise = audioRef.current.play();
@@ -99,7 +135,6 @@ export function NotificationProvider({ children, role }: { children: React.React
       ),
             { duration: 10000, icon: '🔔' }
     );
-
         }).catch(error => {
           console.error(`Error playing sound for notification ${notification.id}:`, error);
         });
@@ -133,9 +168,31 @@ export function NotificationProvider({ children, role }: { children: React.React
       const data = await response.json();
       const allNotifications = data.notifications || [];
       
+      // Only show toasts for unread notifications if requested
       if (showToast) {
-        allNotifications.forEach((notification: Notification) => {
+        // Sort notifications by priority (overdue first)
+        const prioritizedNotifications = [...allNotifications]
+          .filter(n => !n.isRead && n.reminder?.dueDate)
+          .sort((a, b) => {
+            // First sort by read status (unread first)
+            if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+            
+            // Then by due date (earlier date = higher priority)
+            const dateA = new Date(a.reminder?.dueDate || '');
+            const dateB = new Date(b.reminder?.dueDate || '');
+            return dateA.getTime() - dateB.getTime();
+          });
+        
+        // Limit to most important notifications (max 3)
+        const toShow = prioritizedNotifications.slice(0, 3);
+        
+        // Show toasts one by one with a small delay to avoid overwhelming the user
+        toShow.forEach((notification, index) => {
+          setTimeout(() => {
+            if (isMounted.current) {
           playSoundAndShowToast(notification);
+            }
+          }, index * 1000); // 1 second delay between toasts
         });
       }
       
@@ -289,9 +346,10 @@ export function NotificationProvider({ children, role }: { children: React.React
     // Initial fetch without showing toast
     fetchNotifications(false).catch(err => console.error('Initial fetch error:', err));
     
+    // Use a slightly longer interval to reduce server load
     const interval = setInterval(() => {
       triggerCronCheck(true).catch(err => console.error('Interval check error:', err));
-    }, 30 * 1000); // Poll every 30 seconds
+    }, 45 * 1000); // Poll every 45 seconds instead of 30
     
     return () => clearInterval(interval);
   }, [role]);

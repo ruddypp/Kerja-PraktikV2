@@ -414,18 +414,6 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
                 </Link>
               </li>
 
-              {/* Reminders */}
-              <li>
-                <Link 
-                  href="/user/reminders" 
-                  className={`flex items-center p-3 rounded-lg transition-colors ${isActive('/user/reminders') ? 'bg-green-600 text-white font-medium' : 'text-gray-900 hover:bg-green-50 hover:text-green-600'}`}
-                  onClick={handleNavigation}
-                >
-                  <MdCalendarToday className={`h-5 w-5 ${isActive('/user/reminders') ? 'text-white' : 'text-gray-500'} mr-3`} />
-                  {(isOpen || isMobile) && 'Reminders'}
-                </Link>
-              </li>
-
               {/* Notifications */}
               <li>
                 <Link 

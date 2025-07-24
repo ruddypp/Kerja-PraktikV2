@@ -145,7 +145,11 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
             createdAt: {
               gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
             }
-          }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
         });
         
         // Jika sudah ada notifikasi yang dibuat dalam 24 jam terakhir dan tidak dipaksa, lewati
@@ -156,7 +160,9 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
             reminderId: reminder.id,
             status: 'skipped',
             reason: 'Recent notification exists',
-            reminderType: reminder.type
+            reminderType: reminder.type,
+            existingNotificationId: existingNotifications[0].id,
+            daysRemaining
           });
           
           continue;
@@ -167,17 +173,29 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
         
         switch (reminder.type) {
           case 'CALIBRATION':
-            // Untuk kalibrasi, notifikasi pada H-30 dan saat jatuh tempo/terlambat
-            shouldCreateNotification = isOverdue || isDueToday || daysRemaining === 30;
+            // Untuk kalibrasi, notifikasi pada H-30, H-7, H-1, dan saat jatuh tempo/terlambat
+            shouldCreateNotification = 
+              isOverdue || 
+              isDueToday || 
+              daysRemaining === 1 ||
+              daysRemaining === 7 || 
+              daysRemaining === 30;
             break;
           case 'RENTAL':
           case 'MAINTENANCE':
-            // Untuk rental dan maintenance, notifikasi pada H-7 dan saat jatuh tempo/terlambat
-            shouldCreateNotification = isOverdue || isDueToday || daysRemaining === 7;
+            // Untuk rental dan maintenance, notifikasi pada H-7, H-1, dan saat jatuh tempo/terlambat
+            shouldCreateNotification = 
+              isOverdue || 
+              isDueToday || 
+              daysRemaining === 1 || 
+              daysRemaining === 7;
             break;
           case 'SCHEDULE':
-            // Untuk jadwal, hanya notifikasi pada hari jatuh tempo/terlambat
-            shouldCreateNotification = isOverdue || isDueToday;
+            // Untuk jadwal, notifikasi pada H-1 dan saat jatuh tempo/terlambat
+            shouldCreateNotification = 
+              isOverdue || 
+              isDueToday || 
+              daysRemaining === 1;
             break;
           default:
             shouldCreateNotification = isOverdue || isDueToday;
@@ -191,7 +209,8 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
             reminderId: reminder.id,
             status: 'skipped',
             reason: 'Does not meet notification criteria',
-            reminderType: reminder.type
+            reminderType: reminder.type,
+            daysRemaining
           });
           
           continue;
@@ -245,6 +264,9 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
         } else if (isDueToday) {
           title = `🔔 ${reminderTypeText}: ${itemName} - Jatuh tempo hari ini`;
           message = `${itemName}${serialNumber ? ` (${serialNumber})` : ''}${customerName ? ` untuk ${customerName}` : ''} jatuh tempo hari ini. ${actionText}`;
+        } else if (daysRemaining === 1) {
+          title = `🔔 ${reminderTypeText}: ${itemName} - H-1`;
+          message = `${itemName}${serialNumber ? ` (${serialNumber})` : ''}${customerName ? ` untuk ${customerName}` : ''} akan jatuh tempo besok. ${actionText}`;
         } else if (daysRemaining === 7) {
           title = `🔔 ${reminderTypeText}: ${itemName} - H-7`;
           message = `${itemName}${serialNumber ? ` (${serialNumber})` : ''}${customerName ? ` untuk ${customerName}` : ''} akan jatuh tempo dalam 7 hari. ${actionText}`;
@@ -283,7 +305,9 @@ export async function checkDueReminders(options?: { forceAll?: boolean }) {
           reminderType: reminder.type,
           itemName,
           serialNumber,
-          customerName
+          customerName,
+          daysRemaining,
+          title
         });
       } catch (error) {
         console.error(`Error processing reminder ${reminder.id}:`, error);

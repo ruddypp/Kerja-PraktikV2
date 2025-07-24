@@ -195,8 +195,8 @@ export default function AdminRemindersPage() {
     const partNumber = calibration.item?.partNumber || 'Tidak diketahui';
     const sensorInfo = calibration.item?.sensor ? `- Sensor: ${calibration.item.sensor}` : '';
     
-    const subject = encodeURIComponent(`Pengingat Kalibrasi: ${itemName} (${serialNumber})`);
-    const body = encodeURIComponent(`
+    const subject = `Pengingat Kalibrasi: ${itemName} (${serialNumber})`;
+    const body = `
 Yth. ${customer.contactName || customer.name},
 
 Kami ingin mengingatkan bahwa kalibrasi untuk peralatan ${itemName} (Nomor Seri: ${serialNumber}) akan jatuh tempo pada ${format(new Date(dueDate), 'dd MMM yyyy')}.
@@ -213,16 +213,12 @@ Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami.
 
 Salam hormat,
 Tim Paramata
-    `);
+    `;
     
-    // Tandai email sebagai terkirim secara asynchronous
-    fetch(`/api/admin/reminders/${reminder.id}/email-template`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Tambahkan credentials untuk autentikasi
-    }).catch(err => console.error('Error marking email as sent:', err));
+    // Gunakan Gmail URL scheme untuk membuka Gmail di browser
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(customer.contactEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    return `mailto:${customer.contactEmail}?subject=${subject}&body=${body}`;
+    return gmailUrl;
   };
 
   const getStatusBadgeClass = (status: string, dueDate: string) => {
@@ -470,6 +466,14 @@ Tim Paramata
                               className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded-md text-xs flex items-center justify-center"
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => {
+                                // Track that the email was sent
+                                fetch(`/api/admin/reminders/${reminder.id}/email-template`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  credentials: 'include'
+                                }).catch(err => console.error('Error marking email as sent:', err));
+                              }}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

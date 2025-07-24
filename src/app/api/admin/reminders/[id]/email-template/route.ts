@@ -82,8 +82,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Ensure params is fully resolved before using its properties
-    const { id } = params;
+    // Ensure params is fully resolved
+    const id = params.id;
     
     const reminder = await prisma.reminder.findUnique({
       where: { id },
@@ -130,8 +130,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Ensure params is fully resolved before using its properties
-    const { id } = params;
+    // Ensure params is fully resolved - fixed to avoid NextJS error
+    const id = params.id;
     
     // Mark the email as sent
     const updatedReminder = await markEmailSent(id);

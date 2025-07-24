@@ -30,7 +30,7 @@ export default function NotificationDebug() {
         if (error.name === 'NotAllowedError' || error.message.includes('user didn\'t interact')) {
           addLog('❌ Gagal memainkan suara: Kebijakan browser membatasi autoplay');
           toast.error('Interaksi pengguna dibutuhkan sebelum memutar suara. Klik di mana saja pada halaman terlebih dahulu, lalu coba lagi.', {
-            autoClose: 8000,
+            duration: 8000,
           });
           console.warn('Browser autoplay policy error:', error);
         } else {

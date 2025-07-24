@@ -40,6 +40,11 @@ function saveTriggers(triggers: TriggerRecord) {
   }
 }
 
+// New function to get reminderID from notificationId
+function getReminderKey(notificationId: string): string {
+  return `reminder_${notificationId}`;
+}
+
 export function recordNotificationTrigger(notificationId: string) {
   const triggers = getTriggers();
   if (!triggers[notificationId]) {
@@ -55,37 +60,41 @@ export function canShowNotification(notificationId: string, dueDateStr: string, 
   const triggers = getTriggers();
   const today = startOfToday();
   const dueDate = new Date(dueDateStr);
+  
+  // Check for any triggers today for this notification
   const notificationTriggersToday = (triggers[notificationId] || []).filter(ts => isToday(ts));
-
-  const daysDiff = differenceInCalendarDays(dueDate, today);
-
-  // Define the initial (and only) trigger day for each reminder type
-  let initialTriggerDay;
-  switch (reminderType) {
-    case 'CALIBRATION':
-      initialTriggerDay = 30;
-      break;
-    case 'RENTAL':
-    case 'MAINTENANCE':
-      initialTriggerDay = 7;
-      break;
-    case 'SCHEDULE':
-      initialTriggerDay = 0;
-      break;
-    default:
-      return false; // For unknown types, never show notification.
-  }
-
-  // Determine if today is a valid day to show the notification.
-  // A notification is valid if its due date is on or after the trigger day.
-  const isNotificationDay = daysDiff <= initialTriggerDay;
-
-  // If it's not a valid day to show, simply return false.
-  if (!isNotificationDay) {
+  
+  // Get notification triggers by reminder ID to ensure we're not showing multiple
+  // notifications for the same reminder with different notification IDs
+  const reminderKey = getReminderKey(notificationId);
+  const reminderTriggersToday = (triggers[reminderKey] || []).filter(ts => isToday(ts));
+  
+  // If either notification or reminder triggers exist today, don't show again
+  if (notificationTriggersToday.length > 0 || reminderTriggersToday.length > 0) {
     return false;
   }
 
-  // If it IS a valid day, the rule is simple:
-  // only show if it hasn't been triggered today.
-  return notificationTriggersToday.length === 0;
+  const daysDiff = differenceInCalendarDays(dueDate, today);
+
+  // Define the initial trigger days for each reminder type
+  let triggerDays;
+  switch (reminderType) {
+    case 'CALIBRATION':
+      triggerDays = [30, 7, 1, 0, -1]; // H-30, H-7, H-1, due date, and overdue
+      break;
+    case 'RENTAL':
+    case 'MAINTENANCE':
+      triggerDays = [7, 1, 0, -1]; // H-7, H-1, due date, and overdue
+      break;
+    case 'SCHEDULE':
+      triggerDays = [1, 0, -1]; // H-1, due date, and overdue
+      break;
+    default:
+      triggerDays = [0, -1]; // Only on due date and overdue
+  }
+
+  // Check if today is one of the trigger days
+  const isNotificationDay = triggerDays.includes(daysDiff);
+  
+  return isNotificationDay;
 } 

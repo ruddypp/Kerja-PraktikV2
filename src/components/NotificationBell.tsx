@@ -22,6 +22,9 @@ export default function NotificationBell({ role }: NotificationBellProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bellIconRef = useRef<HTMLDivElement>(null);
   const lastOpenTime = useRef<number>(0);
+  
+  // Maximum number of notifications to show in dropdown
+  const MAX_NOTIFICATIONS_TO_DISPLAY = 10;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -42,6 +45,19 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     };
   }, []);
 
+  // Periodic refresh of unread count (quietly without toasts)
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      if (!isOpen) { // Only refresh when dropdown is closed
+        fetchNotifications(false).catch(err => 
+          console.error('Error refreshing notifications count:', err)
+        );
+      }
+    }, 60000); // Every minute
+    
+    return () => clearInterval(refreshInterval);
+  }, [fetchNotifications, isOpen]);
+
   const toggleDropdown = async () => {
     // If opening dropdown, fetch latest notifications and trigger cron check
     if (!isOpen) {
@@ -50,11 +66,15 @@ export default function NotificationBell({ role }: NotificationBellProps) {
       if (now - lastOpenTime.current > 5000) { // 5 seconds rate limit
         lastOpenTime.current = now;
         
-        // Trigger cron check but don't show toasts
-        await triggerCronCheck(false);
-        
-        // Fetch latest notifications
-        await fetchNotifications(false);
+        try {
+          // Trigger cron check but don't show toasts
+          await triggerCronCheck(false);
+          
+          // Fetch latest notifications
+          await fetchNotifications(false);
+        } catch (error) {
+          console.error('Error refreshing notifications on open:', error);
+        }
       }
     }
     
@@ -67,6 +87,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
 
   const handleMarkAllAsRead = async () => {
     await markAllAsRead();
+    setIsOpen(false); // Close dropdown after marking all as read
   };
 
   // Get countdown display based on days remaining
@@ -87,19 +108,24 @@ export default function NotificationBell({ role }: NotificationBellProps) {
           text: 'Hari ini',
           color: 'text-orange-600'
         };
-      } else if (daysRemaining === 30) {
+      } else if (daysRemaining === 1) {
         return {
-          text: 'H-30',
+          text: 'Besok',
+          color: 'text-orange-500'
+        };
+      } else if (daysRemaining <= 7) {
+        return {
+          text: `${daysRemaining} hari lagi`,
           color: 'text-yellow-600'
         };
-      } else if (daysRemaining === 7) {
+      } else if (daysRemaining === 30) {
         return {
-          text: 'H-7',
-          color: 'text-yellow-600'
+          text: '30 hari lagi',
+          color: 'text-blue-600'
         };
       } else {
         return {
-          text: `H-${daysRemaining}`,
+          text: `${daysRemaining} hari lagi`,
           color: 'text-blue-600'
         };
       }
@@ -108,6 +134,24 @@ export default function NotificationBell({ role }: NotificationBellProps) {
       return { text: 'Unknown', color: 'text-gray-600' };
     }
   };
+
+  // Sort and filter notifications for display
+  const prioritizedNotifications = notifications
+    // Sort by read status and due date
+    .sort((a, b) => {
+      // First prioritize unread
+      if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+      
+      // Then sort by closest due date if reminder exists
+      if (a.reminder?.dueDate && b.reminder?.dueDate) {
+        return new Date(a.reminder.dueDate).getTime() - new Date(b.reminder.dueDate).getTime();
+      }
+      
+      // Otherwise sort by creation date (newest first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    // Limit to reasonable number for dropdown
+    .slice(0, MAX_NOTIFICATIONS_TO_DISPLAY);
 
   return (
     <div className="relative">
@@ -134,7 +178,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
         
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
-            {unreadCount}
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </div>
@@ -165,7 +209,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
                 </div>
               ) : (
                 <ul>
-                  {notifications.map((notification) => {
+                  {prioritizedNotifications.map((notification) => {
                     // Get countdown display if reminder exists
                     const countdownDisplay = notification.reminder?.dueDate
                       ? getCountdownDisplay(notification.reminder.dueDate)
