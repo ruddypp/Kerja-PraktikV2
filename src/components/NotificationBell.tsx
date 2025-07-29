@@ -224,7 +224,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
                           ? `/admin/rentals`
                           : notification.reminder.type === 'MAINTENANCE'
                           ? `/admin/maintenance/${notification.reminder.maintenanceId}`
-                          : `/admin/inventory/schedules/execution`
+                          : `/admin/inventory/schedules`
                         : notification.reminder.type === 'CALIBRATION'
                         ? `/user/calibrations/${notification.reminder.calibrationId}`
                         : notification.reminder.type === 'RENTAL'

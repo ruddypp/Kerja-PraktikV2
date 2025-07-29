@@ -840,3 +840,94 @@ export async function GET(
     );
   }
 } 
+
+// PATCH handler
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id: calibrationId } = await params;
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!calibrationId) {
+      return NextResponse.json({ error: 'Invalid calibration ID' }, { status: 400 });
+    }
+    // Ambil kalibrasi dan sertifikat
+    const calibration = await prisma.calibration.findUnique({
+      where: { id: calibrationId },
+      include: { certificate: true, user: true }
+    });
+    if (!calibration) {
+      return NextResponse.json({ error: 'Kalibrasi tidak ditemukan' }, { status: 404 });
+    }
+    // Hanya admin atau owner yang boleh edit
+    const isOwner = calibration.userId === user.id;
+    const isAdmin = user.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: 'Anda tidak memiliki akses untuk mengubah sertifikat ini' }, { status: 403 });
+    }
+    // Pastikan sertifikat sudah ada
+    if (!calibration.certificate) {
+      return NextResponse.json({ error: 'Sertifikat belum dibuat untuk kalibrasi ini' }, { status: 400 });
+    }
+    const body = await request.json();
+    // Update CalibrationCertificate
+    const allowedCertificateFields = [
+      'instrumentName', 'modelNumber', 'configuration', 'approvedBy'
+    ];
+    const certificateUpdateData: { [key: string]: any } = {};
+    for (const field of allowedCertificateFields) {
+      if (body[field] !== undefined) {
+        certificateUpdateData[field] = body[field];
+      }
+    }
+    const updatedCertificate = await prisma.calibrationCertificate.update({
+      where: { id: (calibration.certificate as any).id },
+      data: certificateUpdateData
+    });
+    // Update Calibration (untuk certificateNumber, calibrationDate, validUntil)
+    const allowedCalibrationFields = [
+      'certificateNumber', 'calibrationDate', 'validUntil'
+    ];
+    const calibrationUpdateData: { [key: string]: any } = {};
+    for (const field of allowedCalibrationFields) {
+      if (body[field] !== undefined) {
+        calibrationUpdateData[field] = body[field];
+      }
+    }
+    if (Object.keys(calibrationUpdateData).length > 0) {
+      if (calibrationUpdateData.calibrationDate) {
+        calibrationUpdateData.calibrationDate = new Date(calibrationUpdateData.calibrationDate);
+      }
+      if (calibrationUpdateData.validUntil) {
+        calibrationUpdateData.validUntil = new Date(calibrationUpdateData.validUntil);
+      }
+      await prisma.calibration.update({
+        where: { id: calibrationId },
+        data: calibrationUpdateData
+      });
+    }
+    // Update gasEntries dan testEntries jika ada
+    if (body.allGasEntries) {
+      const gasEntries = JSON.parse(body.allGasEntries);
+      await prisma.gasCalibrationEntry.deleteMany({ where: { certificateId: (calibration.certificate as any).id } });
+      for (const entry of gasEntries) {
+        await prisma.gasCalibrationEntry.create({ data: { ...entry, certificateId: (calibration.certificate as any).id } });
+      }
+    }
+    if (body.allTestEntries) {
+      const testEntries = JSON.parse(body.allTestEntries);
+      await prisma.testResultEntry.deleteMany({ where: { certificateId: (calibration.certificate as any).id } });
+      for (const entry of testEntries) {
+        await prisma.testResultEntry.create({ data: { ...entry, certificateId: (calibration.certificate as any).id } });
+      }
+    }
+    return NextResponse.json({ success: true, certificate: updatedCertificate });
+  } catch (error: any) {
+    console.error('Error updating certificate:', error);
+    return NextResponse.json({ error: error?.message || 'Gagal mengupdate sertifikat' }, { status: 500 });
+  }
+} 

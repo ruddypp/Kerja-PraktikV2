@@ -209,7 +209,7 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete rental (soft delete or cancel)
+// DELETE - Delete rental (hard delete - completely remove from database)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -237,28 +237,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
 
-    // Cancel the rental instead of deleting
-    const updatedRental = await prisma.$transaction(async (tx) => {
-      // Update rental status to cancelled
-      const updated = await tx.rental.update({
-        where: { id: rentalId },
-        data: {
-          status: RequestStatus.CANCELLED
-        },
-        include: {
-          item: true,
-          user: true
-        }
+    // Hard delete the rental and all related records
+    await prisma.$transaction(async (tx) => {
+      // Delete rental status logs first (due to foreign key constraints)
+      await tx.rentalStatusLog.deleteMany({
+        where: { rentalId }
       });
 
-      // Create status log
-      await tx.rentalStatusLog.create({
-        data: {
-          rentalId,
-          status: RequestStatus.CANCELLED,
-          userId: adminId,
-          notes: 'Rental cancelled by admin'
-        }
+      // Delete activity logs related to this rental
+      await tx.activityLog.deleteMany({
+        where: { rentalId }
+      });
+
+      // Delete reminders related to this rental
+      await tx.reminder.deleteMany({
+        where: { rentalId }
       });
 
       // Update item status to AVAILABLE if it was RENTED
@@ -269,26 +262,32 @@ export async function DELETE(
         });
       }
 
-      // Create activity log
+      // Create final activity log before deleting rental
       await tx.activityLog.create({
         data: {
-          type: ActivityType.RENTAL_UPDATED,
-          action: `Cancelled rental for ${rental.item.name}`,
+          type: ActivityType.RENTAL_DELETED,
+          action: `Permanently deleted rental for ${rental.item.name}`,
           userId: adminId,
           itemSerial: rental.itemSerial,
-          rentalId,
           affectedUserId: rental.userId
         }
       });
 
-      return updated;
+      // Finally, delete the rental record
+      await tx.rental.delete({
+        where: { id: rentalId }
+      });
     });
 
-    return NextResponse.json(updatedRental);
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Rental permanently deleted',
+      deletedRentalId: rentalId 
+    });
   } catch (error) {
-    console.error('Error cancelling rental:', error);
+    console.error('Error deleting rental:', error);
     return NextResponse.json(
-      { error: 'Failed to cancel rental' },
+      { error: 'Failed to delete rental' },
       { status: 500 }
     );
   }

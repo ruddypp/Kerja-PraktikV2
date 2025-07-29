@@ -161,7 +161,7 @@ export async function PATCH(
       include: {
         item: true
       }
-    }) as Calibration | null;
+    });
     
     if (!existingCalibration) {
       return NextResponse.json(
@@ -217,14 +217,9 @@ export async function PATCH(
         certificate: true,
         activityLogs: true
       }
-    }) as Calibration;
+    });
     
-    // Fetch customer data separately for updated calibration if needed
-    if (updatedCalibration.customerId) {
-      updatedCalibration.customer = await prisma.customer.findUnique({
-        where: { id: updatedCalibration.customerId }
-      }) as Customer;
-    }
+    // Tidak perlu assign updatedCalibration.customer manual jika tidak di-include
     
     // Log the update activity
     await logCalibrationActivity(
@@ -290,12 +285,7 @@ export async function DELETE(
       );
     }
     
-    // Delete the calibration
-    await prisma.calibration.delete({
-      where: { id }
-    });
-    
-    // Log the delete activity
+    // Log the delete activity SEBELUM data dihapus
     await logCalibrationActivity(
       user.id,
       'CALIBRATION_DELETED',
@@ -303,6 +293,15 @@ export async function DELETE(
       existingCalibration.itemSerial,
       `Deleted calibration`
     );
+    // Hapus semua relasi sebelum menghapus calibration
+    await prisma.calibrationStatusLog.deleteMany({ where: { calibrationId: id } });
+    const cert = await prisma.calibrationCertificate.findUnique({ where: { calibrationId: id } });
+    if (cert) {
+      await prisma.gasCalibrationEntry.deleteMany({ where: { certificateId: cert.id } });
+      await prisma.testResultEntry.deleteMany({ where: { certificateId: cert.id } });
+      await prisma.calibrationCertificate.delete({ where: { id: cert.id } });
+    }
+    await prisma.calibration.delete({ where: { id } });
     
     return NextResponse.json({ success: true });
   } catch (error) {

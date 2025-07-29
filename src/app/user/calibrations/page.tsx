@@ -1361,7 +1361,14 @@ export default function UserCalibrationPage() {
                 <p className="text-xs text-gray-500 mt-1">Search and select a customer for calibration</p>
               )}
               {!customersLoading && !customersError && customers.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">No customers available. Please contact an administrator.</p>
+                <div className="text-xs text-red-500 mt-1">
+                  Tidak ada data customer. Silakan hubungi admin untuk menambah customer.
+                </div>
+              )}
+              {customersError && (
+                <div className="text-xs text-red-500 mt-1">
+                  {customersError}
+                </div>
               )}
             </div>
 

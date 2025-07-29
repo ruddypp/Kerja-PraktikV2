@@ -6,6 +6,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { format } from "date-fns";
 import useSWR from "swr";
 import Link from "next/link";
+import { FiTrash2 } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 
 // Define Rental type
 type Rental = {
@@ -83,6 +85,8 @@ export default function RentalsPage() {
   const [processingAction, setProcessingAction] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [returnCondition, setReturnCondition] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [rentalToDelete, setRentalToDelete] = useState<Rental | null>(null);
 
   // Build the API URL with query parameters
   const buildApiUrl = () => {
@@ -205,6 +209,9 @@ export default function RentalsPage() {
         if (!response.ok) {
           throw new Error('Failed to verify rental return');
         }
+        
+        // Show success toast for verification
+        toast.success('Return rental berhasil diverifikasi');
       } else {
         // Regular status update
         const response = await fetch('/api/admin/rentals', {
@@ -234,8 +241,12 @@ export default function RentalsPage() {
       
       // Refresh rentals list using SWR
       mutate();
+      
+      // Show success toast notification
+      toast.success('Status rental berhasil diperbarui');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
+      toast.error(error instanceof Error ? error.message : 'Gagal memperbarui status rental');
     } finally {
       setProcessingAction(false);
     }
@@ -261,6 +272,47 @@ export default function RentalsPage() {
   const handleComplete = (rental: Rental) => {
     viewRentalDetails(rental);
     setNewStatus(RequestStatus.COMPLETED);
+  };
+
+  const handleDelete = (rental: Rental) => {
+    setRentalToDelete(rental);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!rentalToDelete) return;
+    
+    try {
+      setProcessingAction(true);
+      
+      const response = await fetch(`/api/admin/rentals/${rentalToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete rental');
+      }
+
+      const result = await response.json();
+      
+      // Close modal and reset
+      setDeleteModalOpen(false);
+      setRentalToDelete(null);
+      
+      // Refresh rentals list using SWR to remove deleted item from UI
+      mutate();
+      
+      // Show success toast notification
+      toast.success('Rental berhasil dihapus secara permanen');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred while deleting rental');
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus rental');
+    } finally {
+      setProcessingAction(false);
+    }
   };
   
   // Pagination controls
@@ -527,6 +579,13 @@ export default function RentalsPage() {
                               Complete
                               </button>
                             )}
+                            <button
+                              onClick={() => handleDelete(rental)}
+                              className="text-red-600 hover:text-red-900 focus:outline-none focus:underline"
+                              title="Delete Rental"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
                         </div>
                           </td>
                         </tr>
@@ -614,6 +673,14 @@ export default function RentalsPage() {
                           Complete
                               </button>
                       )}
+                      <button
+                        onClick={() => handleDelete(rental)}
+                        className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-md hover:bg-red-100 flex items-center gap-1"
+                        title="Delete Rental"
+                      >
+                        <FiTrash2 className="h-3 w-3" />
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -661,6 +728,80 @@ export default function RentalsPage() {
             </div>
                             </div>
                           )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteModalOpen && rentalToDelete && (
+          <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center" onClick={() => setDeleteModalOpen(false)}>
+            <div className="fixed inset-0 backdrop-blur-sm bg-transparent"></div>
+            <div 
+              className="bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-md mx-4 z-10 relative" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-red-600 px-6 py-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium text-white">Confirm Delete</h3>
+                  <button
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="text-white hover:text-gray-200 focus:outline-none"
+                    title="Close"
+                  >
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0">
+                    <FiTrash2 className="h-8 w-8 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h4 className="text-lg font-medium text-gray-900">Delete Rental</h4>
+                    <p className="text-sm text-gray-500">This action will cancel the rental and cannot be undone.</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 rounded-md p-4 mb-4">
+                  <div className="text-sm">
+                    <p><span className="font-medium">Item:</span> {rentalToDelete.item.name}</p>
+                    <p><span className="font-medium">Serial:</span> {rentalToDelete.item.serialNumber}</p>
+                    <p><span className="font-medium">Renter:</span> {rentalToDelete.renterName || '-'}</p>
+                    <p><span className="font-medium">Status:</span> {getRentalStatusText(rentalToDelete)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    disabled={processingAction}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={processingAction}
+                  >
+                    {processingAction ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Deleting...
+                      </span>
+                    ) : (
+                      'Delete Rental'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
                           
         {/* Rental Detail Modal */}
         {detailModalOpen && selectedRental && (
@@ -917,4 +1058,4 @@ export default function RentalsPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

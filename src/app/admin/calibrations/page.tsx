@@ -269,16 +269,41 @@ export default function CalibrationPage() {
     });
   };
   
-  // Mengganti useEffect dengan SWR untuk data customers dan statuses
-  useSWR('/api/customers?limit=10000', fetcher, {
-    onSuccess: (data) => {
-      // Extract customers array from the response object
-      // The API returns {items: customer[], total: number, ...} 
-      setcustomers(Array.isArray(data) ? data : (data.items || []));
-    },
-    revalidateOnFocus: false,
-    dedupingInterval: 600000 // 10 minutes
-  });
+  // Fetch customers using useEffect instead of SWR to avoid caching issues
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await fetch(`/api/customers?limit=10000&timestamp=${Date.now()}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Failed to fetch customers: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log('Admin customers data received:', data); // Debug log
+        
+        if (data && Array.isArray(data.items)) {
+          setcustomers(data.items);
+        } else if (Array.isArray(data)) {
+          setcustomers(data);
+        } else {
+          setcustomers([]);
+          console.error('Unexpected customers data format:', data);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        setcustomers([]);
+        setError('Failed to load customers. Please try again later.');
+      }
+    };
+
+    fetchCustomers();
+  }, []);
   
   useSWR('/api/admin/statuses?type=calibration', fetcher, {
     onSuccess: (data: Status[]) => setStatuses(data),
@@ -993,14 +1018,19 @@ export default function CalibrationPage() {
       if (!response.ok) {
         let errorMessage = 'Gagal mengupdate sertifikat';
         try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
+          const text = await response.text();
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData && errorData.error) {
+              errorMessage = errorData.error;
+            } else {
+              errorMessage = text || response.statusText;
+            }
+          } catch {
+            errorMessage = text || response.statusText;
           }
-        } catch (jsonError) {
-          console.error('Error parsing error response:', jsonError);
-          const errorText = await response.text();
-          errorMessage = `Gagal mengupdate sertifikat: ${errorText || response.statusText}`;
+        } catch (e) {
+          errorMessage = response.statusText;
         }
         throw new Error(errorMessage);
       }
@@ -1080,6 +1110,39 @@ export default function CalibrationPage() {
   const openCalibrationModal = () => {
     // Always fetch fresh items when opening the modal, don't use cached items
     fetchAvailableItems();
+    
+    // Also fetch fresh customers when opening modal
+    const fetchCustomersForModal = async () => {
+      try {
+        const res = await fetch(`/api/customers?limit=10000&timestamp=${Date.now()}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Failed to fetch customers: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log('Customers loaded for modal:', data);
+        
+        if (data && Array.isArray(data.items)) {
+          setcustomers(data.items);
+        } else if (Array.isArray(data)) {
+          setcustomers(data);
+        } else {
+          setcustomers([]);
+          console.error('Unexpected customers data format:', data);
+        }
+      } catch (error) {
+        console.error('Error fetching customers for modal:', error);
+        setError('Failed to load customers. Please try again.');
+      }
+    };
+    
+    fetchCustomersForModal();
     
     setCalibrationForm({
       itemSerial: '',

@@ -19,7 +19,7 @@ export async function GET(
     }
     
     // Get ID properly from params - ensure params is awaited
-    const id = params.id;
+    const { id } = await params;
     
     if (!id) {
       return NextResponse.json(
@@ -62,7 +62,7 @@ export async function PATCH(
     }
     
     // Get ID properly from params - ensure params is awaited
-    const id = params.id;
+    const { id } = await params;
     
     if (!id) {
       return NextResponse.json(
@@ -129,7 +129,7 @@ export async function DELETE(
     }
     
     // Get ID properly from params - ensure params is awaited
-    const id = params.id;
+    const { id } = await params;
     
     if (!id) {
       return NextResponse.json(

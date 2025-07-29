@@ -83,7 +83,7 @@ export async function GET(
     }
     
     // Ensure params is fully resolved
-    const id = params.id;
+    const { id } = await params;
     
     const reminder = await prisma.reminder.findUnique({
       where: { id },
@@ -131,7 +131,7 @@ export async function POST(
     }
     
     // Ensure params is fully resolved - fixed to avoid NextJS error
-    const id = params.id;
+    const { id } = await params;
     
     // Mark the email as sent
     const updatedReminder = await markEmailSent(id);

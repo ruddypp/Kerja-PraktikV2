@@ -100,7 +100,7 @@ export default function AdminNotificationsPage() {
       case 'CALIBRATION': return `/admin/calibrations/${notification.reminder.calibrationId}`;
       case 'RENTAL': return `/admin/rentals`;
       case 'MAINTENANCE': return `/admin/maintenance/${notification.reminder.maintenanceId}`;
-      case 'SCHEDULE': return `/admin/inventory/schedules/execution`;
+      case 'SCHEDULE': return `/admin/inventory/schedules`;
       default: return '#';
     }
   };

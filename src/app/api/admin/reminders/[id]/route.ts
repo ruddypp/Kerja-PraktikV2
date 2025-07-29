@@ -15,7 +15,7 @@ export async function GET(
     }
     
     // Ensure params is fully resolved before using its properties
-    const { id } = params;
+    const { id } = await params;
     
     const reminder = await prisma.reminder.findUnique({
       where: { id },
@@ -67,7 +67,7 @@ export async function PATCH(
     }
     
     // Ensure params is fully resolved before using its properties
-    const { id } = params;
+    const { id } = await params;
     
     const body = await request.json();
     
@@ -104,7 +104,7 @@ export async function DELETE(
     }
     
     // Ensure params is fully resolved before using its properties
-    const { id } = params;
+    const { id } = await params;
     
     await prisma.reminder.delete({
       where: { id },
