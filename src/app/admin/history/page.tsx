@@ -92,6 +92,7 @@ export default function AdminHistoryPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -222,88 +223,196 @@ export default function AdminHistoryPage() {
     setShowFilters(!showFilters);
   };
 
+  const clearAllHistory = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const res = await fetch('/api/admin/history', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to clear history');
+      }
+      
+      // Refresh data after clearing
+      setActivityLogs([]);
+      setPagination({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0
+      });
+      
+      setSuccess('History berhasil dihapus semua');
+      setShowClearModal(false);
+      setTimeout(() => setSuccess(''), 3000);
+      
+    } catch (err) {
+      console.error('Error clearing history:', err);
+      setError('Gagal menghapus history. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return format(date, 'dd MMM yyyy HH:mm');
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     try {
-      const doc = new jsPDF();
+      setLoading(true);
+      setError('');
       
+      // Fetch ALL data for export (not just current page)
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.activityType) params.append('activityType', filters.activityType);
+      if (filters.userId) params.append('userId', filters.userId);
+      if (filters.itemSerial) params.append('itemSerial', filters.itemSerial);
+      
+      // Get all data for export (set high limit)
+      params.append('page', '1');
+      params.append('limit', '10000'); // Get all records
+      
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const res = await fetch(`/api/admin/history${queryString}`);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch data for export: ${res.statusText}`);
+      }
+      
+      const allData = await res.json() as PaginatedResponse;
+      const allActivityLogs = allData.items;
+      
+      const doc = new jsPDF('landscape'); // Use landscape for better table layout
+            
       // Add title
       doc.setFontSize(16);
-      doc.text('System Activity Report', 14, 15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LAPORAN AKTIVITAS SISTEM', 14, 45);
+      doc.text('PT PARAMATA', 14, 53);
       
-      // Add filters information
+      // Add report details
       doc.setFontSize(10);
-      let yPos = 25;
+      doc.setFont('helvetica', 'normal');
+      let yPos = 65;
       
-      doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
+      doc.text(`Tanggal Dibuat / Generated: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, yPos);
       yPos += 5;
       
+      doc.text(`Total Records: ${allActivityLogs.length}`, 14, yPos);
+      yPos += 5;
+
+      // Add line separator
+      doc.setLineWidth(0.5);
+      doc.line(14, 60, 280, 60);
+      
       if (filters.startDate) {
-        doc.text(`From: ${format(new Date(filters.startDate), 'dd MMM yyyy')}`, 14, yPos);
+        doc.text(`Periode Dari / From: ${format(new Date(filters.startDate), 'dd MMM yyyy')}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.endDate) {
-        doc.text(`To: ${format(new Date(filters.endDate), 'dd MMM yyyy')}`, 14, yPos);
+        doc.text(`Periode Sampai / To: ${format(new Date(filters.endDate), 'dd MMM yyyy')}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.activityType) {
-        doc.text(`Activity Type: ${filters.activityType.replace(/_/g, ' ')}`, 14, yPos);
+        doc.text(`Jenis Aktivitas / Activity Type: ${filters.activityType.replace(/_/g, ' ')}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.userId) {
-        doc.text(`User ID: ${filters.userId}`, 14, yPos);
+        doc.text(`Filter User: ${filters.userId}`, 14, yPos);
         yPos += 5;
       }
       
       if (filters.itemSerial) {
-        doc.text(`Item Serial: ${filters.itemSerial}`, 14, yPos);
+        doc.text(`Filter Item Serial: ${filters.itemSerial}`, 14, yPos);
         yPos += 5;
       }
       
-      // Table data
-      const tableColumn = ['#', 'Date & Time', 'User', 'Type', 'Action', 'Details'];
-      const tableRows = activityLogs.map((log, index) => [
+      // Table data with improved layout
+      const tableColumn = ['No.', 'Tanggal & Waktu\nDate & Time', 'Pengguna\nUser', 'Jenis\nType', 'Aktivitas\nActivity', 'Detail\nDetails', 'ID Terkait\nRelated ID'];
+      const tableRows = allActivityLogs.map((log, index) => [
         (index + 1).toString(),
         formatDate(log.createdAt),
         log.user?.name || 'Unknown',
         log.type.replace(/_/g, ' '),
         log.action,
-        log.details || '-'
+        log.details || '-',
+        log.itemSerial ? `Item: ${log.itemSerial}` : 
+        log.rentalId ? `Rental: ${log.rentalId.substring(0, 8)}...` :
+        log.calibrationId ? `Calibration: ${log.calibrationId.substring(0, 8)}...` :
+        log.maintenanceId ? `Maintenance: ${log.maintenanceId.substring(0, 8)}...` :
+        log.affectedUserId ? `User: ${log.affectedUserId.substring(0, 8)}...` :
+        log.customerId ? `Customer: ${log.customerId.substring(0, 8)}...` : '-'
       ]);
       
-      // Add table with properly imported autoTable
+      // Add table with improved styling and proper column widths
       autoTable(doc, {
-        startY: yPos + 5,
+        startY: yPos + 10,
         head: [tableColumn],
         body: tableRows,
         theme: 'grid',
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        styles: { overflow: 'linebreak', cellWidth: 'wrap' },
+        headStyles: { 
+          fillColor: [41, 128, 185], // Professional blue color
+          textColor: 255,
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle'
+        },
+        styles: { 
+          overflow: 'linebreak', 
+          cellWidth: 'wrap',
+          fontSize: 8,
+          cellPadding: 3,
+          valign: 'top'
+        },
         columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 35 },
-          5: { cellWidth: 60 }
+          0: { cellWidth: 15, halign: 'center' }, // No.
+          1: { cellWidth: 35, halign: 'center' }, // Date & Time
+          2: { cellWidth: 30, halign: 'left' },   // User
+          3: { cellWidth: 35, halign: 'center' }, // Type
+          4: { cellWidth: 45, halign: 'left' },   // Activity
+          5: { cellWidth: 70, halign: 'left' },   // Details
+          6: { cellWidth: 40, halign: 'left' }    // Related ID
+        },
+        margin: { left: 14, right: 14 },
+        didDrawPage: function (data) {
+          // Add page numbers (simplified approach)
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+          
+          doc.setFontSize(8);
+          doc.text(`Halaman ${data.pageNumber} | Page ${data.pageNumber}`, 
+                   pageSize.width - 60, pageHeight - 10);
+          
+          // Add footer
+          doc.text('PT PARAMATA - System Activity Report', 14, pageHeight - 10);
         }
       });
       
-      // Save file
-      doc.save('system-activity-report.pdf');
+      // Save file with descriptive name
+      const fileName = `PT_Paramata_System_Activity_Report_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
+      doc.save(fileName);
       
-      setSuccess('PDF report successfully created');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess(`PDF report berhasil dibuat dengan ${allActivityLogs.length} records`);
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      setError('Failed to create PDF. Please try again.');
+      setError('Gagal membuat PDF. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -325,7 +434,7 @@ export default function AdminHistoryPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">System Activity History</h1>
+          <h1 className="text-2xl font-bold">Riwayat Aktivitas Sistem</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFilters}
@@ -346,6 +455,19 @@ export default function AdminHistoryPage() {
             >
               <FiDownload size={16} />
               Export PDF
+            </button>
+            
+            <button
+              onClick={() => setShowClearModal(true)}
+              disabled={loading || activityLogs.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-white ${
+                loading || activityLogs.length === 0
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              <FiRefreshCw size={16} />
+              Clear History
             </button>
           </div>
         </div>
@@ -614,6 +736,37 @@ export default function AdminHistoryPage() {
           )}
         </div>
       </div>
+
+      {/* Clear History Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Konfirmasi Hapus Semua History
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus semua data history? 
+              Tindakan ini tidak dapat dibatalkan dan akan menghapus semua record aktivitas sistem.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowClearModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                disabled={loading}
+              >
+                Batal
+              </button>
+              <button
+                onClick={clearAllHistory}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+                disabled={loading}
+              >
+                {loading ? 'Menghapus...' : 'Ya, Hapus Semua'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

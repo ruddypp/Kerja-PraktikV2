@@ -130,4 +130,40 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// DELETE all activity logs (admin only)
+export async function DELETE(request: Request) {
+  try {
+    // Verify admin
+    const user = await getUserFromRequest(request);
+    if (!isAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Delete all activity logs
+    const result = await prisma.activityLog.deleteMany({});
+    
+    // Log the clear action
+    await prisma.activityLog.create({
+      data: {
+        type: 'USER_UPDATED',
+        action: 'History cleared',
+        details: `Admin ${user.name} cleared all activity history (${result.count} records deleted)`,
+        userId: user.id,
+      }
+    });
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: `Successfully cleared ${result.count} activity log records` 
+    });
+    
+  } catch (error) {
+    console.error('Error clearing activity logs:', error);
+    return NextResponse.json(
+      { error: 'Failed to clear activity logs' },
+      { status: 500 }
+    );
+  }
 } 

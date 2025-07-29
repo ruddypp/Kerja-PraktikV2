@@ -1,2 +1,2 @@
 // Redirect to activity-logs API
-export { GET } from '../activity-logs/route'; 
+export { GET, DELETE } from '../activity-logs/route'; 
