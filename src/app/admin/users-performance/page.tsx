@@ -42,7 +42,6 @@ interface ActivityMetrics {
   totalActivities: number;
   maintenancesCompleted: number;
   rentalsProcessed: number;
-  inventoryChecksPerformed: number;
   calibrationsHandled: number;
   monthlyActivity: {
     month: string;
@@ -61,7 +60,6 @@ export default function UsersPerformancePage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [performanceLoading, setPerformanceLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<'month' | 'year'>('month');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(() => {
@@ -117,7 +115,7 @@ export default function UsersPerformancePage() {
     setPerformanceLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/users-performance/${userId}?year=${selectedYear}&timeRange=${timeRange}`);
+      const response = await fetch(`/api/admin/users-performance/${userId}?year=${selectedYear}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch performance data');
@@ -138,7 +136,7 @@ export default function UsersPerformancePage() {
     } finally {
       setPerformanceLoading(false);
     }
-  }, [selectedYear, timeRange]);
+  }, [selectedYear]);
 
   // Fetch performance data when selected user or year changes
   useEffect(() => {
@@ -152,54 +150,34 @@ export default function UsersPerformancePage() {
     setSelectedUser(userId);
   };
 
-  // Handle time range change
-  const handleTimeRangeChange = (range: 'month' | 'year') => {
-    setTimeRange(range);
-  };
-
   // Handle year selection
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
   };
 
-  // Prepare chart data
-  const getChartData = () => {
+  // Prepare monthly chart data
+  const getMonthlyChartData = () => {
     if (!userPerformance) return null;
     
-    if (timeRange === 'month') {
-      return {
-        labels: userPerformance.monthlyActivity.map(item => item.month),
-        datasets: [
-          {
-            label: 'Aktivitas Bulanan',
-            data: userPerformance.monthlyActivity.map(item => item.count),
-            backgroundColor: 'rgba(34, 197, 94, 0.6)',
-            borderColor: 'rgb(34, 197, 94)',
-            borderWidth: 1
-          }
-        ]
-      };
-    } else {
-      return {
-        labels: userPerformance.yearlyActivity.map(item => item.year),
-        datasets: [
-          {
-            label: 'Aktivitas Tahunan',
-            data: userPerformance.yearlyActivity.map(item => item.count),
-            backgroundColor: 'rgba(59, 130, 246, 0.6)',
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 1
-          }
-        ]
-      };
-    }
+    return {
+      labels: userPerformance.monthlyActivity.map(item => item.month),
+      datasets: [
+        {
+          label: 'Aktivitas Bulanan',
+          data: userPerformance.monthlyActivity.map(item => item.count),
+          backgroundColor: 'rgba(34, 197, 94, 0.6)',
+          borderColor: 'rgb(34, 197, 94)',
+          borderWidth: 1
+        }
+      ]
+    };
   };
 
   // Selected user info
   const selectedUserInfo = selectedUser ? users.find(user => user.id === selectedUser) : null;
 
-  // Chart options
-  const chartOptions = {
+  // Chart options with max scale of 100
+  const monthlyChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -208,9 +186,18 @@ export default function UsersPerformancePage() {
       },
       title: {
         display: true,
-        text: timeRange === 'month' ? 'Aktivitas Bulanan' : 'Aktivitas Tahunan',
+        text: 'Aktivitas Bulanan',
       },
     },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          stepSize: 10
+        }
+      }
+    }
   };
 
   // Generate current year and past years for year selector, starting from 2025
@@ -225,13 +212,12 @@ export default function UsersPerformancePage() {
     );
   };
 
-  // Fix accessibility issues for select and button
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Performa Pengguna</h1>
         <div className="flex items-center mt-4 md:mt-0">
-          <div className="relative mr-2">
+          <div className="relative">
             <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <select
               aria-label="Pilih tahun"
@@ -244,24 +230,6 @@ export default function UsersPerformancePage() {
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
-          </div>
-          <div className="bg-white border border-gray-300 rounded-md p-1 flex">
-            <button
-              className={`px-3 py-1 text-sm rounded ${timeRange === 'month' ? 'bg-green-600 text-white' : 'text-gray-700'}`}
-              onClick={() => handleTimeRangeChange('month')}
-              aria-label="Tampilkan data bulanan"
-              title="Tampilkan data bulanan"
-            >
-              Bulanan
-            </button>
-            <button
-              className={`px-3 py-1 text-sm rounded ${timeRange === 'year' ? 'bg-green-600 text-white' : 'text-gray-700'}`}
-              onClick={() => handleTimeRangeChange('year')}
-              aria-label="Tampilkan data tahunan"
-              title="Tampilkan data tahunan"
-            >
-              Tahunan
-            </button>
           </div>
         </div>
       </div>
@@ -374,9 +342,9 @@ export default function UsersPerformancePage() {
               <div className="p-6">
                 <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Metrik Aktivitas {selectedYear}</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {performanceLoading ? (
-                    Array(4).fill(0).map((_, i) => (
+                    Array(3).fill(0).map((_, i) => (
                       <div key={i} className="bg-gray-50 rounded-lg p-4 animate-pulse">
                         <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
                         <div className="h-8 bg-gray-200 rounded w-12 mb-2"></div>
@@ -397,12 +365,6 @@ export default function UsersPerformancePage() {
                         <p className="text-xs text-blue-700 mt-1">Diproses</p>
                       </div>
                       
-                      <div className="bg-purple-50 rounded-lg p-4">
-                        <h4 className="text-sm text-purple-800">Inventory</h4>
-                        <p className="text-2xl font-bold text-purple-900">{userPerformance.inventoryChecksPerformed}</p>
-                        <p className="text-xs text-purple-700 mt-1">Pengecekan</p>
-                      </div>
-                      
                       <div className="bg-amber-50 rounded-lg p-4">
                         <h4 className="text-sm text-amber-800">Kalibrasi</h4>
                         <p className="text-2xl font-bold text-amber-900">{userPerformance.calibrationsHandled}</p>
@@ -410,16 +372,16 @@ export default function UsersPerformancePage() {
                       </div>
                     </>
                   ) : (
-                    <div className="col-span-4 p-8 text-center">
+                    <div className="col-span-3 p-8 text-center">
                       <p className="text-gray-500">Tidak ada data performa yang tersedia.</p>
                     </div>
                   )}
                 </div>
                 
-                {/* Activity Chart */}
+                {/* Monthly Activity Chart */}
                 <div className="mt-8">
                   <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                    Grafik Aktivitas {timeRange === 'month' ? `Bulanan (${selectedYear})` : 'Tahunan (4 Tahun Terakhir)'}
+                    Grafik Aktivitas Bulanan ({selectedYear})
                   </h3>
                   
                   <div className="bg-white border border-gray-100 rounded-lg p-4 h-80">
@@ -428,12 +390,8 @@ export default function UsersPerformancePage() {
                         <div className="text-gray-400">Memuat data...</div>
                       </div>
                     ) : (
-                      userPerformance && getChartData() ? (
-                        timeRange === 'month' ? (
-                          <Bar data={getChartData()!} options={chartOptions} />
-                        ) : (
-                          <Line data={getChartData()!} options={chartOptions} />
-                        )
+                      userPerformance && getMonthlyChartData() ? (
+                        <Bar data={getMonthlyChartData()!} options={monthlyChartOptions} />
                       ) : (
                         <div className="flex items-center justify-center h-full">
                           <p className="text-gray-500">Data tidak tersedia</p>
@@ -443,23 +401,64 @@ export default function UsersPerformancePage() {
                   </div>
                 </div>
                 
-                {/* Summary */}
+                {/* Yearly Summary Chart */}
                 {userPerformance && !performanceLoading && (
-                  <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-gray-700 mb-2">Ringkasan Aktivitas</h3>
-                    <p className="text-sm text-gray-600">
-                      Total <span className="font-medium">{userPerformance.totalActivities}</span> aktivitas tercatat di tahun {selectedYear}.
-                      {userPerformance.totalActivities > 0 ? (
-                        <span> Performa tertinggi di area {
-                          [
-                            { name: 'maintenance', value: userPerformance.maintenancesCompleted },
-                            { name: 'rental', value: userPerformance.rentalsProcessed },
-                            { name: 'inventory', value: userPerformance.inventoryChecksPerformed },
-                            { name: 'kalibrasi', value: userPerformance.calibrationsHandled }
-                          ].sort((a, b) => b.value - a.value)[0].name
-                        }.</span>
-                      ) : null}
-                    </p>
+                  <div className="mt-8">
+                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Ringkasan Tahunan</h3>
+                    <div className="bg-white border border-gray-100 rounded-lg p-4 h-64">
+                      <Line 
+                        data={{
+                          labels: userPerformance.yearlyActivity.map(item => item.year),
+                          datasets: [
+                            {
+                              label: 'Total Aktivitas per Tahun',
+                              data: userPerformance.yearlyActivity.map(item => item.count),
+                              backgroundColor: 'rgba(168, 85, 247, 0.6)',
+                              borderColor: 'rgb(168, 85, 247)',
+                              borderWidth: 2,
+                              fill: true,
+                              tension: 0.4
+                            }
+                          ]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'top' as const,
+                            },
+                            title: {
+                              display: true,
+                              text: 'Tren Aktivitas Tahunan',
+                            },
+                          },
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              max: 100,
+                              ticks: {
+                                stepSize: 20
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        Total <span className="font-medium">{userPerformance.totalActivities}</span> aktivitas tercatat di tahun {selectedYear}.
+                        {userPerformance.totalActivities > 0 ? (
+                          <span> Performa tertinggi di area {
+                            [
+                              { name: 'maintenance', value: userPerformance.maintenancesCompleted },
+                              { name: 'rental', value: userPerformance.rentalsProcessed },
+                              { name: 'kalibrasi', value: userPerformance.calibrationsHandled }
+                            ].sort((a, b) => b.value - a.value)[0].name
+                          }.</span>
+                        ) : null}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -469,4 +468,4 @@ export default function UsersPerformancePage() {
       </div>
     </div>
   );
-} 
+}

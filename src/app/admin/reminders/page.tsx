@@ -1,15 +1,38 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, differenceInDays } from 'date-fns';
 import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUser } from '@/app/context/UserContext';
+
+interface PaginationData {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface RemindersResponse {
+  reminders: any[];
+  pagination: PaginationData;
+}
 
 export default function AdminRemindersPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const [reminders, setReminders] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<PaginationData>({
+    page: 1,
+    limit: 20,
+    totalCount: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,44 +50,74 @@ export default function AdminRemindersPage() {
       router.push('/login');
       return;
     }
-
-    // Fetch reminders
-    const fetchReminders = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/admin/reminders', {
-          credentials: 'include', // Include cookies for auth
-        });
-        
-        if (response.status === 401) {
-          // Handle unauthorized specifically
-          console.error('Unauthorized access - redirecting to login');
-          router.push('/login');
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Fetched reminders data:', data);
-        
-        // Ensure data.reminders is an array
-        const remindersArray = Array.isArray(data.reminders) ? data.reminders : [];
-        setReminders(remindersArray);
-      } catch (err) {
-        console.error('Error fetching reminders:', err);
-        setError('Failed to load reminders');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchReminders();
-    }
   }, [user, router, userLoading]);
+
+  // Fetch reminders with pagination
+  const fetchReminders = useCallback(async (page: number, limit: number) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      
+      const response = await fetch(`/api/admin/reminders?${params}`, {
+        credentials: 'include', // Include cookies for auth
+      });
+      
+      if (response.status === 401) {
+        // Handle unauthorized specifically
+        console.error('Unauthorized access - redirecting to login');
+        router.push('/login');
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: RemindersResponse = await response.json();
+      console.log('Fetched reminders data:', data);
+      
+      // Ensure data.reminders is an array
+      const remindersArray = Array.isArray(data.reminders) ? data.reminders : [];
+      setReminders(remindersArray);
+      
+      // Update pagination state
+      if (data.pagination) {
+        setPagination(data.pagination);
+      }
+    } catch (err) {
+      console.error('Error fetching reminders:', err);
+      setError('Failed to load reminders');
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  // Initial fetch when user is loaded
+  useEffect(() => {
+    if (user && user.role === 'ADMIN') {
+      fetchReminders(1, 20);
+    }
+  }, [user, fetchReminders]);
+
+  // Separate effect for pagination changes
+  useEffect(() => {
+    if (user && user.role === 'ADMIN') {
+      fetchReminders(pagination.page, pagination.limit);
+    }
+  }, [pagination.page, pagination.limit, user, fetchReminders]);
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleLimitChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLimit = parseInt(event.target.value);
+    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+  };
 
   const handleDeleteReminder = async (id: string) => {
     try {
@@ -86,6 +139,14 @@ export default function AdminRemindersPage() {
 
       // Remove the deleted reminder from the list
       setReminders(reminders.filter(r => r.id !== id));
+      
+      // If current page becomes empty and it's not the first page, go to previous page
+      if (reminders.length === 1 && pagination.page > 1) {
+        setPagination(prev => ({ ...prev, page: prev.page - 1 }));
+      } else {
+        // Refresh the current page to update pagination info
+        fetchReminders(pagination.page, pagination.limit);
+      }
     } catch (err) {
       console.error('Error deleting reminder:', err);
       setError('Failed to delete reminder');
@@ -488,6 +549,88 @@ Tim Paramata
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {pagination.totalPages > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-700 flex items-center">
+                <span className="mr-2">
+                  Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} reminders
+                </span>
+                <select 
+                  value={pagination.limit} 
+                  onChange={handleLimitChange}
+                  className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                  aria-label="Number of items per page"
+                >
+                  <option value="10">10 per page</option>
+                  <option value="20">20 per page</option>
+                  <option value="50">50 per page</option>
+                  <option value="100">100 per page</option>
+                </select>
+              </div>
+              
+              {pagination.totalPages > 1 && (
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={pagination.page === 1}
+                    className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    title="First page"
+                  >
+                    &laquo;
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 1}
+                    className={`px-3 py-1 rounded ${pagination.page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    title="Previous page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === 1 || 
+                      page === pagination.totalPages || 
+                      (page >= pagination.page - 1 && page <= pagination.page + 1)
+                    )
+                    .map((page, index, array) => (
+                      <div key={page} className="flex items-center">
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="px-1 text-gray-500">...</span>
+                        )}
+                        <button
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-1 rounded ${pagination.page === page ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        >
+                          {page}
+                        </button>
+                      </div>
+                    ))}
+
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page === pagination.totalPages}
+                    className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    title="Next page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.totalPages)}
+                    disabled={pagination.page === pagination.totalPages}
+                    className={`px-3 py-1 rounded ${pagination.page === pagination.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    title="Last page"
+                  >
+                    &raquo;
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

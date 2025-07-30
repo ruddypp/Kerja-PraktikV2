@@ -15,12 +15,11 @@ export async function GET(
     }
 
     // Extract ID from URL
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Get time period from query params
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    const timeRange = searchParams.get('timeRange') || 'month';
 
     // Get user
     const targetUser = await prisma.user.findUnique({
@@ -59,17 +58,6 @@ export async function GET(
       where: {
         userId: userId,
         updatedAt: {
-          gte: startDate,
-          lte: endDate
-        }
-      }
-    });
-
-    // Get inventory checks data
-    const inventoryChecksPerformed = await prisma.inventoryCheck.count({
-      where: {
-        userId: userId,
-        createdAt: {
           gte: startDate,
           lte: endDate
         }
@@ -121,9 +109,10 @@ export async function GET(
       }
     });
 
-    // Get yearly activity for the last 4 years
+    // Get yearly activity starting from 2025 to current selected year
+    const startYearForYearly = 2025;
     const currentYear = new Date().getFullYear();
-    const startYearForYearly = currentYear - 3; // Get 4 years of data
+    const endYearForYearly = Math.max(currentYear, year);
     
     const yearlyActivityQuery = await prisma.$queryRaw`
       SELECT 
@@ -134,6 +123,7 @@ export async function GET(
       WHERE 
         "userId" = ${userId}
         AND DATE_PART('year', "createdAt") >= ${startYearForYearly}
+        AND DATE_PART('year', "createdAt") <= ${endYearForYearly}
       GROUP BY 
         DATE_PART('year', "createdAt") 
       ORDER BY 
@@ -143,7 +133,7 @@ export async function GET(
     // Format yearly data
     const yearlyActivity: { year: string, count: number }[] = [];
     
-    for (let y = startYearForYearly; y <= currentYear; y++) {
+    for (let y = startYearForYearly; y <= endYearForYearly; y++) {
       yearlyActivity.push({
         year: y.toString(),
         count: 0
@@ -169,14 +159,13 @@ export async function GET(
       }
     });
 
-    // Return the performance metrics
+    // Return the performance metrics (without inventory data)
     const performanceData = {
       user: targetUser,
       metrics: {
         totalActivities,
         maintenancesCompleted,
         rentalsProcessed,
-        inventoryChecksPerformed,
         calibrationsHandled,
         monthlyActivity,
         yearlyActivity
@@ -191,4 +180,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

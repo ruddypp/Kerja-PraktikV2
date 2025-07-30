@@ -20,6 +20,11 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
     const status = searchParams.get('status');
     
+    // Parse pagination parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
+    
     const where: any = {};
     
     if (type) {
@@ -30,8 +35,13 @@ export async function GET(request: Request) {
       where.status = status;
     }
     
+    // Get total count for pagination
+    const totalCount = await prisma.reminder.count({ where });
+    
     const reminders = await prisma.reminder.findMany({
       where,
+      skip,
+      take: limit,
       orderBy: [
         { status: 'asc' },
         { reminderDate: 'asc' },
@@ -71,7 +81,19 @@ export async function GET(request: Request) {
       },
     });
     
-    return NextResponse.json({ reminders: reminders || [] });
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    return NextResponse.json({ 
+      reminders: reminders || [],
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
   } catch (error) {
     console.error('Error fetching reminders:', error);
     return NextResponse.json({ error: 'Failed to fetch reminders', reminders: [] }, { status: 500 });
