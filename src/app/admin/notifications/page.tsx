@@ -225,7 +225,7 @@ export default function AdminNotificationsPage() {
             </ul>
                           )}
                         </div>
-        
+                        
         {renderPagination()}
       </div>
     </div>

@@ -191,11 +191,11 @@ export default function AdminRemindersPage() {
       case 'CALIBRATION':
         return `/admin/calibrations/${reminder.calibrationId}`;
       case 'RENTAL':
-        return `/admin/rentals`;
+        return `/admin/rentals/`;
       case 'MAINTENANCE':
         return `/admin/maintenance/${reminder.maintenanceId}`;
       case 'SCHEDULE':
-        return `/admin/inventory/schedules/execution`;
+        return `/admin/inventory/schedules`;
       default:
         return '#';
     }
