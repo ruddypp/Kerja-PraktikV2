@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,11 +10,14 @@ import {
   MdBackup, 
   MdOutlineSettings, 
   MdRestore, 
+  MdColorLens, 
   MdNotifications, 
   MdHistory,
-  MdDashboard,
-  MdUpload,
-  MdFileUpload
+  MdLock,
+  MdVisibility,
+  MdVisibilityOff,
+  MdEmail,
+  MdDashboard
 } from 'react-icons/md';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
@@ -24,10 +27,18 @@ const MySwal = withReactContent(Swal);
 const SettingsPage = () => {
   const [isBackupLoading, setIsBackupLoading] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
-  const [isRestoreLoading, setIsRestoreLoading] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<string>('light');
+  const [textSize, setTextSize] = useState<string>('medium');
+  const [sessionTimeout, setSessionTimeout] = useState<number>(30);
+  const [passwordPolicy, setPasswordPolicy] = useState({
+    minLength: 8,
+    requireUppercase: true,
+    requireNumbers: true,
+    requireSpecial: true
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKey] = useState("sk_paramata_7f8a9b3c5d2e1f0g");
   const [backupFormat, setBackupFormat] = useState<'sql' | 'dump' | 'both'>('sql');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Tambahkan state untuk menyimpan informasi file backup terakhir
   const [lastBackupFile, setLastBackupFile] = useState<string | null>(null);
@@ -79,151 +90,6 @@ const SettingsPage = () => {
     // Request download file dari server
     window.open(`/api/admin/settings/download?path=${encodeURIComponent(filePath)}`, '_blank');
     toast.success('Mendownload file backup...');
-  };
-
-  // Handle file selection for restore
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.name.endsWith('.sql')) {
-        toast.error('Hanya file .sql yang diperbolehkan untuk restore');
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      
-      // Validate file size (max 100MB)
-      const maxSize = 100 * 1024 * 1024; // 100MB
-      if (file.size > maxSize) {
-        toast.error('Ukuran file terlalu besar. Maksimal 100MB');
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      
-      setSelectedFile(file);
-      toast.success(`File ${file.name} siap untuk di-restore`);
-    }
-  };
-
-  // Handle restore database
-  const handleRestore = async () => {
-    if (!selectedFile) {
-      toast.error('Pilih file .sql terlebih dahulu');
-      return;
-    }
-
-    // Confirmation dialog
-    const result = await MySwal.fire({
-      title: '⚠️ KONFIRMASI RESTORE DATABASE ⚠️',
-      html: `<div style="text-align:left;font-size:15px;">
-        <b>Anda akan <span style='color:#d32f2f;'>MENGGANTI SELURUH DATA</span> dalam sistem dengan data dari file backup.</b><br/><br/>
-        <b>File yang akan di-restore:</b><br/>
-        <span style='color:#1976d2;'>${selectedFile.name}</span><br/>
-        <span style='color:#666;'>Ukuran: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span><br/><br/>
-        <span style='color:#d32f2f;'>Tindakan ini tidak dapat dibatalkan!</span><br/><br/>
-        <b>Ketik <span style='color:#d32f2f;'>RESTORE</span> di bawah ini untuk konfirmasi.</b>
-      </div>`,
-      input: 'text',
-      inputPlaceholder: 'Ketik RESTORE di sini',
-      inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
-      showCancelButton: true,
-      confirmButtonText: 'Restore Database',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#d32f2f',
-      cancelButtonColor: '#1976d2',
-      allowOutsideClick: false,
-      preConfirm: (value) => {
-        if (value !== 'RESTORE') {
-          MySwal.showValidationMessage('Ketik <b>RESTORE</b> (huruf besar semua) untuk melanjutkan!');
-          return false;
-        }
-        return true;
-      }
-    });
-
-    if (!result.isConfirmed) {
-      toast.info('Restore database dibatalkan.');
-      return;
-    }
-
-    setIsRestoreLoading(true);
-    toast.info('Memulai proses restore database...', { autoClose: 5000 });
-
-    try {
-      // Create FormData to send file
-      const formData = new FormData();
-      formData.append('sqlFile', selectedFile);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 detik timeout untuk restore
-      
-      const response = await fetch('/api/admin/settings/restore', { 
-        method: 'POST',
-        credentials: 'include',
-        signal: controller.signal,
-        body: formData
-      });
-      
-      clearTimeout(timeoutId);
-      
-      // Proses response sebagai text terlebih dahulu
-      const textResponse = await response.text();
-      console.log('Raw restore response:', textResponse);
-      
-      // Coba parse sebagai JSON
-      let jsonData;
-      try {
-        jsonData = JSON.parse(textResponse);
-      } catch (e) {
-        console.error('Failed to parse JSON response:', e);
-        if (response.ok) {
-          toast.success('Restore berhasil!');
-        } else {
-          toast.error(`Gagal melakukan restore: ${response.status}`);
-        }
-        return;
-      }
-      
-      // Proses response JSON
-      if (response.ok && jsonData.success) {
-        toast.success(jsonData.message || 'Restore database berhasil!');
-        
-        // Clear selected file
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        // Tampilkan detail tambahan jika ada
-        if (jsonData.details) {
-          console.log('Restore details:', jsonData.details);
-          toast.info(`Database berhasil di-restore dari file ${selectedFile.name}`);
-        }
-        
-        // Jika restore berhasil, refresh halaman setelah beberapa detik
-        setTimeout(() => {
-          toast.info('Merefresh halaman...');
-          window.location.reload();
-        }, 3000);
-      } else {
-        throw new Error(jsonData.error || 'Gagal melakukan restore database');
-      }
-    } catch (error: any) {
-      console.error('Restore error:', error);
-      if (error.name === 'AbortError') {
-        toast.error('Permintaan restore timeout. Silakan coba lagi.');
-      } else {
-        toast.error(error.message || 'Gagal melakukan restore database');
-      }
-    } finally {
-      setIsRestoreLoading(false);
-    }
   };
 
   const handleBackup = async () => {
@@ -424,6 +290,55 @@ const SettingsPage = () => {
     }
   };
 
+  const handleThemeChange = (theme: string) => {
+    setActiveTheme(theme);
+    // Disini nanti bisa implementasi tema dengan menambahkan class ke body atau root element
+    document.documentElement.classList.remove('light-theme', 'dark-theme', 'green-theme');
+    document.documentElement.classList.add(`${theme}-theme`);
+    toast.success(`Tema berhasil diubah ke ${theme}`);
+  };
+  
+  const handleTextSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const size = e.target.value;
+    setTextSize(size);
+    toast.success(`Ukuran teks berhasil diubah ke ${size}`);
+    
+    // Implementasi perubahan ukuran teks
+    document.documentElement.classList.remove('text-small', 'text-medium', 'text-large');
+    document.documentElement.classList.add(`text-${size}`);
+  };
+
+  const handleSessionTimeoutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setSessionTimeout(value);
+      toast.success(`Batas waktu sesi diubah menjadi ${value} menit`);
+    }
+  };
+  
+  const togglePasswordPolicy = (setting: keyof typeof passwordPolicy) => {
+    setPasswordPolicy(prev => ({
+      ...prev,
+      [setting]: !prev[setting]
+    }));
+    toast.success(`Kebijakan kata sandi diperbarui`);
+  };
+  
+  const handleMinLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value >= 6) {
+      setPasswordPolicy(prev => ({
+        ...prev,
+        minLength: value
+      }));
+    }
+  };
+  
+  const regenerateApiKey = () => {
+    toast.success("API Key berhasil diperbaharui");
+    // Implementasi regenerasi API Key akan ditambahkan di sini
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-8">
@@ -452,13 +367,20 @@ const SettingsPage = () => {
       </div>
       
       <Tabs defaultValue="data-management" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+        <TabsList className="grid w-full grid-cols-4 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
           <TabsTrigger 
             value="data-management" 
             className="data-tab flex items-center justify-center gap-2 py-2 text-sm font-medium data-[state=active]:bg-green-50 data-[state=active]:text-green-700"
           >
             <MdBackup className="h-5 w-5" />
             <span>Data</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="appearance" 
+            className="appearance-tab flex items-center justify-center gap-2 py-2 text-sm font-medium data-[state=active]:bg-green-50 data-[state=active]:text-green-700"
+          >
+            <MdColorLens className="h-5 w-5" />
+            <span>Tampilan</span>
           </TabsTrigger>
           <TabsTrigger 
             value="notification-debug" 
@@ -682,128 +604,9 @@ const SettingsPage = () => {
               </div>
               )}
             </div>
-
-            {/* Database Restore */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-start mb-5">
-                <div className="bg-blue-50 p-3 rounded-lg mr-4">
-                  <MdUpload className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Restore Database</h2>
-                  <p className="text-gray-600 mt-1">
-                    Pulihkan database dari file backup .sql menggunakan psql.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mb-5">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-start mb-4">
-                  <div className="mr-3 mt-0.5 text-blue-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm text-blue-800 font-medium">Informasi:</p>
-                    <p className="text-sm text-blue-800 mt-1">
-                      Restore akan mengganti seluruh data dalam database dengan data dari file backup. Pastikan file .sql valid dan kompatibel.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-center mb-3">
-                    <div className="h-2 w-2 rounded-full bg-blue-500 mr-2"></div>
-                    <h3 className="font-medium text-gray-800 text-sm">Persyaratan File:</h3>
-                  </div>
-                  <ul className="space-y-2 pl-4 text-sm text-gray-600">
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                      <span>Format file: .sql (PostgreSQL SQL dump)</span>
-                    </li>
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                      <span>Ukuran maksimal: 100MB</span>
-                    </li>
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                      <span>File harus kompatibel dengan PostgreSQL</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              {/* File Upload */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pilih File Backup (.sql)
-                </label>
-                <div className="relative">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".sql"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="sql-file-input"
-                  />
-                  <label
-                    htmlFor="sql-file-input"
-                    className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <div className="text-center">
-                      <MdFileUpload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600">
-                        {selectedFile ? selectedFile.name : 'Klik untuk memilih file .sql'}
-                      </p>
-                      {selectedFile && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Ukuran: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleRestore}
-                disabled={isRestoreLoading || !selectedFile}
-                className="w-full flex items-center justify-center bg-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-              >
-                {isRestoreLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Memproses...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 15L12 3M12 15L16 11M12 15L8 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 17L2 19C2 20.1046 2.89543 21 4 21L20 21C21.1046 21 22 20.1046 22 19L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Restore Database
-                  </>
-                )}
-              </button>
-              
-              {!selectedFile && (
-                <div className="mt-5 bg-gray-50 p-4 rounded-lg border border-gray-200 text-center">
-                  <div className="py-3">
-                    <p className="text-sm text-gray-600">
-                      Pilih file .sql terlebih dahulu untuk melakukan restore database.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
             
             {/* Reset Database */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 lg:col-span-2">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <div className="flex items-start mb-5">
                 <div className="bg-red-50 p-3 rounded-lg mr-4">
                   <MdRestore className="h-6 w-6 text-red-600" />
@@ -831,44 +634,40 @@ const SettingsPage = () => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="flex items-center mb-3">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></div>
-                      <h3 className="font-medium text-gray-800 text-sm">Yang akan dihapus:</h3>
-                    </div>
-                    <ul className="space-y-2 pl-4 text-sm text-gray-600">
-                      <li className="flex items-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                        <span>Data inventaris dan kalibrasi</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                        <span>Histori pemeliharaan dan penyewaan</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                        <span>Notifikasi dan pengaturan sistem</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                        <span>Catatan aktivitas dan log sistem</span>
-                      </li>
-                    </ul>
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-center mb-3">
+                    <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></div>
+                    <h3 className="font-medium text-gray-800 text-sm">Yang akan dihapus:</h3>
                   </div>
-                  
-                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="flex items-center mb-3">
-                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                      <h3 className="font-medium text-gray-800 text-sm">Yang akan dipertahankan:</h3>
-                    </div>
-                    <ul className="space-y-2 pl-4 text-sm text-gray-600">
-                      <li className="flex items-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-400 mr-2"></span>
-                        <span>Data pengguna dan admin (Model User)</span>
-                      </li>
-                    </ul>
+                  <ul className="space-y-2 pl-4 text-sm text-gray-600">
+                    <li className="flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
+                      <span>Data inventaris dan kalibrasi</span>
+                    </li>
+                    <li className="flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
+                      <span>Histori pemeliharaan dan penyewaan</span>
+                    </li>
+                    <li className="flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
+                      <span>Notifikasi dan pengaturan sistem</span>
+                    </li>
+                    <li className="flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
+                      <span>Catatan aktivitas dan log sistem</span>
+                    </li>
+                  </ul>
+                   
+                  <div className="flex items-center mt-4 mb-1">
+                    <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                    <h3 className="font-medium text-gray-800 text-sm">Yang akan dipertahankan:</h3>
                   </div>
+                  <ul className="space-y-2 pl-4 text-sm text-gray-600">
+                    <li className="flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-400 mr-2"></span>
+                      <span>Data pengguna dan admin (Model User)</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
               
@@ -896,6 +695,158 @@ const SettingsPage = () => {
                   </>
                 )}
               </button>
+              
+              {/* Empty state to match the layout of backup card */}
+              {!lastBackupInfo && (
+                <div className="mt-5 bg-gray-50 p-4 rounded-lg border border-gray-200 text-center">
+                  <div className="py-3">
+                    <p className="text-sm text-gray-600">
+                      Disarankan membuat backup data terlebih dahulu sebelum melakukan reset.
+                </p>
+              </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="appearance">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <MdColorLens className="h-6 w-6 text-green-600" />
+              Pengaturan Tampilan
+            </h2>
+            
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Tema Aplikasi</h3>
+                <p className="text-gray-600 mb-4">
+                  Pilih tema yang akan digunakan pada seluruh aplikasi.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div 
+                    className={`border p-4 rounded-lg cursor-pointer transition-all ${activeTheme === 'light' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleThemeChange('light')}
+                  >
+                    <div className="h-24 rounded-md bg-white border border-gray-200 mb-3 flex items-center justify-center">
+                      <div className="w-full px-3">
+                        <div className="h-3 w-24 bg-gray-200 rounded-full mx-auto mb-2"></div>
+                        <div className="h-2 w-20 bg-gray-100 rounded-full mx-auto"></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-800">Terang</span>
+                      {activeTheme === 'light' && <div className="w-4 h-4 rounded-full bg-green-500"></div>}
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className={`border p-4 rounded-lg cursor-pointer transition-all ${activeTheme === 'dark' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleThemeChange('dark')}
+                  >
+                    <div className="h-24 rounded-md bg-gray-800 border border-gray-700 mb-3 flex items-center justify-center">
+                      <div className="w-full px-3">
+                        <div className="h-3 w-24 bg-gray-600 rounded-full mx-auto mb-2"></div>
+                        <div className="h-2 w-20 bg-gray-700 rounded-full mx-auto"></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-800">Gelap</span>
+                      {activeTheme === 'dark' && <div className="w-4 h-4 rounded-full bg-green-500"></div>}
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className={`border p-4 rounded-lg cursor-pointer transition-all ${activeTheme === 'green' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleThemeChange('green')}
+                  >
+                    <div className="h-24 rounded-md bg-green-50 border border-green-200 mb-3 flex items-center justify-center">
+                      <div className="w-full px-3">
+                        <div className="h-3 w-24 bg-green-200 rounded-full mx-auto mb-2"></div>
+                        <div className="h-2 w-20 bg-green-100 rounded-full mx-auto"></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-800">Hijau</span>
+                      {activeTheme === 'green' && <div className="w-4 h-4 rounded-full bg-green-500"></div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-6 border-t border-gray-100">
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Ukuran Teks</h3>
+                <p className="text-gray-600 mb-4">
+                  Sesuaikan ukuran teks pada antarmuka aplikasi.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div 
+                      className={`border p-4 rounded-lg cursor-pointer transition-all ${textSize === 'small' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                      onClick={() => setTextSize('small')}
+                    >
+                      <div className="text-center">
+                        <p className="text-xs mb-1">A</p>
+                        <p className="text-gray-600 text-xs">Kecil</p>
+                      </div>
+                    </div>
+                    
+                    <div 
+                      className={`border p-4 rounded-lg cursor-pointer transition-all ${textSize === 'medium' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                      onClick={() => setTextSize('medium')}
+                    >
+                      <div className="text-center">
+                        <p className="text-sm mb-1">A</p>
+                        <p className="text-gray-600 text-xs">Sedang</p>
+                      </div>
+                    </div>
+                    
+                    <div 
+                      className={`border p-4 rounded-lg cursor-pointer transition-all ${textSize === 'large' ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : 'hover:bg-gray-50'}`}
+                      onClick={() => setTextSize('large')}
+                    >
+                      <div className="text-center">
+                        <p className="text-base mb-1">A</p>
+                        <p className="text-gray-600 text-xs">Besar</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-6 border-t border-gray-100">
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Batas Waktu Sesi</h3>
+                <p className="text-gray-600 mb-4">
+                  Atur batas waktu sesi pengguna tidak aktif sebelum otomatis logout.
+                </p>
+                
+                <div className="flex flex-col space-y-2 max-w-md">
+                  <div className="flex justify-between">
+                    <label className="text-sm text-gray-600">Batas Waktu (menit)</label>
+                    <span className="text-sm font-medium bg-green-100 text-green-800 px-2 py-0.5 rounded">{sessionTimeout} menit</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="120"
+                    step="5"
+                    value={sessionTimeout}
+                    onChange={handleSessionTimeoutChange}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                    aria-label="Batas waktu sesi dalam menit"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>5 menit</span>
+                    <span>60 menit</span>
+                    <span>120 menit</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Sesi akan otomatis berakhir setelah tidak ada aktivitas selama {sessionTimeout} menit.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -912,4 +863,4 @@ const SettingsPage = () => {
   );
 };
 
-export default SettingsPage;
+export default SettingsPage; 

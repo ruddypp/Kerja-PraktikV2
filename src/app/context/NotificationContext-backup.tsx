@@ -28,9 +28,9 @@ export function NotificationProvider({ children, role }: { children: React.React
   const isMounted = useRef(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSoundPlayedTime = useRef<number>(0);
-  const isFetching = useRef(false);
-  const processedNotifications = useRef(new Set<string>());
-  const toastShownCount = useRef<number>(0);
+  const isFetching = useRef(false); // The "lock"
+  const processedNotifications = useRef(new Set<string>()); // Track notifications that have been processed
+  const toastShownCount = useRef<number>(0); // Track number of toasts shown in current session
 
   const baseUrl = role === 'ADMIN' ? '/api/admin/notifications' : '/api/user/notifications';
 
@@ -63,17 +63,18 @@ export function NotificationProvider({ children, role }: { children: React.React
       toastShownCount.current = 0;
     };
     
+    // Reset the counter after 1 minute
     const scheduleReset = () => {
       clearTimeout(resetTimer);
-      resetTimer = setTimeout(resetToastCount, 60000);
+      resetTimer = setTimeout(resetToastCount, 60000); // 1 minute
     };
     
+    // Initialize the reset timer
     scheduleReset();
     
     return () => clearTimeout(resetTimer);
   }, []);
 
-  // IMPROVED: Enhanced toast notification with clear, specific messages
   const playSoundAndShowToast = (notification: Notification) => {
     // Skip if notification doesn't have required data
     if (!notification.reminder?.dueDate || !notification.reminder?.type) return;
@@ -103,58 +104,6 @@ export function NotificationProvider({ children, role }: { children: React.React
     processedNotifications.current.add(notification.id);
     toastShownCount.current += 1;
     
-    // Determine toast style based on urgency and type
-    let toastIcon = '🔔';
-    let titleColor = 'text-blue-600';
-    let borderColor = 'border-blue-200';
-    let bgColor = 'bg-blue-50';
-    let urgencyText = '';
-    
-    if (daysDiff < 0) {
-      // Overdue - Critical
-      toastIcon = '💥';
-      titleColor = 'text-red-700';
-      borderColor = 'border-red-300';
-      bgColor = 'bg-red-50';
-      urgencyText = `TERLAMBAT ${Math.abs(daysDiff)} HARI`;
-    } else if (daysDiff === 0) {
-      // Due today - Urgent
-      toastIcon = '🔥';
-      titleColor = 'text-orange-700';
-      borderColor = 'border-orange-300';
-      bgColor = 'bg-orange-50';
-      urgencyText = 'JATUH TEMPO HARI INI';
-    } else if (daysDiff === 1) {
-      // Due tomorrow - Important
-      toastIcon = '⚠️';
-      titleColor = 'text-yellow-700';
-      borderColor = 'border-yellow-300';
-      bgColor = 'bg-yellow-50';
-      urgencyText = 'JATUH TEMPO BESOK';
-    } else if (daysDiff <= 7) {
-      // Due soon - Warning
-      toastIcon = '🔔';
-      titleColor = 'text-blue-700';
-      borderColor = 'border-blue-300';
-      bgColor = 'bg-blue-50';
-      urgencyText = `${daysDiff} HARI LAGI`;
-    } else if (daysDiff <= 30) {
-      // Due in future - Info
-      toastIcon = '📅';
-      titleColor = 'text-indigo-700';
-      borderColor = 'border-indigo-300';
-      bgColor = 'bg-indigo-50';
-      urgencyText = `${daysDiff} HARI LAGI`;
-    }
-
-    // Get reminder type display name
-    const reminderTypeDisplay = {
-      'CALIBRATION': 'Kalibrasi',
-      'RENTAL': 'Rental',
-      'MAINTENANCE': 'Maintenance',
-      'SCHEDULE': 'Jadwal'
-    }[notification.reminder.type] || notification.reminder.type;
-    
     if (audioRef.current) {
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
@@ -162,78 +111,30 @@ export function NotificationProvider({ children, role }: { children: React.React
           lastSoundPlayedTime.current = now;
           recordNotificationTrigger(notification.id);
 
-          toast(
+    toast(
             (t) => (
-              <div className={`${bgColor} border-l-4 ${borderColor} rounded-r-lg shadow-lg`}>
-                <div className="p-4">
-                  {/* Header with urgency badge */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{toastIcon}</span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${titleColor} bg-white`}>
-                        {urgencyText}
-                      </span>
-                    </div>
-                    <button 
-                      onClick={() => toast.dismiss(t.id)}
-                      className="text-gray-400 hover:text-gray-600 text-sm"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  
-                  {/* Main content */}
-                  <div className="mb-3">
-                    <p className={`font-semibold ${titleColor} text-sm mb-1`}>
-                      {notification.title}
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {notification.message}
-                    </p>
-                  </div>
-                  
-                  {/* Footer with metadata and actions */}
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-gray-500">
-                      <span className="font-medium">{reminderTypeDisplay}</span>
-                      {role === 'ADMIN' && (
-                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                          Admin
-                        </span>
-                      )}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        toast.dismiss(t.id);
-                        if (typeof window !== 'undefined') {
-                          window.location.href = `/${role.toLowerCase()}/notifications`;
-                        }
-                      }}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                        daysDiff < 0 
-                          ? 'bg-red-600 hover:bg-red-700 text-white' 
-                          : daysDiff === 0 
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      Lihat Detail
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ),
-            { 
-              duration: daysDiff < 0 ? 20000 : daysDiff === 0 ? 15000 : 12000, // Longer for more urgent
-              icon: false, // We handle icon ourselves
-              style: {
-                background: 'transparent',
-                boxShadow: 'none',
-                padding: 0,
-                maxWidth: '450px',
-              }
-            }
-          );
+        <div className="flex items-start">
+          <div className="flex-1">
+                  <p className="font-medium text-orange-600">{notification.title}</p>
+                  <p className="text-sm">{notification.message}</p>
+          </div>
+          <div className="ml-4">
+            <button 
+              onClick={() => {
+                toast.dismiss(t.id);
+                if (typeof window !== 'undefined') {
+                  window.location.href = `/${role.toLowerCase()}/notifications`;
+                }
+              }}
+              className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs"
+            >
+              Lihat Semua
+            </button>
+          </div>
+        </div>
+      ),
+            { duration: 10000, icon: '🔔' }
+    );
         }).catch(error => {
           console.error(`Error playing sound for notification ${notification.id}:`, error);
         });
@@ -250,8 +151,11 @@ export function NotificationProvider({ children, role }: { children: React.React
       });
       
       if (response.status === 401) {
+        // Handle unauthorized error gracefully - likely not logged in
         console.log("User not authenticated for notifications");
         
+        // Jangan tampilkan pesan error jika pengguna belum login
+        // Hanya bersihkan notifikasi agar tidak error
         if (isMounted.current) {
           setNotifications([]);
           setUnreadCount(0);
@@ -266,41 +170,29 @@ export function NotificationProvider({ children, role }: { children: React.React
       
       // Only show toasts for unread notifications if requested
       if (showToast) {
-        // Sort notifications by priority (overdue first, then by due date)
+        // Sort notifications by priority (overdue first)
         const prioritizedNotifications = [...allNotifications]
           .filter(n => !n.isRead && n.reminder?.dueDate)
           .sort((a, b) => {
             // First sort by read status (unread first)
             if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
             
-            // Then by urgency (overdue first, then by due date)
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
+            // Then by due date (earlier date = higher priority)
             const dateA = new Date(a.reminder?.dueDate || '');
             const dateB = new Date(b.reminder?.dueDate || '');
-            
-            const daysA = differenceInDays(dateA, today);
-            const daysB = differenceInDays(dateB, today);
-            
-            // Overdue items first (negative days)
-            if (daysA < 0 && daysB >= 0) return -1;
-            if (daysB < 0 && daysA >= 0) return 1;
-            
-            // Then by closest due date
             return dateA.getTime() - dateB.getTime();
           });
         
         // Limit to most important notifications (max 3)
         const toShow = prioritizedNotifications.slice(0, 3);
         
-        // Show toasts one by one with a small delay
+        // Show toasts one by one with a small delay to avoid overwhelming the user
         toShow.forEach((notification, index) => {
           setTimeout(() => {
             if (isMounted.current) {
-              playSoundAndShowToast(notification);
+          playSoundAndShowToast(notification);
             }
-          }, index * 1500); // 1.5 second delay between toasts
+          }, index * 1000); // 1 second delay between toasts
         });
       }
       
@@ -311,8 +203,11 @@ export function NotificationProvider({ children, role }: { children: React.React
     } catch (err) {
       console.error('Error fetching notifications:', err);
       
+      // Jangan tampilkan error saat aplikasi pertama kali dimuat
+      // Tetapi tetap simpan error untuk debugging
       if (isMounted.current) {
         setError(err instanceof Error ? err.message : 'Error occurred');
+        // Jangan bersihkan notifikasi yang ada untuk menghindari UI berkedip
       }
     }
   };
@@ -342,6 +237,7 @@ export function NotificationProvider({ children, role }: { children: React.React
       });
       
       if (response.status === 401) {
+        // Handle unauthorized error gracefully
         console.log('User not authenticated for cron check');
         return null;
       }
@@ -450,13 +346,10 @@ export function NotificationProvider({ children, role }: { children: React.React
     // Initial fetch without showing toast
     fetchNotifications(false).catch(err => console.error('Initial fetch error:', err));
     
-    // OPTIMIZED: Poll every 10 minutes instead of 45 seconds to significantly reduce server load
+    // Use a slightly longer interval to reduce server load
     const interval = setInterval(() => {
-      // Only check if page is visible to reduce unnecessary requests
-      if (document.visibilityState === 'visible') {
-        triggerCronCheck(true).catch(err => console.error('Interval check error:', err));
-      }
-    }, 10 * 60 * 1000); // Poll every 10 minutes
+      triggerCronCheck(true).catch(err => console.error('Interval check error:', err));
+    }, 45 * 1000); // Poll every 45 seconds instead of 30
     
     return () => clearInterval(interval);
   }, [role]);
@@ -487,4 +380,4 @@ export function useNotifications() {
     throw new Error('useNotifications must be used within a NotificationProvider');
   }
   return context;
-}
+} 

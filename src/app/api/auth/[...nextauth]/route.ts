@@ -28,8 +28,9 @@ const handler = NextAuth({
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 1 day
   },
+  secret: process.env.NEXTAUTH_SECRET,
   jwt: {
-    secret: process.env.JWT_SECRET,
+    secret: process.env.NEXTAUTH_SECRET,
   },
   pages: {
     signIn: '/login',

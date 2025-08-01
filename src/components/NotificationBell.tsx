@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '@/app/context/NotificationContext';
 import { differenceInDays } from 'date-fns';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { FiCheck, FiTrash2 } from 'react-icons/fi';
 
 interface NotificationBellProps {
   role: 'ADMIN' | 'USER';
@@ -11,6 +13,7 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ role }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const {
     notifications,
     unreadCount,
@@ -45,15 +48,16 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     };
   }, []);
 
-  // Periodic refresh of unread count (quietly without toasts)
+  // OPTIMIZED: Periodic refresh of unread count (quietly without toasts)
   useEffect(() => {
     const refreshInterval = setInterval(() => {
-      if (!isOpen) { // Only refresh when dropdown is closed
+      // Only refresh when dropdown is closed AND page is visible to reduce unnecessary requests
+      if (!isOpen && document.visibilityState === 'visible') {
         fetchNotifications(false).catch(err => 
           console.error('Error refreshing notifications count:', err)
         );
       }
-    }, 60000); // Every minute
+    }, 5 * 60 * 1000); // Every 5 minutes instead of 1 minute to reduce server load
     
     return () => clearInterval(refreshInterval);
   }, [fetchNotifications, isOpen]);
@@ -90,6 +94,24 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     setIsOpen(false); // Close dropdown after marking all as read
   };
 
+  // NEW: Clear notifications from bell (mark as read but don't delete from page)
+  const handleClearNotifications = async () => {
+    if (isClearing) return;
+    
+    setIsClearing(true);
+    try {
+      // Mark all notifications as read to clear them from bell
+      await markAllAsRead();
+      toast.success('Notifications cleared from bell');
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      toast.error('Failed to clear notifications');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   // Get countdown display based on days remaining
   const getCountdownDisplay = (dueDate: string) => {
     try {
@@ -101,37 +123,54 @@ export default function NotificationBell({ role }: NotificationBellProps) {
       if (daysRemaining < 0) {
         return {
           text: `Terlambat ${Math.abs(daysRemaining)} hari`,
-          color: 'text-red-600'
+          color: 'text-red-600',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200'
         };
       } else if (daysRemaining === 0) {
         return {
           text: 'Hari ini',
-          color: 'text-orange-600'
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200'
         };
       } else if (daysRemaining === 1) {
         return {
           text: 'Besok',
-          color: 'text-orange-500'
+          color: 'text-orange-500',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200'
         };
       } else if (daysRemaining <= 7) {
         return {
           text: `${daysRemaining} hari lagi`,
-          color: 'text-yellow-600'
+          color: 'text-yellow-600',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-200'
         };
       } else if (daysRemaining === 30) {
         return {
           text: '30 hari lagi',
-          color: 'text-blue-600'
+          color: 'text-blue-600',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200'
         };
       } else {
         return {
           text: `${daysRemaining} hari lagi`,
-          color: 'text-blue-600'
+          color: 'text-blue-600',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200'
         };
       }
     } catch (error) {
       console.error('Error calculating countdown:', error);
-      return { text: 'Unknown', color: 'text-gray-600' };
+      return { 
+        text: 'Unknown', 
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200'
+      };
     }
   };
 
@@ -158,7 +197,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
       {/* Bell Icon with Badge */}
       <div 
         ref={bellIconRef}
-        className="relative cursor-pointer p-2"
+        className="relative cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors"
         onClick={toggleDropdown}
       >
         <svg
@@ -177,115 +216,161 @@ export default function NotificationBell({ role }: NotificationBellProps) {
         </svg>
         
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+          <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </div>
 
-      {/* Dropdown */}
+      {/* Enhanced Dropdown */}
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-20"
+          className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-20"
         >
-          <div className="py-2">
-            <div className="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold">Notifikasi</h3>
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Tandai semua dibaca
-                </button>
-              )}
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-gray-800">Notifikasi</h3>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <>
+                    <button
+                      onClick={handleClearNotifications}
+                      disabled={isClearing}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                      title="Clear notifications from bell (mark as read)"
+                    >
+                      <FiCheck size={12} />
+                      {isClearing ? 'Clearing...' : 'Clear'}
+                    </button>
+                    <span className="text-gray-300">|</span>
+                  </>
+                )}
+                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                  {unreadCount} unread
+                </span>
+              </div>
             </div>
+          </div>
 
-            <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                  Tidak ada notifikasi
+          {/* Notifications List */}
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <div className="text-gray-400 mb-2">
+                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
                 </div>
-              ) : (
-                <ul>
-                  {prioritizedNotifications.map((notification) => {
-                    // Get countdown display if reminder exists
-                    const countdownDisplay = notification.reminder?.dueDate
-                      ? getCountdownDisplay(notification.reminder.dueDate)
-                      : null;
+                <p className="text-sm text-gray-500">Tidak ada notifikasi</p>
+                <p className="text-xs text-gray-400 mt-1">Semua notifikasi sudah dibaca</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {prioritizedNotifications.map((notification) => {
+                  // Get countdown display if reminder exists
+                  const countdownDisplay = notification.reminder?.dueDate
+                    ? getCountdownDisplay(notification.reminder.dueDate)
+                    : null;
 
-                    // Determine notification path
-                    const notificationPath = notification.reminder
-                      ? role === 'ADMIN'
-                        ? notification.reminder.type === 'CALIBRATION'
-                          ? `/admin/calibrations/${notification.reminder.calibrationId}`
-                          : notification.reminder.type === 'RENTAL'
-                          ? `/admin/rentals`
-                          : notification.reminder.type === 'MAINTENANCE'
-                          ? `/admin/maintenance/${notification.reminder.maintenanceId}`
-                          : `/admin/inventory/schedules`
-                        : notification.reminder.type === 'CALIBRATION'
-                        ? `/user/calibrations/${notification.reminder.calibrationId}`
+                  // Determine notification path
+                  const notificationPath = notification.reminder
+                    ? role === 'ADMIN'
+                      ? notification.reminder.type === 'CALIBRATION'
+                        ? `/admin/calibrations/${notification.reminder.calibrationId}`
                         : notification.reminder.type === 'RENTAL'
-                        ? `/user/rentals`
+                        ? `/admin/rentals`
                         : notification.reminder.type === 'MAINTENANCE'
-                        ? `/user/maintenance/${notification.reminder.maintenanceId}`
-                        : `/user/barang`
-                      : role === 'ADMIN'
-                      ? '/admin/notifications'
-                      : '/user/notifications';
+                        ? `/admin/maintenance/${notification.reminder.maintenanceId}`
+                        : `/admin/inventory/schedules`
+                      : notification.reminder.type === 'CALIBRATION'
+                      ? `/user/calibrations/${notification.reminder.calibrationId}`
+                      : notification.reminder.type === 'RENTAL'
+                      ? `/user/rentals`
+                      : notification.reminder.type === 'MAINTENANCE'
+                      ? `/user/maintenance/${notification.reminder.maintenanceId}`
+                      : `/user/barang`
+                    : role === 'ADMIN'
+                    ? '/admin/notifications'
+                    : '/user/notifications';
 
-                    return (
-                      <li
-                        key={notification.id}
-                        className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 ${
-                          !notification.isRead ? 'bg-blue-50' : ''
-                        }`}
+                  return (
+                    <li
+                      key={notification.id}
+                      className={`relative transition-colors ${
+                        !notification.isRead 
+                          ? countdownDisplay 
+                            ? `${countdownDisplay.bgColor} hover:bg-opacity-80` 
+                            : 'bg-blue-50 hover:bg-blue-100'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <Link
+                        href={notificationPath}
+                        onClick={() => {
+                          handleMarkAsRead(notification.id);
+                          setIsOpen(false);
+                        }}
+                        className="block px-4 py-3"
                       >
-                        <Link
-                          href={notificationPath}
-                          onClick={() => {
-                            handleMarkAsRead(notification.id);
-                          }}
-                          className="block"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">
-                                {notification.title}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {notification.message}
-                              </p>
-                              
-                              {countdownDisplay && (
-                                <span className={`text-xs font-medium ${countdownDisplay.color} mt-1 inline-block`}>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${
+                              !notification.isRead ? 'text-gray-900' : 'text-gray-600'
+                            } line-clamp-2`}>
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            
+                            {countdownDisplay && (
+                              <div className="mt-2">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  countdownDisplay.color
+                                } bg-white ${countdownDisplay.borderColor} border`}>
                                   {countdownDisplay.text}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+                          
+                          {/* Unread indicator */}
+                          {!notification.isRead && (
+                            <div className="ml-2 flex-shrink-0">
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
 
-            <div className="px-4 py-2 border-t border-gray-200">
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="flex justify-between items-center">
               <Link
                 href={role === 'ADMIN' ? '/admin/notifications' : '/user/notifications'}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
                 onClick={() => setIsOpen(false)}
               >
-                Lihat semua notifikasi
+                Lihat semua notifikasi →
               </Link>
+              
+              {notifications.length > MAX_NOTIFICATIONS_TO_DISPLAY && (
+                <span className="text-xs text-gray-500">
+                  +{notifications.length - MAX_NOTIFICATIONS_TO_DISPLAY} more
+                </span>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   );
-} 
+}

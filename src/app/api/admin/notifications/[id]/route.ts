@@ -1,127 +1,57 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { markNotificationAsRead, deleteNotification } from '@/lib/notification-service';
-
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const user = await getUserFromRequest(request);
-    
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    try {
-      // Ensure params is fully resolved before using its properties
-      const { id } = params;
-      
-      const notification = await prisma.notification.findUnique({
-        where: {
-          id,
-          userId: user.id,
-        },
-        include: {
-          reminder: {
-            include: {
-              calibration: {
-                include: {
-                  item: true,
-                  customer: true,
-                },
-              },
-              rental: {
-                include: {
-                  item: true,
-                  customer: true,
-                },
-              },
-              maintenance: {
-                include: {
-                  item: true,
-                },
-              },
-              inventoryCheck: true,
-            },
-          },
-        },
-      });
-      
-      if (!notification) {
-        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-      }
-      
-      const response = NextResponse.json({ notification });
-      
-      // Add cache control headers
-      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      response.headers.set('Pragma', 'no-cache');
-      response.headers.set('Expires', '0');
-      
-      return response;
-    } catch (error) {
-      console.error('Error fetching notification:', error);
-      return NextResponse.json({ error: 'Failed to fetch notification' }, { status: 500 });
-    }
-  } catch (error) {
-    console.error('Error in admin notification GET API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
+import { 
+  markNotificationAsRead,
+  deleteNotification
+} from '@/lib/notification-service';
+import prisma from '@/lib/prisma';
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const notificationId = params.id;
+    
+    if (!notificationId) {
+      return NextResponse.json({ error: 'Notification ID is required' }, { status: 400 });
+    }
+
     const user = await getUserFromRequest(request);
     
     if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    try {
-      // Ensure params is fully resolved before using its properties
-      const { id } = params;
-      
-      const notification = await prisma.notification.findUnique({
-        where: {
-          id,
-          userId: user.id,
-        },
-      });
-      
-      if (!notification) {
-        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-      }
-      
-      const body = await request.json();
-      
-      let updatedNotification;
-      
-      if (body.isRead) {
-        updatedNotification = await markNotificationAsRead(id);
-      } else {
-        updatedNotification = await prisma.notification.update({
-          where: { id },
-          data: body,
-        });
-      }
-      
-      const response = NextResponse.json({ notification: updatedNotification });
-      
-      // Add cache control headers
-      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      
-      return response;
-    } catch (error) {
-      console.error('Error updating notification:', error);
-      return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 });
+
+    // Verify notification belongs to admin user
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId }
+    });
+
+    if (!notification) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
+
+    if (notification.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const { isRead } = body;
+
+    if (typeof isRead === 'boolean') {
+      const updatedNotification = await markNotificationAsRead(notificationId);
+      return NextResponse.json({ 
+        success: true, 
+        notification: updatedNotification 
+      });
+    }
+
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+
   } catch (error) {
-    console.error('Error in admin notification PATCH API:', error);
+    console.error('Error updating admin notification:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -131,41 +61,41 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const notificationId = params.id;
+    
+    if (!notificationId) {
+      return NextResponse.json({ error: 'Notification ID is required' }, { status: 400 });
+    }
+
     const user = await getUserFromRequest(request);
     
     if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    try {
-      // Ensure params is fully resolved before using its properties
-      const { id } = params;
-      
-      const notification = await prisma.notification.findUnique({
-        where: {
-          id,
-          userId: user.id,
-        },
-      });
-      
-      if (!notification) {
-        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-      }
-      
-      await deleteNotification(id);
-      
-      const response = NextResponse.json({ success: true });
-      
-      // Add cache control headers
-      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      
-      return response;
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-      return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
+
+    // Verify notification belongs to admin user
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId }
+    });
+
+    if (!notification) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
+
+    if (notification.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Delete notification
+    await deleteNotification(notificationId);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Notification deleted successfully' 
+    });
+
   } catch (error) {
-    console.error('Error in admin notification DELETE API:', error);
+    console.error('Error deleting admin notification:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

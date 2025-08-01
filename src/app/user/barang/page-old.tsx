@@ -315,8 +315,8 @@ export default function UserItemsPage() {
       setFormSubmitting(true);
       
       if (isEditMode) {
-        // Update item - use user API
-        const res = await fetch(`/api/user/items?serialNumber=${currentItem?.serialNumber}`, {
+        // Update item - use admin API since user needs to be able to update
+        const res = await fetch(`/api/admin/items?serialNumber=${currentItem?.serialNumber}`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -340,8 +340,8 @@ export default function UserItemsPage() {
         
         toast.success('Item updated successfully');
       } else {
-        // Create item - use user API
-        const res = await fetch('/api/user/items', {
+        // Create item - use admin API since user needs to be able to create
+        const res = await fetch('/api/admin/items', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

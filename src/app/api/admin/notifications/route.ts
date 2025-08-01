@@ -10,7 +10,7 @@ import {
 
 export async function GET(request: Request) {
   try {
-    // console.log('Admin notifications API called');
+    console.log('Admin notifications API called');
     
     const user = await getUserFromRequest(request);
     
@@ -18,11 +18,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized', notifications: [] }, { status: 401 });
     }
     
-    const { searchParams } = new URL(request.url);
+    // FIXED: Better URL parsing with error handling
+    let searchParams;
+    try {
+      const url = new URL(request.url);
+      searchParams = url.searchParams;
+    } catch (urlError) {
+      console.error('Error parsing URL:', urlError);
+      searchParams = new URLSearchParams();
+    }
+    
+    // FIXED: Safe parameter extraction with defaults
     const countOnly = searchParams.get('countOnly') === 'true';
     const overdueOnly = searchParams.get('overdueOnly') === 'true';
-    const type = searchParams.get('type') as 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL' || 'ALL';
-    const page = parseInt(searchParams.get('page') || '1');
+    const typeParam = searchParams.get('type');
+    const type = (typeParam && ['SCHEDULE', 'CALIBRATION', 'RENTAL', 'MAINTENANCE', 'ALL'].includes(typeParam)) 
+      ? typeParam as 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL' 
+      : 'ALL';
+    
+    const pageParam = searchParams.get('page');
+    const page = pageParam ? Math.max(1, parseInt(pageParam) || 1) : 1;
     
     // Add anti-cache headers to all responses
     const headers = {
@@ -34,7 +49,7 @@ export async function GET(request: Request) {
     if (countOnly) {
       try {
         const count = await getUnreadNotificationCount(user.id);
-        // console.log(`Unread notification count for admin ${user.id}: ${count}`);
+        console.log(`Unread notification count for admin ${user.id}: ${count}`);
         
         return NextResponse.json({ count }, { headers });
       } catch (error) {
@@ -46,7 +61,7 @@ export async function GET(request: Request) {
     if (overdueOnly) {
       try {
         const notifications = await getOverdueNotifications(user.id);
-        // console.log(`Found ${notifications.length} overdue notifications for admin ${user.id}`);
+        console.log(`Found ${notifications.length} overdue notifications for admin ${user.id}`);
         
         return NextResponse.json({ notifications }, { headers });
       } catch (error) {
@@ -57,16 +72,28 @@ export async function GET(request: Request) {
     
     try {
       const data = await getUserNotifications(user.id, { page, type });
-      // console.log(`Found ${data.notifications.length} notifications for admin ${user.id}`);
+      console.log(`Found ${data.notifications.length} notifications for admin ${user.id}`);
       
       return NextResponse.json(data, { headers });
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      return NextResponse.json({ error: 'Failed to fetch notifications', notifications: [], total: 0, page: 1, totalPages: 0 }, { status: 500, headers });
+      return NextResponse.json({ 
+        error: 'Failed to fetch notifications', 
+        notifications: [], 
+        total: 0, 
+        page: 1, 
+        totalPages: 0 
+      }, { status: 500, headers });
     }
   } catch (error) {
     console.error('Error in admin notifications API:', error);
-    return NextResponse.json({ error: 'Internal server error', notifications: [] }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      notifications: [],
+      total: 0,
+      page: 1,
+      totalPages: 0
+    }, { status: 500 });
   }
 }
 
@@ -78,7 +105,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const body = await request.json();
+    // FIXED: Better JSON parsing with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      console.error('Error parsing JSON:', jsonError);
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    
     const { action } = body;
     
     if (action === 'markAllRead') {
@@ -116,4 +151,4 @@ export async function POST(request: Request) {
     console.error('Error in admin notifications POST API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

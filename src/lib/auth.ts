@@ -63,9 +63,9 @@ export async function getUserFromRequest(req: Request): Promise<UserData | null>
       console.log('[getUserFromRequest] Token found in Authorization header');
     }
     
-    // If no token in Authorization header, try cookies
+    // If no token in Authorization header, try cookies (normal for web browsers)
     if (!token) {
-      console.log('[getUserFromRequest] No token in Authorization header, checking cookies');
+      console.log('[getUserFromRequest] Using cookie-based authentication (NextAuth session)');
       const cookieHeader = req.headers.get('cookie') || '';
       const cookies = Object.fromEntries(
         cookieHeader.split('; ').filter(Boolean).map(c => {

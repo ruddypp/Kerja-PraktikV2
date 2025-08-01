@@ -445,7 +445,7 @@ export default function Sidebar({ onCloseMobileMenu, user, loading = false, onTo
         </ul>
         {/* Versi Sistem di paling bawah sidebar, bold, tanpa gap besar */}
         <div className="w-full text-center text-xs font-bold text-gray-600 py-2 border-t border-gray-100 select-none">
-          Versi 1.2.2
+          Versi 1.3.0
         </div>
       </nav>
     </div>

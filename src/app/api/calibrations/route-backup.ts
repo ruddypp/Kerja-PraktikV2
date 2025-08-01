@@ -20,7 +20,7 @@ const createCalibrationSchema = z.object({
   // Data tambahan dari form
   address: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().optional(),
+  fax: z.string().optional(),
   
   // Detail Alat (dapat diambil dari database)
   manufacturer: z.string().optional(),
@@ -30,7 +30,10 @@ const createCalibrationSchema = z.object({
   
   calibrationDate: z.string().refine(val => !isNaN(Date.parse(val)), {
     message: "Tanggal kalibrasi harus berupa tanggal yang valid"
-  })
+  }),
+  
+  // Notes field is optional and can be null or undefined
+  notes: z.string().optional().nullable().default(null)
 });
 
 // Validation schema untuk menyelesaikan kalibrasi
@@ -198,9 +201,10 @@ export async function POST(request: Request) {
       itemSerial, 
       customerId, 
       calibrationDate,
+      notes,
       address,
       phone,
-      email,
+      fax,
       manufacturer,
       instrumentName,
       modelNumber,
@@ -239,7 +243,7 @@ export async function POST(request: Request) {
       status: RequestStatus.PENDING,
       calibrationDate: new Date(calibrationDate),
       notes: null,
-      email: email || null
+      fax: fax || null
     });
     
     // Create the calibration
@@ -251,7 +255,7 @@ export async function POST(request: Request) {
         status: RequestStatus.PENDING,
         calibrationDate: new Date(calibrationDate),
         notes: null,
-        email: email || null
+        fax: fax || null
       } as any // Type assertion to handle non-standard fields
     });
     
@@ -489,11 +493,12 @@ export async function PATCH(request: Request) {
       });
       
       if (existingCertificate) {
-        // Update existing certificate - removed manufacturer field
+        // Update existing certificate
         await prisma.calibrationCertificate.update({
           where: { id: existingCertificate.id },
           data: {
             // Instrument details
+            manufacturer: itemManufacturer,
             instrumentName,
             modelNumber,
             configuration,
@@ -550,11 +555,12 @@ export async function PATCH(request: Request) {
           `;
         }
       } else {
-        // Create new certificate - removed manufacturer field
+        // Create new certificate
         const certificate = await prisma.calibrationCertificate.create({
           data: {
             calibrationId,
             // Instrument details
+            manufacturer: itemManufacturer,
             instrumentName,
             modelNumber,
             configuration,

@@ -6,16 +6,25 @@ import {
   createRentalReminder
 } from './reminder-service';
 
+/**
+ * IMPROVED NOTIFICATION SERVICE
+ * 
+ * Alur Notifikasi Sesuai Kebutuhan:
+ * 1. User buat request → Reminder masuk ke ADMIN
+ * 2. Saat deadline → Notifikasi ke ADMIN dan USER
+ * 3. Pesan jelas dan spesifik
+ * 4. Tidak ada duplikasi notifikasi
+ */
+
 // Function to create an instant notification for a new or updated reminder
 export async function createInstantNotificationForReminder(
   entityId: string, 
   entityType: 'SCHEDULE' | 'CALIBRATION' | 'MAINTENANCE' | 'RENTAL'
 ) {
   try {
-    console.log(`[createInstantNotification] Received request for ${entityType} ID: ${entityId}`);
+    console.log(`🔔 [INSTANT] Creating notification for ${entityType} ID: ${entityId}`);
     
-    // Step 1: Create or update the reminder.
-    // This logic needs to be specific to the entity type.
+    // Step 1: Create or update the reminder
     let reminder;
     switch (entityType) {
       case 'SCHEDULE':
@@ -35,38 +44,39 @@ export async function createInstantNotificationForReminder(
     }
 
     if (!reminder) {
-      console.log(`[createInstantNotification] Reminder creation/update was skipped for ${entityType} ID: ${entityId}. No notification will be created.`);
+      console.log(`⏭️ [INSTANT] Reminder creation skipped for ${entityType} ID: ${entityId}`);
       return { status: 'reminder_skipped' };
     }
     
-    console.log(`[createInstantNotification] Reminder ${reminder.id} created/updated for ${entityType} ID: ${entityId}`);
+    console.log(`✅ [INSTANT] Reminder ${reminder.id} created for ${entityType} ID: ${entityId}`);
 
-    // Step 2: Check if a notification should be created right now.
-    // We only create an instant notification if the due date is today.
+    // Step 2: Check if instant notification should be created
+    // Only create instant notification if due date is today or overdue
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const dueDate = new Date(reminder.dueDate);
     dueDate.setHours(0, 0, 0, 0);
 
-    if (today.getTime() !== dueDate.getTime()) {
-      console.log(`[createInstantNotification] Due date for reminder ${reminder.id} is not today. Cron job will handle it. Skipping instant notification.`);
+    const isToday = today.getTime() === dueDate.getTime();
+    const isOverdue = today.getTime() > dueDate.getTime();
+
+    if (!isToday && !isOverdue) {
+      console.log(`⏭️ [INSTANT] Due date not today/overdue for reminder ${reminder.id}. Cron will handle it.`);
       return { status: 'notification_deferred' };
     }
 
-    // Step 3: Create the notification instantly.
-    const notification = await prisma.notification.create({
-      data: {
-        userId: reminder.userId,
-        reminderId: reminder.id,
-        title: reminder.title,
-        message: reminder.message,
-        isRead: false,
-        shouldPlaySound: true,
-      },
+    // Step 3: Create instant notification for admin (reminder is assigned to admin)
+    const notification = await createNotification({
+      userId: reminder.userId, // This is admin ID
+      reminderId: reminder.id,
+      title: `[ADMIN] ${reminder.title}`,
+      message: `${reminder.message} (Permintaan baru dari user)`,
+      isRead: false,
+      shouldPlaySound: true,
     });
 
-    console.log(`[createInstantNotification] Instantly created notification ${notification.id} for reminder ${reminder.id}`);
+    console.log(`✅ [INSTANT] Created notification ${notification.id} for admin`);
     
     return { 
       status: 'created',
@@ -75,19 +85,19 @@ export async function createInstantNotificationForReminder(
     };
     
   } catch (error) {
-    console.error(`[createInstantNotification] Error creating instant notification for ${entityType} ID ${entityId}:`, error);
-    // Do not re-throw, as this might break the primary user action (e.g., creating a schedule)
+    console.error(`❌ [INSTANT] Error creating notification for ${entityType} ID ${entityId}:`, error);
     return { status: 'error', error };
   }
 }
 
-
-// Create a new notification (with enhanced duplicate check)
+// Create a new notification with enhanced duplicate prevention
 export async function createNotification(data: any) {
   try {
-    const { userId, reminderId, title } = data;
+    const { userId, reminderId, title, message } = data;
     
-    // Check for existing notifications with the same reminderId
+    console.log(`🔔 Creating notification for user ${userId}, reminder ${reminderId}`);
+    
+    // Enhanced duplicate check
     if (reminderId) {
       const existingNotification = await prisma.notification.findFirst({
         where: {
@@ -95,8 +105,8 @@ export async function createNotification(data: any) {
           reminderId,
           isRead: false,
           createdAt: {
-            // Only consider notifications created in the last 24 hours as duplicates
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+            // Consider notifications in last 12 hours as duplicates
+            gte: new Date(Date.now() - 12 * 60 * 60 * 1000)
           }
         },
         orderBy: {
@@ -104,74 +114,121 @@ export async function createNotification(data: any) {
         }
       });
       
-      // If we found a duplicate, return it instead of creating a new one
       if (existingNotification) {
-        console.log(`Found existing notification ${existingNotification.id} for reminder ${reminderId}. Skipping creation.`);
+        console.log(`⏭️ Found existing notification ${existingNotification.id} for reminder ${reminderId}. Skipping creation.`);
         return existingNotification;
       }
     }
     
-    // No duplicate found, create a new notification
+    // Create new notification
     const newNotification = await prisma.notification.create({
       data: {
-        ...data,
-        // Ensure these fields have default values
+        userId,
+        reminderId,
+        title,
+        message,
         isRead: data.isRead ?? false,
-        shouldPlaySound: data.shouldPlaySound ?? true
+        shouldPlaySound: data.shouldPlaySound ?? true,
+        createdAt: new Date(),
       }
     });
     
-    console.log(`Created notification ${newNotification.id} for user ${userId}`);
+    console.log(`✅ Created notification ${newNotification.id} for user ${userId}`);
     return newNotification;
+    
   } catch (error) {
-    console.error('Error creating notification:', error);
+    console.error('❌ Error creating notification:', error);
     throw error;
   }
 }
 
+// Get user notifications with improved filtering and deduplication
 export async function getUserNotifications(
   userId: string,
   options: {
     page?: number;
     limit?: number;
     type?: 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL';
+    overdueOnly?: boolean;
   } = {}
 ) {
   try {
-    const { page = 1, limit = 100, type = 'ALL' } = options;
+    const { page = 1, limit = 100, type = 'ALL', overdueOnly = false } = options;
     const skip = (page - 1) * limit;
 
-    const whereClause: any = { userId };
+    console.log(`📋 Getting notifications for user ${userId}, type: ${type}, overdueOnly: ${overdueOnly}`);
+
+    let whereClause: any = { userId };
+    
+    // Filter by type if specified
     if (type !== 'ALL') {
       whereClause.reminder = {
         type: type,
       };
     }
+    
+    // Filter for overdue only if requested
+    if (overdueOnly) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      whereClause.reminder = {
+        ...whereClause.reminder,
+        dueDate: { lt: today },
+        status: { in: ['PENDING', 'SENT'] },
+        acknowledgedAt: null,
+      };
+    }
 
-    // Get total count and notifications in a single transaction
+    // Get notifications with full reminder details
     const [totalNotifications, allNotifications] = await prisma.$transaction([
       prisma.notification.count({ where: whereClause }),
       prisma.notification.findMany({
         where: whereClause,
         skip,
         take: limit,
-      orderBy: {
-          createdAt: 'desc',
-      },
-      include: {
-        reminder: {
-          include: {
-              calibration: { include: { item: true, customer: true } },
-              rental: { include: { item: true, customer: true } },
-              maintenance: { include: { item: true } },
-              inventoryCheck: true,
+        orderBy: [
+          { isRead: 'asc' }, // Unread first
+          { createdAt: 'desc' }, // Newest first
+        ],
+        include: {
+          reminder: {
+            include: {
+              calibration: { 
+                include: { 
+                  item: true, 
+                  customer: true,
+                  user: true 
+                } 
+              },
+              rental: { 
+                include: { 
+                  item: true, 
+                  customer: true,
+                  user: true 
+                } 
+              },
+              maintenance: { 
+                include: { 
+                  item: true,
+                  user: true 
+                } 
+              },
+              inventoryCheck: {
+                include: {
+                  createdBy: true, // FIXED: Use createdBy instead of user
+                  items: true
+                }
+              },
+              item: true,
+              user: true,
             },
           },
         },
       }),
     ]);
 
-    // Deduplicate notifications based on reminderId, keeping only the newest.
+    // Deduplicate notifications based on reminderId (keep newest)
     const uniqueNotifications = [];
     const seenReminderIds = new Set();
     const notificationsToDelete = [];
@@ -179,32 +236,77 @@ export async function getUserNotifications(
     for (const notification of allNotifications) {
       if (notification.reminderId) {
         if (seenReminderIds.has(notification.reminderId)) {
+          // Mark older duplicate for deletion
           notificationsToDelete.push(notification.id);
         } else {
           uniqueNotifications.push(notification);
           seenReminderIds.add(notification.reminderId);
         }
       } else {
+        // Notifications without reminderId are kept
         uniqueNotifications.push(notification);
       }
     }
     
+    // Delete duplicates in background
     if (notificationsToDelete.length > 0) {
-      // Deletion can happen in the background, no need to await
+      console.log(`🗑️ Deleting ${notificationsToDelete.length} duplicate notifications`);
       prisma.notification.deleteMany({
         where: { id: { in: notificationsToDelete } },
-      }).catch(err => console.error("Error during background duplicate deletion:", err));
+      }).catch(err => console.error("Error deleting duplicates:", err));
     }
 
-    const processedNotifications = uniqueNotifications
-      .map(notification => ({
+    // Process notifications with enhanced information
+    const processedNotifications = uniqueNotifications.map(notification => {
+      let enhancedNotification = {
         ...notification,
-        shouldPlaySound: notification.reminder && !notification.isRead
-      }))
-      .sort((a, b) => {
-        if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        shouldPlaySound: notification.reminder && !notification.isRead,
+      };
+
+      // Add context information based on reminder type
+      if (notification.reminder) {
+        const reminder = notification.reminder;
+        let contextInfo = '';
+        let originalUser = '';
+
+        switch (reminder.type) {
+          case 'CALIBRATION':
+            if (reminder.calibration) {
+              originalUser = reminder.calibration.user?.name || 'Unknown User';
+              contextInfo = `Kalibrasi oleh ${originalUser}`;
+            }
+            break;
+          case 'RENTAL':
+            if (reminder.rental) {
+              originalUser = reminder.rental.user?.name || 'Unknown User';
+              contextInfo = `Rental oleh ${originalUser}`;
+            }
+            break;
+          case 'MAINTENANCE':
+            if (reminder.maintenance) {
+              originalUser = reminder.maintenance.user?.name || 'Unknown User';
+              contextInfo = `Maintenance oleh ${originalUser}`;
+            }
+            break;
+          case 'SCHEDULE':
+            if (reminder.inventoryCheck) {
+              originalUser = reminder.inventoryCheck.createdBy?.name || 'Unknown User'; // FIXED: Use createdBy
+              contextInfo = `Jadwal oleh ${originalUser}`;
+            }
+            break;
+        }
+
+        enhancedNotification = {
+          ...enhancedNotification,
+          contextInfo,
+          originalUser,
+        };
+      }
+
+      return enhancedNotification;
     });
+
+    console.log(`📋 Returning ${processedNotifications.length} unique notifications`);
 
     return {
       notifications: processedNotifications,
@@ -215,7 +317,7 @@ export async function getUserNotifications(
     };
     
   } catch (error) {
-    console.error('Error fetching user notifications:', error);
+    console.error('❌ Error fetching user notifications:', error);
     return {
       notifications: [],
       total: 0,
@@ -226,34 +328,32 @@ export async function getUserNotifications(
   }
 }
 
+// Get overdue notifications with enhanced filtering
 export async function getOverdueNotifications(userId: string) {
   try {
-    console.log(`Getting overdue notifications for user ${userId}`);
+    console.log(`⏰ Getting overdue notifications for user ${userId}`);
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Get reminders that are due today or overdue (due date today or in the past)
-    // and not acknowledged
-    const dueReminderIds = await prisma.$queryRaw<Array<{id: string}>>`
+    // Get reminders that are overdue and not acknowledged
+    const overdueReminderIds = await prisma.$queryRaw<Array<{id: string}>>`
       SELECT id FROM "Reminder"
-      WHERE "dueDate" < ${tomorrow}
+      WHERE "dueDate" < ${today}
       AND status IN ('PENDING', 'SENT')
       AND ("acknowledgedAt" IS NULL OR status != 'ACKNOWLEDGED')
     `;
     
-    // Convert raw results to array of IDs
-    const reminderIds = dueReminderIds.map(r => r.id);
+    const reminderIds = overdueReminderIds.map(r => r.id);
     
-    console.log(`Found ${reminderIds.length} due reminder IDs`);
+    console.log(`📋 Found ${reminderIds.length} due reminder IDs`);
     
     if (reminderIds.length === 0) {
+      console.log(`📋 Found 0 overdue notifications`);
       return [];
     }
     
-    // Then get notifications related to these reminders
+    // Get notifications for these overdue reminders
     const notifications = await prisma.notification.findMany({
       where: {
         userId,
@@ -262,9 +362,9 @@ export async function getOverdueNotifications(userId: string) {
         },
         isRead: false
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { createdAt: 'desc' },
+      ],
       include: {
         reminder: {
           include: {
@@ -272,85 +372,187 @@ export async function getOverdueNotifications(userId: string) {
               include: {
                 item: true,
                 customer: true,
+                user: true,
               },
             },
             rental: {
               include: {
                 item: true,
                 customer: true,
+                user: true,
               },
             },
             maintenance: {
               include: {
                 item: true,
+                user: true,
               },
             },
-            inventoryCheck: true,
+            inventoryCheck: {
+              include: {
+                createdBy: true, // FIXED: Use createdBy instead of user
+                items: true
+              }
+            },
+            item: true,
+            user: true,
           },
         },
       },
     });
     
-    console.log(`Found ${notifications.length} overdue notifications`);
+    console.log(`📋 Found ${notifications.length} overdue notifications`);
     
-    // Add shouldPlaySound property to each notification
-    const notificationsWithSound = notifications.map(notification => ({
+    // Add enhanced properties
+    const enhancedNotifications = notifications.map(notification => ({
       ...notification,
-      shouldPlaySound: true
+      shouldPlaySound: true,
+      isOverdue: true,
     }));
     
-    return notificationsWithSound;
+    return enhancedNotifications;
+    
   } catch (error) {
-    console.error('Error getting overdue notifications:', error);
+    console.error('❌ Error getting overdue notifications:', error);
     return [];
   }
 }
 
+// Get unread notification count
 export async function getUnreadNotificationCount(userId: string) {
-  const count = await prisma.notification.count({
-    where: {
-      userId,
-      isRead: false,
-    },
-  });
-  
-  return count;
+  try {
+    const count = await prisma.notification.count({
+      where: {
+        userId,
+        isRead: false,
+      },
+    });
+    
+    console.log(`📊 User ${userId} has ${count} unread notifications`);
+    return count;
+    
+  } catch (error) {
+    console.error('❌ Error getting unread count:', error);
+    return 0;
+  }
 }
 
+// Mark notification as read
 export async function markNotificationAsRead(notificationId: string) {
-  return prisma.notification.update({
-    where: { id: notificationId },
-    data: {
-      isRead: true,
-      readAt: new Date(),
-    },
-  });
+  try {
+    console.log(`✅ Marking notification ${notificationId} as read`);
+    
+    // First check if notification exists
+    const existingNotification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+    
+    if (!existingNotification) {
+      console.log(`⚠️ Notification ${notificationId} not found, may have been already deleted`);
+      return null;
+    }
+    
+    const notification = await prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+    
+    console.log(`✅ Notification ${notificationId} marked as read`);
+    return notification;
+    
+  } catch (error) {
+    console.error(`❌ Error marking notification as read:`, error);
+    
+    // Handle specific Prisma error for record not found
+    if (error.code === 'P2025') {
+      console.log(`⚠️ Notification ${notificationId} was already deleted`);
+      return null;
+    }
+    
+    throw error;
+  }
 }
 
+// Mark all notifications as read
 export async function markAllNotificationsAsRead(userId: string) {
-  return prisma.notification.updateMany({
-    where: {
-      userId,
-      isRead: false,
-    },
-    data: {
-      isRead: true,
-      readAt: new Date(),
-    },
-  });
+  try {
+    console.log(`✅ Marking all notifications as read for user ${userId}`);
+    
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+    
+    console.log(`✅ Marked ${result.count} notifications as read for user ${userId}`);
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Error marking all notifications as read:`, error);
+    throw error;
+  }
 }
 
+// FIXED: Delete notification with existence check and proper error handling
 export async function deleteNotification(notificationId: string) {
-  return prisma.notification.delete({
-    where: { id: notificationId },
-  });
+  try {
+    console.log(`🗑️ Deleting notification ${notificationId}`);
+    
+    // First check if notification exists
+    const existingNotification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+    
+    if (!existingNotification) {
+      console.log(`⚠️ Notification ${notificationId} not found, may have been already deleted`);
+      return null; // Return null instead of throwing error
+    }
+    
+    const notification = await prisma.notification.delete({
+      where: { id: notificationId },
+    });
+    
+    console.log(`✅ Deleted notification ${notificationId}`);
+    return notification;
+    
+  } catch (error) {
+    console.error(`❌ Error deleting notification:`, error);
+    
+    // Handle specific Prisma error for record not found
+    if (error.code === 'P2025') {
+      console.log(`⚠️ Notification ${notificationId} was already deleted`);
+      return null; // Return null for already deleted notifications
+    }
+    
+    throw error;
+  }
 }
 
+// Delete all read notifications
 export async function deleteAllReadNotifications(userId: string) {
-  return prisma.notification.deleteMany({
-    where: {
-      userId,
-      isRead: true,
-    },
-  });
-} 
+  try {
+    console.log(`🗑️ Deleting all read notifications for user ${userId}`);
+    
+    const result = await prisma.notification.deleteMany({
+      where: {
+        userId,
+        isRead: true,
+      },
+    });
+    
+    console.log(`✅ Deleted ${result.count} read notifications for user ${userId}`);
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Error deleting read notifications:`, error);
+    throw error;
+  }
+}

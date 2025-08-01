@@ -53,6 +53,11 @@ export async function PATCH(
 
     if (typeof isRead === 'boolean') {
       const updatedNotification = await markNotificationAsRead(notificationId);
+      
+      if (updatedNotification === null) {
+        return NextResponse.json({ error: 'Notification not found or already deleted' }, { status: 404 });
+      }
+      
       return NextResponse.json({ 
         success: true, 
         notification: updatedNotification 
@@ -94,21 +99,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify notification belongs to user
+    // Verify notification belongs to user (only if it exists)
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId }
     });
 
-    if (!notification) {
-      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-    }
-
-    if (notification.userId !== user.id) {
+    if (notification && notification.userId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Delete notification
-    await deleteNotification(notificationId);
+    // Delete notification - handle case where it might already be deleted
+    const deletedNotification = await deleteNotification(notificationId);
+    
+    if (deletedNotification === null) {
+      // Notification was already deleted or not found - still return success
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Notification was already deleted' 
+      });
+    }
     
     return NextResponse.json({ 
       success: true, 

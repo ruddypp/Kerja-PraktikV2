@@ -276,10 +276,10 @@ Salam hormat,
 Tim Paramata
     `;
     
-    // UPDATED: Gunakan Outlook URL scheme untuk membuka Outlook di browser
-    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(customer.contactEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // Gunakan Gmail URL scheme untuk membuka Gmail di browser
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(customer.contactEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    return outlookUrl;
+    return gmailUrl;
   };
 
   const getStatusBadgeClass = (status: string, dueDate: string) => {
@@ -524,7 +524,7 @@ Tim Paramata
                           {emailLink && (
                             <a
                               href={emailLink}
-                              className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md text-xs flex items-center justify-center"
+                              className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded-md text-xs flex items-center justify-center"
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => {
@@ -539,7 +539,7 @@ Tim Paramata
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                               </svg>
-                              Kirim Email (Outlook)
+                              Kirim Email
                             </a>
                           )}
                         </div>
@@ -636,4 +636,4 @@ Tim Paramata
       </div>
     </div>
   );
-}
+} 

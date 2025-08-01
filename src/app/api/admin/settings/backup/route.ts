@@ -3,12 +3,41 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
 const execAsync = promisify(exec);
+const prisma = new PrismaClient();
+
+// Fungsi helper untuk mencatat aktivitas ke history
+async function logActivity(userId: string, action: string, details: string) {
+  try {
+    await prisma.activityLog.create({
+      data: {
+        type: 'USER_UPDATED', // Menggunakan type yang ada
+        action: action,
+        details: details,
+        userId: userId,
+      }
+    });
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+}
 
 // Gunakan command langsung tanpa PrismaClient untuk menghindari konflik
 export async function POST(req: Request) {
+  let user = null;
   try {
+    // Verifikasi autentikasi admin
+    user = await getUserFromRequest(req);
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized access'
+      }, { status: 401 });
+    }
+
     // Parse request body untuk mendapatkan format yang diinginkan
     let format = 'sql'; // default format
     try {
@@ -63,6 +92,13 @@ export async function POST(req: Request) {
       const dumpResult = await createBackup(dbInfo, timestamp, backupDir, 'dump');
       
       if (sqlResult.success && dumpResult.success) {
+        // Log aktivitas backup berhasil
+        await logActivity(
+          user.id,
+          'Database Backup',
+          `Admin ${user.name} berhasil membuat backup database dalam format SQL dan DUMP. File SQL: ${sqlResult.details?.fileSize}, File DUMP: ${dumpResult.details?.fileSize}`
+        );
+
         return NextResponse.json({
           success: true,
           message: `Backup database PostgreSQL berhasil dibuat dalam kedua format pada ${new Date().toLocaleString('id-ID')}`,
@@ -74,6 +110,13 @@ export async function POST(req: Request) {
           }
         });
       } else {
+        // Log aktivitas backup dengan peringatan
+        await logActivity(
+          user.id,
+          'Database Backup',
+          `Admin ${user.name} melakukan backup database dengan peringatan. SQL: ${sqlResult.success ? 'berhasil' : 'gagal'}, DUMP: ${dumpResult.success ? 'berhasil' : 'gagal'}`
+        );
+
         // Jika salah satu gagal, berikan detail error
         return NextResponse.json({
           success: sqlResult.success || dumpResult.success,
@@ -90,6 +133,23 @@ export async function POST(req: Request) {
     } else {
       // Format tunggal (sql atau dump)
       const backupResult = await createBackup(dbInfo, timestamp, backupDir, format);
+      
+      if (backupResult.success) {
+        // Log aktivitas backup berhasil
+        await logActivity(
+          user.id,
+          'Database Backup',
+          `Admin ${user.name} berhasil membuat backup database dalam format ${format.toUpperCase()}. Ukuran file: ${backupResult.details?.fileSize}, Tabel: ${backupResult.details?.tables || 'N/A'}`
+        );
+      } else {
+        // Log aktivitas backup gagal
+        await logActivity(
+          user.id,
+          'Database Backup',
+          `Admin ${user.name} gagal membuat backup database dalam format ${format.toUpperCase()}. Error: ${backupResult.error}`
+        );
+      }
+
       return NextResponse.json(backupResult);
     }
   } catch (error: any) {
@@ -117,6 +177,10 @@ async function createBackup(dbInfo: any, timestamp: string, backupDir: string, f
   
   const backupFilePath = path.join(backupDir, `backup-${timestamp}.${fileExtension}`);
   
+  // Daftar tabel yang akan dikecualikan dari backup (tidak backup tabel User)
+  const excludedTables = ['User'];
+  const excludeTableParams = excludedTables.map(table => `--exclude-table=${table}`).join(' ');
+  
   // Buat command pg_dump dengan parameter terpisah untuk menghindari masalah shell escaping
   // Kita buat script batch sederhana di folder temp
   const isWindows = process.platform === 'win32';
@@ -127,12 +191,12 @@ async function createBackup(dbInfo: any, timestamp: string, backupDir: string, f
     // Windows batch script
     scriptContent = `@echo off\r\n`;
     scriptContent += `set PGPASSWORD=${dbInfo.password}\r\n`;
-    scriptContent += `pg_dump -h ${dbInfo.host} -p ${dbInfo.port} -U ${dbInfo.username} -d ${dbInfo.database} -f "${backupFilePath}" --no-owner --format=${pgDumpFormat}\r\n`;
+    scriptContent += `pg_dump -h ${dbInfo.host} -p ${dbInfo.port} -U ${dbInfo.username} -d ${dbInfo.database} -f "${backupFilePath}" --no-owner --format=${pgDumpFormat} ${excludeTableParams}\r\n`;
   } else {
     // Bash script
     scriptContent = `#!/bin/bash\n`;
     scriptContent += `export PGPASSWORD="${dbInfo.password}"\n`;
-    scriptContent += `pg_dump -h ${dbInfo.host} -p ${dbInfo.port} -U ${dbInfo.username} -d ${dbInfo.database} -f "${backupFilePath}" --no-owner --format=${pgDumpFormat}\n`;
+    scriptContent += `pg_dump -h ${dbInfo.host} -p ${dbInfo.port} -U ${dbInfo.username} -d ${dbInfo.database} -f "${backupFilePath}" --no-owner --format=${pgDumpFormat} ${excludeTableParams}\n`;
   }
   
   // Tulis script

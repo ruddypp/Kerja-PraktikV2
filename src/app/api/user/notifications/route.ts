@@ -17,6 +17,34 @@ export async function GET(request: Request) {
     // Coba dapatkan user dari request terlebih dahulu
     const user = await getUserFromRequest(request);
     
+    // FIXED: Better URL parsing with error handling
+    let searchParams;
+    try {
+      const url = new URL(request.url);
+      searchParams = url.searchParams;
+    } catch (urlError) {
+      console.error('Error parsing URL:', urlError);
+      searchParams = new URLSearchParams();
+    }
+    
+    // FIXED: Safe parameter extraction with defaults
+    const countOnly = searchParams.get('countOnly') === 'true';
+    const overdueOnly = searchParams.get('overdueOnly') === 'true';
+    const typeParam = searchParams.get('type');
+    const type = (typeParam && ['SCHEDULE', 'CALIBRATION', 'RENTAL', 'MAINTENANCE', 'ALL'].includes(typeParam)) 
+      ? typeParam as 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL' 
+      : 'ALL';
+    
+    const pageParam = searchParams.get('page');
+    const page = pageParam ? Math.max(1, parseInt(pageParam) || 1) : 1;
+    
+    // Add anti-cache headers to all responses
+    const headers = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
+    
     // Jika tidak ada user, coba dapatkan dari next-auth session
     if (!user) {
       console.log('No user from request, trying server session');
@@ -29,19 +57,6 @@ export async function GET(request: Request) {
         
         if (dbUser) {
           console.log(`User found via session: ${dbUser.id}`);
-          // Lanjutkan dengan user dari session
-          const { searchParams } = new URL(request.url);
-          const countOnly = searchParams.get('countOnly') === 'true';
-          const overdueOnly = searchParams.get('overdueOnly') === 'true';
-          const type = searchParams.get('type') as 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL' || 'ALL';
-          const page = parseInt(searchParams.get('page') || '1');
-          
-          // Add anti-cache headers to all responses
-          const headers = {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          };
           
           if (countOnly) {
             try {
@@ -68,7 +83,13 @@ export async function GET(request: Request) {
             return NextResponse.json(data, { headers });
           } catch (error) {
             console.error('Error fetching notifications:', error);
-            return NextResponse.json({ error: 'Failed to fetch notifications', notifications: [], total: 0, page: 1, totalPages: 0 }, { status: 500, headers });
+            return NextResponse.json({ 
+              error: 'Failed to fetch notifications', 
+              notifications: [], 
+              total: 0, 
+              page: 1, 
+              totalPages: 0 
+            }, { status: 500, headers });
           }
         }
       }
@@ -77,28 +98,18 @@ export async function GET(request: Request) {
       console.log('No user found in session, returning unauthorized');
       return NextResponse.json({ 
         error: 'Unauthorized - Silakan login kembali', 
-        notifications: [] 
+        notifications: [],
+        total: 0,
+        page: 1,
+        totalPages: 0
       }, { status: 401 });
     }
     
     // Kode asli dengan user dari getUserFromRequest
-    const { searchParams } = new URL(request.url);
-    const countOnly = searchParams.get('countOnly') === 'true';
-    const overdueOnly = searchParams.get('overdueOnly') === 'true';
-    const type = searchParams.get('type') as 'SCHEDULE' | 'CALIBRATION' | 'RENTAL' | 'MAINTENANCE' | 'ALL' || 'ALL';
-    const page = parseInt(searchParams.get('page') || '1');
-    
-    // Add anti-cache headers to all responses
-    const headers = {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    };
-    
     if (countOnly) {
       try {
         const count = await getUnreadNotificationCount(user.id);
-        // console.log(`Unread notification count for user ${user.id}: ${count}`);
+        console.log(`Unread notification count for user ${user.id}: ${count}`);
         
         return NextResponse.json({ count }, { headers });
       } catch (error) {
@@ -110,7 +121,7 @@ export async function GET(request: Request) {
     if (overdueOnly) {
       try {
         const notifications = await getOverdueNotifications(user.id);
-        // console.log(`Found ${notifications.length} overdue notifications for user ${user.id}`);
+        console.log(`Found ${notifications.length} overdue notifications for user ${user.id}`);
         
         return NextResponse.json({ notifications }, { headers });
       } catch (error) {
@@ -121,16 +132,28 @@ export async function GET(request: Request) {
     
     try {
       const data = await getUserNotifications(user.id, { page, type });
-      // console.log(`Found ${data.notifications.length} notifications for user ${user.id}`);
+      console.log(`Found ${data.notifications.length} notifications for user ${user.id}`);
       
       return NextResponse.json(data, { headers });
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      return NextResponse.json({ error: 'Failed to fetch notifications', notifications: [], total: 0, page: 1, totalPages: 0 }, { status: 500, headers });
+      return NextResponse.json({ 
+        error: 'Failed to fetch notifications', 
+        notifications: [], 
+        total: 0, 
+        page: 1, 
+        totalPages: 0 
+      }, { status: 500, headers });
     }
   } catch (error) {
     console.error('Error in notifications API:', error);
-    return NextResponse.json({ error: 'Internal server error', notifications: [] }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      notifications: [],
+      total: 0,
+      page: 1,
+      totalPages: 0
+    }, { status: 500 });
   }
 }
 
@@ -138,6 +161,17 @@ export async function POST(request: Request) {
   try {
     // Coba dapatkan user dari request terlebih dahulu
     const user = await getUserFromRequest(request);
+    
+    // FIXED: Better JSON parsing with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      console.error('Error parsing JSON:', jsonError);
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    
+    const { action } = body;
     
     // Jika tidak ada user, coba dapatkan dari next-auth session
     if (!user) {
@@ -151,9 +185,6 @@ export async function POST(request: Request) {
         
         if (dbUser) {
           console.log(`User found via session for POST: ${dbUser.id}`);
-          
-          const body = await request.json();
-          const { action } = body;
           
           if (action === 'markAllRead') {
             try {
@@ -186,9 +217,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized - Silakan login kembali' }, { status: 401 });
     }
     
-    const body = await request.json();
-    const { action } = body;
-    
     if (action === 'markAllRead') {
       try {
         await markAllNotificationsAsRead(user.id);
@@ -218,4 +246,4 @@ export async function POST(request: Request) {
     console.error('Error in notifications POST API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}
